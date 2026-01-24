@@ -1,0 +1,179 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Core semantic tokens */
+    --background: 45 30% 97%;
+    --foreground: 240 10% 16%;
+
+    /* Surface hierarchy */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 16%;
+
+    /* Brand colors - Warm coral */
+    --primary: 16 85% 58%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Soft sage */
+    --secondary: 158 30% 94%;
+    --secondary-foreground: 158 40% 30%;
+
+    /* Muted - Warm gray */
+    --muted: 40 15% 93%;
+    --muted-foreground: 240 5% 46%;
+
+    /* Accent - Soft lavender */
+    --accent: 270 40% 95%;
+    --accent-foreground: 270 40% 35%;
+
+    /* Semantic status colors */
+    --success: 158 60% 42%;
+    --success-foreground: 0 0% 100%;
+    --success-muted: 158 40% 94%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 15%;
+    --warning-muted: 38 70% 94%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-muted: 0 60% 96%;
+
+    /* UI elements */
+    --border: 40 15% 88%;
+    --input: 40 15% 88%;
+    --ring: 16 85% 58%;
+    --radius: 0.75rem;
+
+    /* Sidebar specific */
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 240 10% 16%;
+    --sidebar-border: 40 15% 90%;
+    --sidebar-accent: 16 85% 58%;
+  }
+
+  .dark {
+    --background: 240 10% 6%;
+    --foreground: 40 15% 96%;
+
+    --card: 240 10% 9%;
+    --card-foreground: 40 15% 96%;
+    --popover: 240 10% 9%;
+    --popover-foreground: 40 15% 96%;
+
+    --primary: 16 80% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 158 20% 16%;
+    --secondary-foreground: 158 30% 85%;
+
+    --muted: 240 10% 14%;
+    --muted-foreground: 40 10% 60%;
+
+    --accent: 270 25% 18%;
+    --accent-foreground: 270 40% 85%;
+
+    --success: 158 55% 45%;
+    --success-foreground: 0 0% 100%;
+    --success-muted: 158 25% 14%;
+
+    --warning: 38 85% 50%;
+    --warning-foreground: 38 92% 10%;
+    --warning-muted: 38 35% 14%;
+
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-muted: 0 35% 14%;
+
+    --border: 240 10% 16%;
+    --input: 240 10% 16%;
+    --ring: 16 80% 60%;
+
+    --sidebar: 240 10% 7%;
+    --sidebar-foreground: 40 15% 96%;
+    --sidebar-border: 240 10% 12%;
+    --sidebar-accent: 16 80% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Fraunces', Georgia, serif;
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  /* Card hover effect */
+  .card-interactive {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .card-interactive:hover {
+    @apply shadow-lg -translate-y-0.5;
+  }
+
+  /* Icon container with subtle background */
+  .icon-container {
+    @apply p-3 rounded-2xl bg-primary/10 text-primary;
+  }
+
+  .icon-container-success {
+    @apply p-3 rounded-2xl bg-success-muted text-success;
+  }
+
+  /* Page transition wrapper */
+  .page-enter {
+    animation: page-enter 0.3s ease-out forwards;
+  }
+}
+
+@layer utilities {
+  /* Success text using semantic token */
+  .text-success {
+    color: hsl(var(--success));
+  }
+
+  /* Warning text using semantic token */
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+}
+
+/* Animations */
+@keyframes page-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered animation delays for lists */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
