@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Code2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { navItems } from '@/lib/navigation';
+import { useDevMode } from '@/components/dev/DevModeProvider';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { isDevMode, toggleDevMode } = useDevMode();
 
   return (
     <div className="w-56 h-full border-r border-border/50 bg-background flex flex-col">
@@ -45,9 +47,19 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="p-3 border-t border-border/50">
-        <p className="text-xs text-muted-foreground px-3">
-          Extract data from PDFs
-        </p>
+        <button
+          onClick={toggleDevMode}
+          className={cn(
+            'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors w-full',
+            isDevMode
+              ? 'bg-primary/10 text-primary font-medium'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+          )}
+          title={isDevMode ? 'Hide dev tools' : 'Show dev tools'}
+        >
+          <Code2 className="h-4 w-4" />
+          Dev Mode
+        </button>
       </div>
     </div>
   );
