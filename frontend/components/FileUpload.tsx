@@ -14,7 +14,11 @@ interface UploadResult {
   csv_path: string;
 }
 
-export default function FileUpload() {
+interface FileUploadProps {
+  onSuccess?: () => void;
+}
+
+export default function FileUpload({ onSuccess }: FileUploadProps) {
   const [state, setState] = useState<UploadState>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [result, setResult] = useState<UploadResult | null>(null);
@@ -91,6 +95,7 @@ export default function FileUpload() {
       }
       setResult(data);
       setState('success');
+      onSuccess?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
       setState('error');
