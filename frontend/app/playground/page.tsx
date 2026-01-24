@@ -100,13 +100,19 @@ export default function PlaygroundPage() {
 
   const yearsAfterBreak = results.corpusRunsOutAge - results.ageAtBreak;
   const formatDuration = (years: number) => {
-    if (years < 1) {
-      const months = Math.round(years * 12);
-      return `${months} month${months !== 1 ? 's' : ''} after break`;
-    }
     const fullYears = Math.floor(years);
-    return `${fullYears} year${fullYears !== 1 ? 's' : ''} after break`;
+    const remainingMonths = Math.round((years - fullYears) * 12);
+
+    if (fullYears === 0) {
+      return { primary: `${remainingMonths}`, unit: remainingMonths === 1 ? 'month' : 'months' };
+    }
+    if (remainingMonths === 0) {
+      return { primary: `${fullYears}`, unit: fullYears === 1 ? 'year' : 'years' };
+    }
+    return { primary: `${fullYears}y ${remainingMonths}m`, unit: '' };
   };
+
+  const duration = formatDuration(yearsAfterBreak);
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
@@ -117,13 +123,13 @@ export default function PlaygroundPage() {
           className={`relative block font-serif text-6xl md:text-7xl font-bold tracking-tight text-primary transition-transform duration-300 ${bounce ? 'scale-105' : ''}`}
           style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
         >
-          Age {Math.ceil(results.corpusRunsOutAge)}
+          {duration.primary} <span className="text-4xl md:text-5xl font-medium">{duration.unit}</span>
         </span>
         <span className="relative block text-muted-foreground text-sm mt-2 uppercase tracking-widest">
-          Your money lasts until
+          Your money lasts after break
         </span>
-        <span className="relative block text-foreground/70 text-base mt-1 font-medium">
-          {formatDuration(yearsAfterBreak)}
+        <span className="relative block text-foreground/70 text-base mt-3 font-medium">
+          Until age {Math.ceil(results.corpusRunsOutAge)}
         </span>
         {results.remainingAmount > 0 && (
           <span className="relative inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 text-sm rounded-full bg-muted/60 text-muted-foreground backdrop-blur">
