@@ -19,6 +19,7 @@ export interface CalculationResult {
   amountAtBreak: number;
   ageAtBreak: number;
   corpusRunsOutAge: number;
+  remainingAmount: number; // Amount left when you can't cover a full month
 }
 
 export const DEFAULT_INPUTS: RetirementInputs = {
@@ -55,7 +56,10 @@ export function calculateRetirement(inputs: RetirementInputs): CalculationResult
   const monthlyRateAccum = returnRateAccumulation / 100 / 12;
 
   let amountAtBreak: number;
-  if (monthlyRateAccum === 0) {
+  if (monthsUntilBreak === 0) {
+    // Break starts immediately - no accumulation phase
+    amountAtBreak = currentSavings;
+  } else if (monthlyRateAccum === 0) {
     // No growth case
     amountAtBreak = currentSavings + monthlySavings * monthsUntilBreak;
   } else {
@@ -76,7 +80,8 @@ export function calculateRetirement(inputs: RetirementInputs): CalculationResult
   let monthsInSpending = 0;
   const maxMonths = 100 * 12; // Cap at 100 years of spending to prevent infinite loop
 
-  while (corpus > 0 && monthsInSpending < maxMonths) {
+  // Stop when corpus can't cover a full month's expense
+  while (corpus >= currentExpense && monthsInSpending < maxMonths) {
     // Apply monthly growth
     corpus = corpus * (1 + monthlyRateSpend);
 
@@ -93,11 +98,13 @@ export function calculateRetirement(inputs: RetirementInputs): CalculationResult
 
   const yearsInSpending = monthsInSpending / 12;
   const corpusRunsOutAge = ageAtBreak + yearsInSpending;
+  const remainingAmount = Math.max(0, Math.round(corpus));
 
   return {
     currentAmount: currentSavings,
     amountAtBreak: Math.round(amountAtBreak),
     ageAtBreak,
     corpusRunsOutAge: Math.round(corpusRunsOutAge * 10) / 10, // Round to 1 decimal
+    remainingAmount,
   };
 }

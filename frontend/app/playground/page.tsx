@@ -1,321 +1,258 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Sparkles, Calculator, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react';
-import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { ChevronRight, ArrowRight } from 'lucide-react';
+import { formatCurrency, formatNumber, getCurrencySymbol } from '@/lib/currency';
 import { RetirementInputs, DEFAULT_INPUTS, calculateRetirement } from '@/lib/calculations';
+
+// Inline editable input component
+function InlineInput({
+  value,
+  onChange,
+  unit,
+  prefix,
+  formatAsCurrency = false,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  unit?: string;
+  prefix?: string;
+  formatAsCurrency?: boolean;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [localValue, setLocalValue] = useState(String(value));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setLocalValue(String(value));
+    }
+  }, [value, isEditing]);
+
+  const handleFocus = () => {
+    setIsEditing(true);
+    setLocalValue(String(value));
+  };
+
+  const handleBlur = () => {
+    setIsEditing(false);
+    const cleanValue = localValue.replace(/[^0-9.]/g, '');
+    const numValue = parseFloat(cleanValue) || 0;
+    onChange(numValue);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      inputRef.current?.blur();
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalValue(e.target.value);
+  };
+
+  const displayValue = formatAsCurrency ? formatNumber(value) : String(value);
+  const currentValue = isEditing ? localValue : displayValue;
+  const width = Math.max(currentValue.length, 2) + 1;
+
+  return (
+    <span className="inline-flex items-center relative">
+      {prefix && <span className="text-muted-foreground mr-0.5">{prefix}</span>}
+      <input
+        ref={inputRef}
+        type="text"
+        value={currentValue}
+        onChange={handleChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        style={{ width: `${width}ch` }}
+        inputMode="numeric"
+        className="bg-transparent border-0 p-0 m-0 font-semibold text-foreground text-center rounded transition-all duration-150 focus:outline-none focus:ring-0 focus:bg-primary/10 focus:shadow-[0_2px_0_hsl(var(--primary))] shadow-[0_2px_0_hsl(var(--primary)/0.3)] cursor-pointer hover:bg-primary/5 hover:shadow-[0_2px_0_hsl(var(--primary)/0.5)]"
+      />
+      {unit && <span className="text-muted-foreground ml-0.5 text-[0.85em]">{unit}</span>}
+    </span>
+  );
+}
 
 export default function PlaygroundPage() {
   const [inputs, setInputs] = useState<RetirementInputs>(DEFAULT_INPUTS);
   const [assumptionsOpen, setAssumptionsOpen] = useState(false);
+  const [bounce, setBounce] = useState(false);
 
-  // Display values for currency inputs
-  const [savingsDisplay, setSavingsDisplay] = useState(
-    formatCurrency(inputs.currentSavings, undefined, false)
-  );
-  const [monthlySavingsDisplay, setMonthlySavingsDisplay] = useState(
-    formatCurrency(inputs.monthlySavings, undefined, false)
-  );
-  const [monthlyExpenseDisplay, setMonthlyExpenseDisplay] = useState(
-    formatCurrency(inputs.monthlyExpense, undefined, false)
-  );
-
-  // Calculate results
   const results = useMemo(() => calculateRetirement(inputs), [inputs]);
 
-  const handleNumberChange = (field: keyof RetirementInputs) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value) || 0;
+  const prevAge = useRef(results.corpusRunsOutAge);
+  useEffect(() => {
+    if (prevAge.current !== results.corpusRunsOutAge) {
+      setBounce(true);
+      const timer = setTimeout(() => setBounce(false), 300);
+      prevAge.current = results.corpusRunsOutAge;
+      return () => clearTimeout(timer);
+    }
+  }, [results.corpusRunsOutAge]);
+
+  const updateInput = (field: keyof RetirementInputs) => (value: number) => {
     setInputs((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleCurrencyChange = (
-    field: keyof RetirementInputs,
-    setDisplay: React.Dispatch<React.SetStateAction<string>>
-  ) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/[^0-9]/g, '');
-    const numericValue = parseInt(rawValue) || 0;
-    setInputs((prev) => ({ ...prev, [field]: numericValue }));
-    setDisplay(formatCurrency(numericValue, undefined, false));
+  const currencySymbol = getCurrencySymbol();
+
+  const yearsAfterBreak = results.corpusRunsOutAge - results.ageAtBreak;
+  const formatDuration = (years: number) => {
+    if (years < 1) {
+      const months = Math.round(years * 12);
+      return `${months} month${months !== 1 ? 's' : ''} after break`;
+    }
+    const fullYears = Math.floor(years);
+    return `${fullYears} year${fullYears !== 1 ? 's' : ''} after break`;
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      {/* Page Header */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="icon-container">
-            <Sparkles className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight">
-              Planning Playground
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Tools for analyzing and planning your investments
-            </p>
-          </div>
+    <div className="max-w-2xl mx-auto py-8 px-4">
+      {/* Hero Result */}
+      <div className="relative text-center py-8 px-6 rounded-3xl overflow-hidden bg-gradient-to-br from-primary/[0.08] to-accent/[0.12]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.1)_0%,transparent_50%),radial-gradient(circle_at_70%_80%,hsl(var(--accent)/0.08)_0%,transparent_50%)] pointer-events-none" />
+        <span
+          className={`relative block font-serif text-6xl md:text-7xl font-bold tracking-tight text-primary transition-transform duration-300 ${bounce ? 'scale-105' : ''}`}
+          style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+        >
+          Age {Math.ceil(results.corpusRunsOutAge)}
+        </span>
+        <span className="relative block text-muted-foreground text-sm mt-2 uppercase tracking-widest">
+          Your money lasts until
+        </span>
+        <span className="relative block text-foreground/70 text-base mt-1 font-medium">
+          {formatDuration(yearsAfterBreak)}
+        </span>
+        {results.remainingAmount > 0 && (
+          <span className="relative inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 text-sm rounded-full bg-muted/60 text-muted-foreground backdrop-blur">
+            {formatCurrency(results.remainingAmount)} remaining
+          </span>
+        )}
+      </div>
+
+      {/* Flow Cards */}
+      <div className="flex items-center justify-center gap-3 md:gap-4 my-6">
+        <div className="flex-1 max-w-[180px] p-4 rounded-2xl text-center transition-all duration-200 bg-muted/50 hover:bg-muted/80 hover:-translate-y-0.5">
+          <div className="text-xs text-muted-foreground mb-1">Today</div>
+          <div className="font-semibold text-lg">{formatCurrency(results.currentAmount)}</div>
+        </div>
+        <ArrowRight className="text-muted-foreground/50 flex-shrink-0 h-5 w-5" />
+        <div className="flex-1 max-w-[180px] p-4 rounded-2xl text-center transition-all duration-200 bg-primary/10 hover:-translate-y-0.5">
+          <div className="text-xs text-muted-foreground mb-1">At Break (Age {results.ageAtBreak})</div>
+          <div className="font-semibold text-lg text-primary">{formatCurrency(results.amountAtBreak)}</div>
         </div>
       </div>
 
-      {/* Retirement Calculator */}
-      <Card className="card-interactive">
-        <CardHeader>
-          <div className="flex items-center gap-2 text-primary mb-2">
-            <Calculator className="h-5 w-5" />
-            <span className="text-sm font-medium uppercase tracking-wider">Calculator</span>
-          </div>
-          <CardTitle className="font-display text-2xl">
-            Retirement Planner
-          </CardTitle>
-          <CardDescription className="text-base mt-2">
-            Plan your path to financial independence
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Basic Info */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Basic Info
-            </h3>
-            <div className="grid gap-4 md:grid-cols-3">
-              {/* Current Age */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Current Age
-                </label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    value={inputs.currentAge || ''}
-                    onChange={handleNumberChange('currentAge')}
-                    min={0}
-                    max={100}
-                    placeholder="e.g. 26"
-                    className="pr-12"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    years
-                  </span>
-                </div>
-              </div>
+      {/* Divider */}
+      <div className="border-t border-border/50 my-6" />
 
-              {/* Start Break In */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Start break in
-                </label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    value={inputs.startBreakIn || ''}
-                    onChange={handleNumberChange('startBreakIn')}
-                    min={0}
-                    placeholder="e.g. 4"
-                    className="pr-12"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    years
-                  </span>
-                </div>
-              </div>
+      {/* Story Inputs */}
+      <div className="text-lg md:text-xl leading-relaxed text-foreground/90 space-y-3 py-6 px-2">
+        <p className="m-0">
+          I&apos;m{' '}
+          <InlineInput
+            value={inputs.currentAge}
+            onChange={updateInput('currentAge')}
+          />{' '}
+          years old and want to take a break in{' '}
+          <InlineInput
+            value={inputs.startBreakIn}
+            onChange={updateInput('startBreakIn')}
+          />{' '}
+          years.
+        </p>
+        <p className="m-0">
+          I have{' '}
+          <InlineInput
+            value={inputs.currentSavings}
+            onChange={updateInput('currentSavings')}
+            formatAsCurrency
+            prefix={currencySymbol}
+          />{' '}
+          saved and save{' '}
+          <InlineInput
+            value={inputs.monthlySavings}
+            onChange={updateInput('monthlySavings')}
+            formatAsCurrency
+            prefix={currencySymbol}
+          />{' '}
+          every month.
+        </p>
+        <p className="m-0">
+          I spend{' '}
+          <InlineInput
+            value={inputs.monthlyExpense}
+            onChange={updateInput('monthlyExpense')}
+            formatAsCurrency
+            prefix={currencySymbol}
+          />
+          /month (increasing{' '}
+          <InlineInput
+            value={inputs.expenseIncreaseRate}
+            onChange={updateInput('expenseIncreaseRate')}
+            unit="%"
+          />{' '}
+          yearly).
+        </p>
+      </div>
 
-              {/* Current Savings */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Current Savings
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    {getCurrencySymbol()}
-                  </span>
-                  <Input
-                    type="text"
-                    value={savingsDisplay}
-                    onChange={handleCurrencyChange('currentSavings', setSavingsDisplay)}
-                    placeholder="e.g. 2,50,000"
-                    className="pl-7"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Monthly Figures */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Monthly Figures
-            </h3>
-            <div className="grid gap-4 md:grid-cols-2">
-              {/* Monthly Savings */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Monthly Savings
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    {getCurrencySymbol()}
-                  </span>
-                  <Input
-                    type="text"
-                    value={monthlySavingsDisplay}
-                    onChange={handleCurrencyChange('monthlySavings', setMonthlySavingsDisplay)}
-                    placeholder="e.g. 50,000"
-                    className="pl-7"
-                  />
-                </div>
-              </div>
-
-              {/* Monthly Expense */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Monthly Expense
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    {getCurrencySymbol()}
-                  </span>
-                  <Input
-                    type="text"
-                    value={monthlyExpenseDisplay}
-                    onChange={handleCurrencyChange('monthlyExpense', setMonthlyExpenseDisplay)}
-                    placeholder="e.g. 40,000"
-                    className="pl-7"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Assumptions (Collapsible) */}
-          <div className="space-y-3">
-            <button
-              onClick={() => setAssumptionsOpen(!assumptionsOpen)}
-              className="flex items-center gap-2 text-sm font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
-            >
-              {assumptionsOpen ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-              Assumptions
-              <span className="text-xs font-normal normal-case">
-                (click to {assumptionsOpen ? 'hide' : 'edit'})
+      {/* Assumptions */}
+      <div className="mt-6">
+        <button
+          className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer transition-colors py-2 hover:text-foreground"
+          onClick={() => setAssumptionsOpen(!assumptionsOpen)}
+        >
+          <ChevronRight className={`h-4 w-4 transition-transform duration-200 ${assumptionsOpen ? 'rotate-90' : ''}`} />
+          <span>Assumptions</span>
+          {!assumptionsOpen && (
+            <div className="flex flex-wrap gap-2 ml-5">
+              <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                {inputs.returnRateAccumulation}% returns (saving)
               </span>
-            </button>
-
-            {assumptionsOpen && (
-              <div className="grid gap-4 md:grid-cols-3 pt-2">
-                {/* Return Rate Accumulation */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Return rate (saving)
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      value={inputs.returnRateAccumulation || ''}
-                      onChange={handleNumberChange('returnRateAccumulation')}
-                      min={0}
-                      max={50}
-                      step={0.5}
-                      placeholder="e.g. 12"
-                      className="pr-8"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      %
-                    </span>
-                  </div>
-                </div>
-
-                {/* Return Rate Spending */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Return rate (spending)
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      value={inputs.returnRateSpending || ''}
-                      onChange={handleNumberChange('returnRateSpending')}
-                      min={0}
-                      max={50}
-                      step={0.5}
-                      placeholder="e.g. 8"
-                      className="pr-8"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      %
-                    </span>
-                  </div>
-                </div>
-
-                {/* Expense Increase Rate */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Expense increase
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      value={inputs.expenseIncreaseRate || ''}
-                      onChange={handleNumberChange('expenseIncreaseRate')}
-                      min={0}
-                      max={30}
-                      step={0.5}
-                      placeholder="e.g. 5"
-                      className="pr-8"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      %
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Results */}
-          <div className="pt-4 border-t border-border">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
-              Projection
-            </h3>
-            <div className="grid gap-4 md:grid-cols-3">
-              {/* Current Amount */}
-              <div className="p-4 rounded-xl bg-muted/50 text-center">
-                <p className="text-sm text-muted-foreground mb-1">Today</p>
-                <p className="text-xl font-semibold">
-                  {formatCurrency(results.currentAmount)}
-                </p>
-              </div>
-
-              {/* Arrow */}
-              <div className="hidden md:flex items-center justify-center">
-                <ArrowRight className="h-5 w-5 text-muted-foreground" />
-              </div>
-
-              {/* Amount at Break */}
-              <div className="p-4 rounded-xl bg-primary/10 text-center">
-                <p className="text-sm text-muted-foreground mb-1">
-                  At Break (Age {results.ageAtBreak})
-                </p>
-                <p className="text-xl font-semibold text-primary">
-                  {formatCurrency(results.amountAtBreak)}
-                </p>
-              </div>
+              <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                {inputs.returnRateSpending}% returns (spending)
+              </span>
             </div>
+          )}
+        </button>
 
-            {/* Corpus Runs Out */}
-            <div className="mt-4 p-4 rounded-xl border border-border text-center">
-              <p className="text-sm text-muted-foreground mb-1">Corpus runs out at</p>
-              <p className="text-2xl font-bold">
-                Age {results.corpusRunsOutAge}
-              </p>
+        {assumptionsOpen && (
+          <div className="mt-3 p-4 rounded-xl bg-muted/30 space-y-3 animate-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center gap-3 text-sm">
+              <label className="text-muted-foreground min-w-[140px]">Return rate (saving)</label>
+              <input
+                type="number"
+                value={inputs.returnRateAccumulation}
+                onChange={(e) =>
+                  updateInput('returnRateAccumulation')(parseFloat(e.target.value) || 0)
+                }
+                min={0}
+                max={50}
+                step={0.5}
+                className="w-16 px-2 py-1 text-center rounded-lg border border-input bg-background text-sm"
+              />
+              <span className="text-muted-foreground text-sm">%</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <label className="text-muted-foreground min-w-[140px]">Return rate (spending)</label>
+              <input
+                type="number"
+                value={inputs.returnRateSpending}
+                onChange={(e) =>
+                  updateInput('returnRateSpending')(parseFloat(e.target.value) || 0)
+                }
+                min={0}
+                max={50}
+                step={0.5}
+                className="w-16 px-2 py-1 text-center rounded-lg border border-input bg-background text-sm"
+              />
+              <span className="text-muted-foreground text-sm">%</span>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 }
