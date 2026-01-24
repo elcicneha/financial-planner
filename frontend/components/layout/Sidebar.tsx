@@ -2,21 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Upload, Sparkles, TrendingUp } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const navItems = [
-  {
-    title: 'Upload',
-    href: '/upload',
-    icon: Upload,
-  },
-  {
-    title: 'Playground',
-    href: '/playground',
-    icon: Sparkles,
-  },
-];
+import { navItems } from '@/lib/navigation';
 
 export function Sidebar() {
   const pathname = usePathname();

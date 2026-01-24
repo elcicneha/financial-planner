@@ -7,7 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Backend (FastAPI)
 ```bash
 cd backend
+python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 uvicorn app.main:app --reload  # Runs on http://localhost:8000
 ```
 
@@ -27,6 +29,7 @@ This is a full-stack application for extracting mutual fund transaction data fro
 ### Frontend → Backend Communication
 - Next.js proxies `/api/*` requests to FastAPI backend (configured in `next.config.js`)
 - Frontend runs on port 3000, backend on port 8000
+- UI built with Shadcn/ui components (Radix UI primitives + Tailwind CSS)
 
 ### PDF Extraction Pipeline (5-step process)
 Located in `backend/app/services/pdf_extractor/`:
@@ -50,6 +53,7 @@ Entry point: `extract_transactions()` in `__init__.py`
 - `POST /api/upload` - Upload PDF and process
 - `GET /api/results/{file_id}` - Get processing results
 - `GET /api/download/{file_id}` - Download CSV
+- `GET /api/files` - List all processed CSV files
 - `GET /api/health` - Health check
 
 ### Key Files
@@ -58,3 +62,4 @@ Entry point: `extract_transactions()` in `__init__.py`
 - Pydantic schemas: `backend/app/models/schemas.py`
 - Frontend page: `frontend/app/page.tsx`
 - Upload component: `frontend/components/FileUpload.tsx`
+- Transaction data hook: `frontend/hooks/useTransactionData.ts`

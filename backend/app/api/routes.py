@@ -1,4 +1,5 @@
-import os
+import asyncio
+import re
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -21,6 +22,18 @@ def ensure_directories():
     """Create data directories if they don't exist."""
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def sanitize_filename(filename: str) -> str:
+    """Sanitize filename to prevent path traversal and special characters."""
+    # Remove path components
+    filename = Path(filename).name
+    # Remove special characters, keep only alphanumeric, dash, underscore, dot
+    sanitized = re.sub(r'[^\w\-.]', '_', filename)
+    # Ensure it ends with .pdf
+    if not sanitized.lower().endswith('.pdf'):
+        sanitized = sanitized + '.pdf'
+    return sanitized
 
 
 @router.get("/health")
@@ -46,17 +59,20 @@ async def upload_pdf(file: UploadFile = File(...)):
     upload_folder.mkdir(parents=True, exist_ok=True)
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    # Save uploaded PDF
-    pdf_filename = f"{file_id}_{file.filename}"
+    # Save uploaded PDF with sanitized filename
+    safe_filename = sanitize_filename(file.filename)
+    pdf_filename = f"{file_id}_{safe_filename}"
     pdf_path = upload_folder / pdf_filename
 
     contents = await file.read()
     with open(pdf_path, "wb") as f:
         f.write(contents)
 
-    # Process PDF and extract transactions
+    # Process PDF in thread pool to avoid blocking event loop
     try:
-        csv_path = extract_transactions(pdf_path, output_folder, file_id)
+        csv_path = await asyncio.to_thread(
+            extract_transactions, pdf_path, output_folder, file_id
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
 

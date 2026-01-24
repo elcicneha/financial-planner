@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, Upload, Sparkles, TrendingUp } from 'lucide-react';
+import { Menu, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { navItems } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -13,19 +14,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-
-const navItems = [
-  {
-    title: 'Upload',
-    href: '/upload',
-    icon: Upload,
-  },
-  {
-    title: 'Playground',
-    href: '/playground',
-    icon: Sparkles,
-  },
-];
 
 export function MobileSidebar() {
   const [open, setOpen] = useState(false);

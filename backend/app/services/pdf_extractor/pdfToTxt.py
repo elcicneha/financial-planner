@@ -1,47 +1,36 @@
-import fitz  # PyMuPDF
-import os
+from pathlib import Path
+from typing import Optional
 
-def pdf_to_txt(pdf_path):
+import fitz  # PyMuPDF
+
+
+def pdf_to_txt(pdf_path: str, work_dir: Optional[Path] = None) -> Optional[str]:
     """
     Converts a PDF file to a text file and returns the path of the text file.
 
     Args:
-        pdf_path (str): The path to the PDF file.
+        pdf_path: The path to the PDF file.
+        work_dir: Directory to create output file. If None, uses pdf's directory.
 
     Returns:
-        str: The path to the generated text file.
+        The path to the generated text file, or None on error.
     """
-    # Extract base name and prepare the text file path
-    base_name = os.path.splitext(pdf_path)[0]
-    txt_file_path = f"{base_name}.txt"
+    pdf_path_obj = Path(pdf_path)
+
+    if work_dir is None:
+        work_dir = pdf_path_obj.parent
+
+    txt_file_path = work_dir / f"{pdf_path_obj.stem}.txt"
 
     try:
-        # Open the PDF file
-        pdf_document = fitz.open(pdf_path)
-        pdf_content = ''
+        with fitz.open(pdf_path) as pdf_document:
+            pages = [pdf_document[page_num].get_text() for page_num in range(len(pdf_document))]
+            pdf_content = ''.join(pages)
 
-        # Extract text from each page
-        for page_num in range(len(pdf_document)):
-            pdf_content += pdf_document[page_num].get_text()
-
-        # Write the extracted text to a file
         with open(txt_file_path, 'w', encoding='utf-8') as txt_file:
             txt_file.write(pdf_content)
 
-        print(f"  ✓ Extracted {len(pdf_document)} pages to {txt_file_path}")
-        return txt_file_path
+        return str(txt_file_path)
 
-    except Exception as e:
-        print(f"  ✗ Error: {e}")
+    except Exception:
         return None
-
-
-# # **** Example usage ****
-if __name__ == "__main__":
-    pdf_path = 'adarsh.pdf'
-    txt_path = pdf_to_txt(pdf_path)
-
-    if txt_path:
-        print(f"Text file created at: {txt_path}")
-    else:
-        print("Failed to convert PDF to text.")

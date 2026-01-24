@@ -1,72 +1,58 @@
-import re
 import csv
+import re
+from pathlib import Path
+from typing import Optional, Tuple
 
-def extract_text_to_csv(txt_file_path):
+
+def extract_text_to_csv(
+    txt_file_path: str, work_dir: Optional[Path] = None
+) -> Tuple[Optional[str], Optional[str]]:
     """
     Extracts text between predefined delimiters from a text file and writes it to CSV files.
 
     Args:
-        txt_file_path (str): Path to the text file.
+        txt_file_path: Path to the text file.
+        work_dir: Directory to create output files. If None, uses txt file's directory.
 
     Returns:
-        str, str: Paths to the two generated CSV files.
+        Tuple of paths to the two generated CSV files (fund_deets, dates_data).
     """
-    # Define the delimiters and their corresponding output file names
+    txt_path_obj = Path(txt_file_path)
+
+    if work_dir is None:
+        work_dir = txt_path_obj.parent
+
     delimiters_and_files = [
-        ("KYC: OK  PAN: OK", "Nominee 1:", "extracted_fund_deets.csv"),
-        ("Opening Unit Balance: ", "NAV on ", "extracted_dates_data.csv")
+        ("KYC: OK  PAN: OK", "Nominee 1:", work_dir / "extracted_fund_deets.csv"),
+        ("Opening Unit Balance: ", "NAV on ", work_dir / "extracted_dates_data.csv"),
     ]
 
-    csv_file_1 = None
-    csv_file_2 = None
+    csv_file_1: Optional[str] = None
+    csv_file_2: Optional[str] = None
 
     try:
-        # Read the content of the file
         with open(txt_file_path, 'r', encoding='utf-8') as file:
             file_content = file.read()
 
-        # Process each pair of delimiters
         for idx, (start_delim, end_delim, output_csv) in enumerate(delimiters_and_files, start=1):
-            # Use regular expressions to extract text between the delimiters
             pattern = re.compile(rf"{re.escape(start_delim)}(.*?){re.escape(end_delim)}", re.DOTALL)
             matches = pattern.findall(file_content)
 
-            # Check if matches are found
             if not matches:
-                print(f"  ⚠ No matches for segment {idx}")
                 continue
 
-            # Write the results to a CSV file
             with open(output_csv, 'w', newline='', encoding='utf-8') as csvfile:
                 writer = csv.writer(csvfile)
-
-                # Write a header row
                 writer.writerow(['Segment'])
-
-                # Write each extracted segment as a new row
                 for match in matches:
                     writer.writerow([match.strip()])
 
-            print(f"  ✓ {len(matches)} segments -> {output_csv}")
-
-            # Assign the file paths to respective variables
             if idx == 1:
-                csv_file_1 = output_csv
+                csv_file_1 = str(output_csv)
             elif idx == 2:
-                csv_file_2 = output_csv
-
-        # Ensure two CSVs were created
-        if not csv_file_1 or not csv_file_2:
-            print("  ⚠ Some segments missing")
+                csv_file_2 = str(output_csv)
 
         return csv_file_1, csv_file_2
 
-    except Exception as e:
-        print(f"  ✗ Error: {e}")
+    except Exception:
         return None, None
-
-# # Example usage
-if __name__ == "__main__":
-    csv_file_1, csv_file_2 = extract_text_to_csv('CAMS-Mutual-Funds.txt')
-    if csv_file_1 and csv_file_2:
-        print("CSV files created:", csv_file_1, csv_file_2)
