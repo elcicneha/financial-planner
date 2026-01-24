@@ -2,6 +2,7 @@
 
 import { Upload } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import FileUpload from '@/components/FileUpload';
 
 export default function UploadPage() {
   return (
@@ -21,8 +22,8 @@ export default function UploadPage() {
       </div>
 
       <Card>
-        <CardContent className="py-12 text-center">
-          <p className="text-muted-foreground">Coming soon</p>
+        <CardContent className="py-8">
+          <FileUpload />
         </CardContent>
       </Card>
     </div>
