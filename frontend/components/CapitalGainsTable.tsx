@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -27,6 +27,9 @@ interface CapitalGainsTableProps {
   refetch?: () => void;
 }
 
+type SortKey = keyof FIFOGainRow;
+type SortDirection = 'asc' | 'desc';
+
 function formatNumber(value: number, decimals: number = 3): string {
   return value.toLocaleString('en-IN', {
     minimumFractionDigits: decimals,
@@ -39,13 +42,42 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
   const [isEditMode, setIsEditMode] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('sell_date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  const handleSort = useCallback((key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  }, [sortKey]);
+
+  const getSortProps = useCallback(
+    (key: SortKey) => ({
+      sortable: true as const,
+      sorted: sortKey === key ? sortDirection : (false as const),
+      onSort: () => handleSort(key),
+    }),
+    [sortKey, sortDirection, handleSort]
+  );
 
   const sortedGains = useMemo(() => {
     return [...gains].sort((a, b) => {
-      // Sort by sell date descending (most recent first)
-      return b.sell_date.localeCompare(a.sell_date);
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
+
+      let comparison = 0;
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        comparison = aVal.localeCompare(bVal);
+      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+        comparison = aVal - bVal;
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [gains]);
+  }, [gains, sortKey, sortDirection]);
 
   const pendingCount = Object.keys(pendingChanges).length;
 
@@ -175,19 +207,19 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
           </TableCaption>
           <TableHeader>
             <TableRow>
-              <TableHead>Sell Date</TableHead>
-              <TableHead>Ticker</TableHead>
-              <TableHead>Folio</TableHead>
-              <TableHead className="text-right">Units</TableHead>
-              <TableHead className="text-right">Sell NAV</TableHead>
-              <TableHead className="text-right">Sale Consideration</TableHead>
-              <TableHead>Buy Date</TableHead>
-              <TableHead className="text-right">Buy NAV</TableHead>
-              <TableHead className="text-right">Acquisition Cost</TableHead>
-              <TableHead className="text-right">Gain/Loss</TableHead>
-              <TableHead className="text-right">Days Held</TableHead>
-              <TableHead>Fund Type</TableHead>
-              <TableHead>Term</TableHead>
+              <TableHead {...getSortProps('sell_date')}>Sell Date</TableHead>
+              <TableHead {...getSortProps('ticker')}>Ticker</TableHead>
+              <TableHead {...getSortProps('folio')}>Folio</TableHead>
+              <TableHead className="text-right" {...getSortProps('units')}>Units</TableHead>
+              <TableHead className="text-right" {...getSortProps('sell_nav')}>Sell NAV</TableHead>
+              <TableHead className="text-right" {...getSortProps('sale_consideration')}>Sale Consideration</TableHead>
+              <TableHead {...getSortProps('buy_date')}>Buy Date</TableHead>
+              <TableHead className="text-right" {...getSortProps('buy_nav')}>Buy NAV</TableHead>
+              <TableHead className="text-right" {...getSortProps('acquisition_cost')}>Acquisition Cost</TableHead>
+              <TableHead className="text-right" {...getSortProps('gain')}>Gain/Loss</TableHead>
+              <TableHead className="text-right" {...getSortProps('holding_days')}>Days Held</TableHead>
+              <TableHead {...getSortProps('fund_type')}>Fund Type</TableHead>
+              <TableHead {...getSortProps('term')}>Term</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -1,4 +1,5 @@
 import * as React from "react"
+import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -6,12 +7,14 @@ const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
-    <table
-      ref={ref}
-      className={cn("w-full caption-bottom text-sm", className)}
-      {...props}
-    />
+  <div className="relative w-full overflow-hidden rounded-[inherit]">
+    <div className="overflow-auto">
+      <table
+        ref={ref}
+        className={cn("w-full caption-bottom text-sm", className)}
+        {...props}
+      />
+    </div>
   </div>
 ))
 Table.displayName = "Table"
@@ -66,19 +69,56 @@ const TableRow = React.forwardRef<
 ))
 TableRow.displayName = "TableRow"
 
-const TableHead = React.forwardRef<
-  HTMLTableCellElement,
-  React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <th
-    ref={ref}
-    className={cn(
-      "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
-      className
-    )}
-    {...props}
-  />
-))
+interface TableHeadProps extends React.ThHTMLAttributes<HTMLTableCellElement> {
+  sortable?: boolean
+  sorted?: "asc" | "desc" | false
+  onSort?: () => void
+}
+
+const TableHead = React.forwardRef<HTMLTableCellElement, TableHeadProps>(
+  ({ className, sortable, sorted, onSort, children, ...props }, ref) => {
+    const SortIcon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown
+    const isRightAligned = className?.includes("text-right")
+
+    if (sortable) {
+      return (
+        <th
+          ref={ref}
+          className={cn(
+            "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+            className
+          )}
+          {...props}
+        >
+          <button
+            type="button"
+            onClick={onSort}
+            className={cn(
+              "inline-flex items-center gap-1 hover:text-foreground transition-colors whitespace-nowrap",
+              isRightAligned && "ml-auto"
+            )}
+          >
+            {children}
+            <SortIcon className="h-3.5 w-3.5 shrink-0" />
+          </button>
+        </th>
+      )
+    }
+
+    return (
+      <th
+        ref={ref}
+        className={cn(
+          "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </th>
+    )
+  }
+)
 TableHead.displayName = "TableHead"
 
 const TableCell = React.forwardRef<
