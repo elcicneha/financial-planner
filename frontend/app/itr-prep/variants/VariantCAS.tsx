@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { useCASCapitalGains, CASCategoryData } from '@/hooks/useCASCapitalGains';
 import { useCASFiles } from '@/hooks/useCASFiles';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, AlertCircle, FileText } from 'lucide-react';
+import { Loader2, AlertCircle, FileText, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CASUploadDialog } from '../components/CASUploadDialog';
 import { formatCurrency } from '@/lib/currency';
+import { CopyButton } from '@/components/ui/copy-button';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -16,37 +18,71 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+// Compact data row - click anywhere to copy
+function DataRow({ label, value, isGain }: {
+  label: string;
+  value: number;
+  isGain?: boolean;
+}) {
+  const [hasCopied, setHasCopied] = useState(false);
+
+  const handleCopy = () => {
+    const rounded = Math.abs(value).toFixed(4);
+    navigator.clipboard.writeText(rounded);
+    setHasCopied(true);
+    setTimeout(() => setHasCopied(false), 2000);
+  };
+
+  const colorClass = isGain
+    ? value >= 0
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : 'text-red-500 dark:text-red-400'
+    : '';
+
+  return (
+    <div
+      onClick={handleCopy}
+      className="flex items-center justify-between py-1.5 px-2 -mx-2 rounded cursor-pointer group hover:bg-muted/50 transition-colors"
+    >
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <span className={`font-mono text-sm tabular-nums ${colorClass}`}>
+          {formatCurrency(value)}
+        </span>
+        <span className="text-accent-foreground w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-50 transition-opacity">
+          {hasCopied ? (
+            <Check className="size-3" />
+          ) : (
+            <Copy className="size-3" />
+          )}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 interface CategoryCardProps {
   title: string;
+  subtitle: string;
   data: CASCategoryData;
 }
 
-function CategoryCard({ title, data }: CategoryCardProps) {
+function CategoryCard({ title, subtitle, data }: CategoryCardProps) {
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Sale Consideration</p>
-          <p className="text-xl font-semibold">{formatCurrency(data.sale_consideration)}</p>
+    <div className="border rounded-lg bg-card overflow-hidden">
+      <div className="px-4 py-2.5 border-b bg-muted/40">
+        <div className="flex items-baseline justify-between">
+          <span className="font-medium text-sm">{title}</span>
+          <span className="text-[11px] text-muted-foreground">{subtitle}</span>
         </div>
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Acquisition Cost</p>
-          <p className="text-xl font-semibold">{formatCurrency(data.acquisition_cost)}</p>
-        </div>
-        <div className="space-y-1 pt-2 border-t">
-          <p className="text-sm text-muted-foreground">Gain/Loss</p>
-          <p className={`text-2xl font-bold ${data.gain_loss >= 0
-            ? 'text-green-600 dark:text-green-400'
-            : 'text-red-600 dark:text-red-400'
-            }`}>
-            {formatCurrency(data.gain_loss)}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="px-4 py-2">
+        <DataRow label="Sale Consideration" value={data.sale_consideration} />
+        <DataRow label="Acquisition Cost" value={data.acquisition_cost} />
+        <div className="border-t my-1" />
+        <DataRow label="Gain/Loss" value={data.gain_loss} isGain />
+      </div>
+    </div>
   );
 }
 
@@ -149,105 +185,91 @@ export default function VariantCAS() {
 
   // Success state with data
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      {/* Header with Upload and FY Selector */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">
-            Last updated: {new Date(data.last_updated).toLocaleDateString('en-IN', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight">ITR Prep - CAS Statement</h1>
-          <p className="text-muted-foreground">
-            Capital gains from Capital Account Statement for Income Tax Return filing
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Financial Year Selector */}
-          {casFiles.length > 0 && (
-            <Select value={selectedFY || casFiles[0].financial_year} onValueChange={setSelectedFY}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Select FY" />
-              </SelectTrigger>
-              <SelectContent>
-                {casFiles.map((file) => (
-                  <SelectItem key={file.financial_year} value={file.financial_year}>
-                    FY {file.financial_year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          {/* Upload Button */}
-          <CASUploadDialog onUploadSuccess={handleUploadSuccess} />
-        </div>
-      </div>
-
-      {/* Total Gains Summary */}
-      <Card className="bg-primary/5 border-primary/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Total Capital Gains</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className={`text-4xl font-bold ${totalGains >= 0
-            ? 'text-green-600 dark:text-green-400'
-            : 'text-red-600 dark:text-red-400'
-            }`}>
-            {formatCurrency(totalGains)}
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Info Card */}
-      {/* <Card className="bg-muted/50">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium">CAS Statement Data</p>
-              <p className="text-sm text-muted-foreground">
-                Data extracted from Capital Account Statement. All values match ITR terminology
-                for easy copy-paste filing. Organized by asset class and holding period.
-              </p>
-            </div>
+    <TooltipProvider>
+      <div className="container mx-auto py-6 space-y-5 max-w-4xl">
+        {/* Header with Upload and FY Selector */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Capital Gains - CAS</h1>
+            <p className="text-sm text-muted-foreground">
+              Updated {new Date(data.last_updated).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </p>
           </div>
-        </CardContent>
-      </Card> */}
+          <div className="flex items-center gap-2">
+            {casFiles.length > 0 && (
+              <Select value={selectedFY || casFiles[0].financial_year} onValueChange={setSelectedFY}>
+                <SelectTrigger className="w-[130px] h-9">
+                  <SelectValue placeholder="Select FY" />
+                </SelectTrigger>
+                <SelectContent>
+                  {casFiles.map((file) => (
+                    <SelectItem key={file.financial_year} value={file.financial_year}>
+                      FY {file.financial_year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <CASUploadDialog onUploadSuccess={handleUploadSuccess} />
+          </div>
+        </div>
 
-      {/* Equity Section */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">Equity</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <CategoryCard
-            title="Short-term (< 1 year)"
-            data={data.equity_short_term}
-          />
-          <CategoryCard
-            title="Long-term (≥ 1 year)"
-            data={data.equity_long_term}
-          />
+        {/* Total Gains - Compact */}
+        <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-muted/50 border">
+          <span className="text-sm font-medium text-muted-foreground">Total Capital Gains</span>
+          <div className="flex items-center gap-1">
+            <span className={`font-mono text-lg font-semibold tabular-nums ${totalGains >= 0
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-red-500 dark:text-red-400'
+              }`}>
+              {formatCurrency(totalGains)}
+            </span>
+            <CopyButton
+              value={Math.abs(totalGains).toFixed(4)}
+              tooltip="Copy Total"
+              className="h-7 w-7"
+            />
+          </div>
+        </div>
+
+        {/* Equity Section */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Equity</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CategoryCard
+              title="Short-term"
+              subtitle="< 1 year"
+              data={data.equity_short_term}
+            />
+            <CategoryCard
+              title="Long-term"
+              subtitle="≥ 1 year"
+              data={data.equity_long_term}
+            />
+          </div>
+        </div>
+
+        {/* Debt Section */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Debt</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CategoryCard
+              title="Short-term"
+              subtitle="< 3 years"
+              data={data.debt_short_term}
+            />
+            <CategoryCard
+              title="Long-term"
+              subtitle="≥ 3 years"
+              data={data.debt_long_term}
+            />
+          </div>
         </div>
       </div>
-
-      {/* Debt Section */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">Debt</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <CategoryCard
-            title="Short-term (< 3 years)"
-            data={data.debt_short_term}
-          />
-          <CategoryCard
-            title="Long-term (≥ 3 years)"
-            data={data.debt_long_term}
-          />
-        </div>
-      </div>
-    </div>
+    </TooltipProvider>
   );
 }
