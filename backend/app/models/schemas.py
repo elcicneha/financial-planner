@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Literal
 
 
 class UploadResponse(BaseModel):
@@ -29,6 +29,7 @@ class FIFOGainRow(BaseModel):
     acquisition_cost: float  # Cost Basis (ITR terminology)
     gain: float
     holding_days: int
+    fund_type: Literal['equity', 'debt', 'unknown']  # Fund classification
     term: str  # "Short-term" or "Long-term"
 
 

@@ -12,6 +12,7 @@ export interface FIFOGainRow {
   acquisition_cost: number;
   gain: number;
   holding_days: number;
+  fund_type: string;  // "equity" or "debt"
   term: string;
 }
 

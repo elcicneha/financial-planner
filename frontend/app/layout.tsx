@@ -3,6 +3,7 @@ import './globals.css';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileSidebar } from '@/components/layout/MobileSidebar';
 import { DevModeProvider } from '@/components/dev/DevModeProvider';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'Financial Planner',
@@ -40,6 +41,7 @@ export default function RootLayout({
               </div>
             </main>
           </div>
+          <Toaster />
         </DevModeProvider>
       </body>
     </html>

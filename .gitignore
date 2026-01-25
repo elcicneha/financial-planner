@@ -39,3 +39,5 @@ npm-debug.log*
 # Build
 dist/
 build/
+
+IDEATION.md

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -8,13 +8,30 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Pencil, Check, X } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import type { FIFOGainRow } from '@/hooks/useCapitalGains';
 
 interface CapitalGainsTableProps {
   gains: FIFOGainRow[];
+  refetch?: () => void;
 }
 
-export default function CapitalGainsTable({ gains }: CapitalGainsTableProps) {
+export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableProps) {
+  const { toast } = useToast();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<Map<string, string>>(new Map());
+  const [isSaving, setIsSaving] = useState(false);
+
   const sortedGains = useMemo(() => {
     return [...gains].sort((a, b) => {
       // Sort by sell date descending (most recent first)
@@ -36,6 +53,73 @@ export default function CapitalGainsTable({ gains }: CapitalGainsTableProps) {
     });
   };
 
+  const handleEnterEditMode = () => {
+    setIsEditMode(true);
+    setPendingChanges(new Map());
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setPendingChanges(new Map());
+  };
+
+  const handleFundTypeChange = (ticker: string, fundType: string) => {
+    const newChanges = new Map(pendingChanges);
+    newChanges.set(ticker, fundType);
+    setPendingChanges(newChanges);
+  };
+
+  const handleSaveChanges = async () => {
+    if (pendingChanges.size === 0) {
+      setIsEditMode(false);
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // Send all changes to backend
+      const promises = Array.from(pendingChanges.entries()).map(([ticker, fundType]) => {
+        const params = new URLSearchParams({ ticker, fund_type: fundType });
+        return fetch(`/api/fund-type-override?${params}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      });
+
+      const results = await Promise.all(promises);
+
+      // Check if any failed
+      const failed = results.filter(r => !r.ok);
+      if (failed.length > 0) {
+        const errorData = await failed[0].json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(errorData.detail || 'Failed to update fund types');
+      }
+
+      // Success - refetch data and exit edit mode
+      if (refetch) {
+        refetch();
+      }
+      setIsEditMode(false);
+      setPendingChanges(new Map());
+
+      toast({
+        title: "Fund types updated",
+        description: `Successfully updated ${pendingChanges.size} fund type${pendingChanges.size !== 1 ? 's' : ''}`,
+      });
+
+    } catch (error) {
+      console.error('Error updating fund types:', error);
+      toast({
+        title: "Update failed",
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (gains.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -45,12 +129,63 @@ export default function CapitalGainsTable({ gains }: CapitalGainsTableProps) {
   }
 
   return (
-    <div className="border rounded-lg">
-      <Table>
-        <TableCaption>
-          FIFO Capital Gains - {sortedGains.length} transaction{sortedGains.length !== 1 ? 's' : ''}
-        </TableCaption>
-        <TableHeader>
+    <div className="space-y-4">
+      {/* Edit Mode Controls */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          {isEditMode && pendingChanges.size > 0 && (
+            <span className="text-amber-600 dark:text-amber-400">
+              {pendingChanges.size} change{pendingChanges.size !== 1 ? 's' : ''} pending
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {!isEditMode ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleEnterEditMode}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancelEdit}
+                disabled={isSaving}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveChanges}
+                disabled={isSaving || pendingChanges.size === 0}
+              >
+                {isSaving ? (
+                  <>Saving...</>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Save
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="border rounded-lg">
+        <Table>
+          <TableCaption>
+            FIFO Capital Gains - {sortedGains.length} transaction{sortedGains.length !== 1 ? 's' : ''}
+          </TableCaption>
+          <TableHeader>
           <TableRow>
             <TableHead>Sell Date</TableHead>
             <TableHead>Ticker</TableHead>
@@ -63,6 +198,7 @@ export default function CapitalGainsTable({ gains }: CapitalGainsTableProps) {
             <TableHead className="text-right">Acquisition Cost</TableHead>
             <TableHead className="text-right">Gain/Loss</TableHead>
             <TableHead className="text-right">Days Held</TableHead>
+            <TableHead>Fund Type</TableHead>
             <TableHead>Term</TableHead>
           </TableRow>
         </TableHeader>
@@ -99,6 +235,46 @@ export default function CapitalGainsTable({ gains }: CapitalGainsTableProps) {
                 {gain.holding_days}
               </TableCell>
               <TableCell>
+                {isEditMode ? (
+                  <Select
+                    defaultValue={gain.fund_type}
+                    onValueChange={(value) => handleFundTypeChange(gain.ticker, value)}
+                  >
+                    <SelectTrigger
+                      className={
+                        gain.fund_type === 'unknown'
+                          ? 'w-28 border-orange-500 border-2'
+                          : pendingChanges.has(gain.ticker)
+                          ? 'w-28 border-yellow-500'
+                          : 'w-28'
+                      }
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="equity">Equity</SelectItem>
+                      <SelectItem value="debt">Debt</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Badge
+                    variant={
+                      gain.fund_type === 'equity'
+                        ? 'default'
+                        : gain.fund_type === 'debt'
+                        ? 'secondary'
+                        : 'destructive'
+                    }
+                  >
+                    {gain.fund_type === 'equity'
+                      ? 'Equity'
+                      : gain.fund_type === 'debt'
+                      ? 'Debt'
+                      : 'Unknown'}
+                  </Badge>
+                )}
+              </TableCell>
+              <TableCell>
                 <span
                   className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
                     gain.term === 'Long-term'
@@ -113,6 +289,7 @@ export default function CapitalGainsTable({ gains }: CapitalGainsTableProps) {
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

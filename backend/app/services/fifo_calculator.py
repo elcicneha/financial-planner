@@ -22,6 +22,179 @@ OUTPUTS_DIR = BASE_DIR / "data" / "outputs"
 CACHE_DIR = OUTPUTS_DIR / "fifo_cache"
 CACHE_FILE = CACHE_DIR / "capital_gains_full.csv"
 METADATA_FILE = CACHE_DIR / "cache_metadata.json"
+OVERRIDES_FILE = BASE_DIR / "data" / "fund_type_overrides.json"
+MARKET_CAP_DB = BASE_DIR / "backend" / "app" / "services" / "pdf_extractor" / "isin_ticker_links_db.csv"
+
+
+def parse_percentage(pct_str: str) -> float:
+    """
+    Parse percentage string to float
+
+    Args:
+        pct_str: Percentage string (e.g., "68.73%", "0%", "")
+
+    Returns:
+        Float value (e.g., 68.73), or 0.0 if invalid
+    """
+    if not pct_str or pct_str.strip() == '':
+        return 0.0
+
+    try:
+        # Remove % sign and convert to float
+        return float(pct_str.strip().replace('%', ''))
+    except (ValueError, AttributeError):
+        return 0.0
+
+
+def classify_fund_type(ticker: str, large_cap: str, mid_cap: str, small_cap: str, other_cap: str) -> str:
+    """
+    Classify fund as 'equity' or 'debt' based on equity percentage.
+
+    Classification rules (Indian tax law):
+    - Ticker contains "ARBI" → equity (arbitrage funds get equity taxation)
+    - Equity% >= 65% → equity
+    - Otherwise → debt
+
+    Args:
+        ticker: Fund ticker symbol
+        large_cap: Large cap percentage (e.g., "68.73%")
+        mid_cap: Mid cap percentage
+        small_cap: Small cap percentage
+        other_cap: Other cap percentage
+
+    Returns:
+        'equity' or 'debt'
+    """
+    # Check for arbitrage fund (special case)
+    if 'arbi' in ticker.lower():
+        return 'equity'
+
+    # Calculate total equity percentage
+    equity_pct = (
+        parse_percentage(large_cap) +
+        parse_percentage(mid_cap) +
+        parse_percentage(small_cap) +
+        parse_percentage(other_cap)
+    )
+
+    # Apply 65% threshold
+    return 'equity' if equity_pct >= 65.0 else 'debt'
+
+
+def load_market_cap_db() -> Dict[str, str]:
+    """
+    Load isin_ticker_links_db.csv and return Ticker → Fund Type mapping.
+
+    Returns:
+        Dictionary mapping ticker symbols to 'equity' or 'debt'
+    """
+    fund_types = {}
+
+    if not MARKET_CAP_DB.exists():
+        logger.warning(f"Market cap database not found: {MARKET_CAP_DB}")
+        return fund_types
+
+    try:
+        with open(MARKET_CAP_DB, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+
+            for row in reader:
+                ticker = row.get('Ticker', '').strip()
+                if not ticker:
+                    continue
+
+                large_cap = row.get('Large Cap', '')
+                mid_cap = row.get('Mid Cap', '')
+                small_cap = row.get('Small Cap', '')
+                other_cap = row.get('Other Cap', '')
+
+                fund_type = classify_fund_type(ticker, large_cap, mid_cap, small_cap, other_cap)
+                fund_types[ticker] = fund_type
+
+        logger.info(f"Loaded market cap database: {len(fund_types)} tickers")
+
+    except Exception as e:
+        logger.error(f"Error loading market cap database: {e}")
+
+    return fund_types
+
+
+# Load fund type mapping at module level (cache)
+FUND_TYPE_MAPPING = load_market_cap_db()
+
+# Debug logging for fund type classification
+logger.info(f"Loaded {len(FUND_TYPE_MAPPING)} fund types from market cap database")
+if FUND_TYPE_MAPPING:
+    sample_items = list(FUND_TYPE_MAPPING.items())[:3]
+    logger.info(f"Sample fund types: {sample_items}")
+
+# Check specific ticker that was reported as misclassified
+if 'ADIT_BSL_PSU_10JHJEX' in FUND_TYPE_MAPPING:
+    logger.info(f"ADIT_BSL_PSU_10JHJEX found in database, classified as: {FUND_TYPE_MAPPING['ADIT_BSL_PSU_10JHJEX']}")
+else:
+    logger.warning("ADIT_BSL_PSU_10JHJEX NOT found in FUND_TYPE_MAPPING - will default to 'unknown'")
+
+
+def load_fund_type_overrides() -> Dict[str, str]:
+    """
+    Load manual fund type overrides from JSON file.
+
+    Returns:
+        Dictionary mapping ticker symbols to 'equity' or 'debt'
+    """
+    if not OVERRIDES_FILE.exists():
+        return {}
+
+    try:
+        with open(OVERRIDES_FILE, 'r', encoding='utf-8') as f:
+            overrides = json.load(f)
+            logger.info(f"Loaded {len(overrides)} fund type overrides")
+            return overrides
+    except Exception as e:
+        logger.error(f"Error loading fund type overrides: {e}")
+        return {}
+
+
+def save_fund_type_override(ticker: str, fund_type: str):
+    """
+    Save a manual fund type override and invalidate FIFO cache.
+
+    Args:
+        ticker: Fund ticker symbol
+        fund_type: 'equity' or 'debt'
+    """
+    # Validate fund_type
+    if fund_type not in ['equity', 'debt']:
+        raise ValueError(f"Invalid fund_type: {fund_type}. Must be 'equity' or 'debt'")
+
+    # Load existing overrides
+    overrides = load_fund_type_overrides()
+
+    # Update override
+    overrides[ticker] = fund_type
+
+    # Ensure data directory exists
+    OVERRIDES_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    # Save to file
+    try:
+        with open(OVERRIDES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(overrides, f, indent=2)
+        logger.info(f"Saved override: {ticker} → {fund_type}")
+    except Exception as e:
+        logger.error(f"Error saving fund type override: {e}")
+        raise
+
+    # Invalidate FIFO cache by deleting cache files
+    try:
+        if CACHE_FILE.exists():
+            CACHE_FILE.unlink()
+            logger.info("FIFO cache invalidated (cache file deleted)")
+        if METADATA_FILE.exists():
+            METADATA_FILE.unlink()
+            logger.info("FIFO cache metadata deleted")
+    except Exception as e:
+        logger.warning(f"Error invalidating cache: {e}")
 
 
 class Transaction:
@@ -52,7 +225,7 @@ class FIFOGain:
     """Represents a FIFO gain calculation result"""
     def __init__(self, sell_date: str, ticker: str, folio: str, units: float,
                  sell_nav: float, proceeds: float, buy_date: str, buy_nav: float,
-                 cost_basis: float, gain: float, holding_days: int, term: str):
+                 cost_basis: float, gain: float, holding_days: int, fund_type: str, term: str):
         self.sell_date = sell_date
         self.ticker = ticker
         self.folio = folio
@@ -64,6 +237,7 @@ class FIFOGain:
         self.cost_basis = cost_basis  # Acquisition Cost
         self.gain = gain
         self.holding_days = holding_days
+        self.fund_type = fund_type  # 'equity' or 'debt'
         self.term = term  # 'Short-term' or 'Long-term'
 
     def to_dict(self) -> Dict:
@@ -79,6 +253,7 @@ class FIFOGain:
             'acquisition_cost': self.cost_basis,
             'gain': self.gain,
             'holding_days': self.holding_days,
+            'fund_type': self.fund_type,
             'term': self.term
         }
 
@@ -273,6 +448,9 @@ def calculate_fifo_gains(transactions: List[Transaction]) -> List[FIFOGain]:
     Returns:
         List of FIFOGain objects
     """
+    # Load manual overrides (takes precedence over automatic classification)
+    manual_overrides = load_fund_type_overrides()
+
     # Group by ticker||folio
     buckets = defaultdict(list)
     for tx in transactions:
@@ -328,7 +506,19 @@ def calculate_fifo_gains(transactions: List[Transaction]) -> List[FIFOGain]:
 
                     # Calculate holding period
                     holding_days = (tx.date - lot.date).days
-                    term = 'Long-term' if holding_days >= 365 else 'Short-term'
+
+                    # Determine fund type (manual override takes precedence)
+                    fund_type = manual_overrides.get(tx.ticker) or FUND_TYPE_MAPPING.get(tx.ticker, 'unknown')
+
+                    # Apply different thresholds based on fund type
+                    # Equity funds: < 1 year = Short-term, ≥ 1 year = Long-term
+                    # Debt funds: < 3 years = Short-term, ≥ 3 years = Long-term
+                    if fund_type == 'equity':
+                        threshold_days = 365  # 1 year
+                    else:  # debt
+                        threshold_days = 1095  # 3 years
+
+                    term = 'Long-term' if holding_days >= threshold_days else 'Short-term'
 
                     # Create gain record
                     fifo_gain = FIFOGain(
@@ -343,6 +533,7 @@ def calculate_fifo_gains(transactions: List[Transaction]) -> List[FIFOGain]:
                         cost_basis=cost,
                         gain=gain,
                         holding_days=holding_days,
+                        fund_type=fund_type,
                         term=term
                     )
                     all_gains.append(fifo_gain)
@@ -436,6 +627,7 @@ def get_cached_gains() -> List[Dict]:
                 row['acquisition_cost'] = float(row['acquisition_cost'])
                 row['gain'] = float(row['gain'])
                 row['holding_days'] = int(row['holding_days'])
+                # fund_type and term are already strings, no conversion needed
                 gains.append(row)
     except Exception as e:
         logger.error(f"Error reading cache: {e}")

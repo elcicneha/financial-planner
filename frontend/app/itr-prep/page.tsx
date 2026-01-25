@@ -174,7 +174,7 @@ export default function ITRPrepPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <CapitalGainsTable gains={data.gains} />
+          <CapitalGainsTable gains={data.gains} refetch={refetch} />
         </CardContent>
       </Card>
     </div>

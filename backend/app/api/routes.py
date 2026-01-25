@@ -15,7 +15,7 @@ from app.models.schemas import (
     FIFOSummary,
 )
 from app.services.pdf_extractor import extract_transactions
-from app.services.fifo_calculator import get_cached_gains
+from app.services.fifo_calculator import get_cached_gains, save_fund_type_override
 
 router = APIRouter()
 
@@ -203,4 +203,47 @@ async def get_capital_gains():
         raise HTTPException(
             status_code=500,
             detail=f"Failed to calculate capital gains: {str(e)}"
+        )
+
+
+@router.put("/fund-type-override")
+async def update_fund_type_override(ticker: str, fund_type: str):
+    """
+    Update manual fund type override for a ticker.
+
+    This allows users to manually classify a fund as 'equity' or 'debt',
+    overriding the automatic classification. The override persists across
+    FIFO recalculations and invalidates the FIFO cache.
+
+    Args:
+        ticker: Fund ticker symbol (e.g., "BAND_NIFT_50_1Y4SPBO")
+        fund_type: Classification - must be 'equity' or 'debt'
+
+    Returns:
+        Success message with the updated classification
+    """
+    try:
+        # Validate fund_type
+        if fund_type not in ['equity', 'debt']:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid fund_type: '{fund_type}'. Must be 'equity' or 'debt'"
+            )
+
+        # Save override (this also invalidates the FIFO cache)
+        await asyncio.to_thread(save_fund_type_override, ticker, fund_type)
+
+        return {
+            "success": True,
+            "message": f"Fund type updated for {ticker}",
+            "ticker": ticker,
+            "fund_type": fund_type
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update fund type override: {str(e)}"
         )
