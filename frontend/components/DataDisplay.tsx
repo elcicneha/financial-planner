@@ -47,7 +47,7 @@ export default function DataDisplay({ refreshKey = 0, onDataStateChange, onUploa
             </div>
             <p className="text-muted-foreground">{error}</p>
             <Button variant="outline" onClick={refetch}>
-              Try Again
+              Retry Loading
             </Button>
           </div>
         </CardContent>
@@ -75,7 +75,7 @@ export default function DataDisplay({ refreshKey = 0, onDataStateChange, onUploa
         </p>
       </div>
       <CardContent className="p-0">
-        <TransactionTable csvContent={data.csvContent} />
+        <TransactionTable transactions={data.transactions} />
       </CardContent>
     </Card>
   );

@@ -8,8 +8,20 @@ interface ProcessedFile {
   csv_path: string;
 }
 
+export interface TransactionRecord {
+  date: string;
+  ticker: string;
+  folio: string;
+  isin: string;
+  amount: string;
+  nav: string;
+  units: string;
+  balance: string;
+  fund_name?: string;
+}
+
 interface TransactionData {
-  csvContent: string;
+  transactions: TransactionRecord[];
   date: string;
   transactionCount: number;
 }
@@ -52,13 +64,17 @@ export function useTransactionData(refreshKey = 0): UseTransactionDataResult {
         throw new Error('Failed to fetch transaction data');
       }
 
-      const { content } = await resultRes.json();
-      const lineCount = content.trim().split('\n').length - 1; // Subtract header row
+      const { transactions } = await resultRes.json();
+
+      if (!transactions || transactions.length === 0) {
+        setData(null);
+        return;
+      }
 
       setData({
-        csvContent: content,
+        transactions,
         date: mostRecent.date,
-        transactionCount: lineCount,
+        transactionCount: transactions.length,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

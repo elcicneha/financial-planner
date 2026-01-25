@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -10,14 +9,20 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { parseCSV, formatAmount } from '@/lib/csv-parser';
+import type { TransactionRecord } from '@/hooks/useTransactionData';
 
 interface TransactionTableProps {
-  csvContent: string;
+  transactions: TransactionRecord[];
 }
 
-export default function TransactionTable({ csvContent }: TransactionTableProps) {
-  const transactions = useMemo(() => parseCSV(csvContent), [csvContent]);
+function formatAmount(amount: string): { value: string; isNegative: boolean } {
+  if (!amount) return { value: '-', isNegative: false };
+  const isNegative = amount.startsWith('(') && amount.endsWith(')');
+  const cleanValue = isNegative ? amount.slice(1, -1) : amount;
+  return { value: cleanValue, isNegative };
+}
+
+export default function TransactionTable({ transactions }: TransactionTableProps) {
 
   if (transactions.length === 0) {
     return (
@@ -64,7 +69,7 @@ export default function TransactionTable({ csvContent }: TransactionTableProps) 
               )}>
                 {units.isNegative && '-'}{units.value}
               </TableCell>
-              <TableCell className="text-right font-mono text-xs">{t.unitBalance || '-'}</TableCell>
+              <TableCell className="text-right font-mono text-xs">{t.balance || '-'}</TableCell>
             </TableRow>
           );
         })}
