@@ -1,4 +1,5 @@
 import asyncio
+import json
 import re
 import uuid
 from datetime import datetime
@@ -13,6 +14,8 @@ from app.models.schemas import (
     FIFOResponse,
     FIFOGainRow,
     FIFOSummary,
+    CASCapitalGains,
+    CASCategoryData,
 )
 from app.services.pdf_extractor import extract_transactions
 from app.services.fifo_calculator import get_cached_gains, save_fund_type_override
@@ -246,4 +249,172 @@ async def update_fund_type_override(ticker: str, fund_type: str):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update fund type override: {str(e)}"
+        )
+
+
+@router.get("/capital-gains-cas", response_model=CASCapitalGains)
+async def get_capital_gains_cas():
+    """
+    Get CAS (Capital Account Statement) capital gains data.
+
+    Reads the capital gain loss statement JSON file and extracts
+    the 4 categories of capital gains:
+    - Equity Short-term
+    - Equity Long-term
+    - Debt Short-term
+    - Debt Long-term
+
+    Returns structured data with sale consideration, acquisition cost,
+    and gain/loss for each category.
+    """
+    try:
+        # Path to the CAS JSON file
+        cas_json_path = BASE_DIR / "backend" / "app" / "services" / "pdf_extractor" / "capital gain loss statement.json"
+
+        if not cas_json_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="CAS capital gains JSON file not found"
+            )
+
+        # Read and parse JSON
+        with open(cas_json_path, 'r') as f:
+            cas_data = json.load(f)
+
+        # Extract equity data from OVERALL_SUMMARY_EQUITY
+        equity_summary = cas_data.get("OVERALL_SUMMARY_EQUITY", [])
+
+        # Find equity short-term data
+        equity_st_sale = 0.0
+        equity_st_cost = 0.0
+        equity_st_gain = 0.0
+
+        equity_lt_sale = 0.0
+        equity_lt_cost = 0.0
+        equity_lt_gain = 0.0
+
+        for row in equity_summary:
+            summary_type = row.get("Summary Of Capital Gains", "")
+            total_value = row.get("Total", 0.0)
+
+            if summary_type == "Full Value Consideration":
+                # This appears twice - once for ST, once for LT
+                # We need to look at the context to determine which is which
+                # The first occurrence is for ST (before "Short Term Capital Gain/Loss")
+                # But simpler: we can track indices
+                pass
+            elif summary_type == "Short Term Capital Gain/Loss":
+                equity_st_gain = total_value
+            elif "LongTermWithOutIndex" in summary_type and "CapitalGain" in summary_type:
+                equity_lt_gain = total_value
+
+        # Parse equity summary by tracking occurrence counts
+        # The pattern is: ST rows, then LT with index rows, then LT without index rows
+        # Each section has: Fair Market Value (optional), Full Value Consideration, Cost of Acquisition, Gain/Loss
+
+        fvc_count = 0  # Full Value Consideration counter
+        coa_count = 0  # Cost of Acquisition counter
+
+        for row in equity_summary:
+            summary_type = row.get("Summary Of Capital Gains", "")
+            total_value = row.get("Total", 0.0)
+
+            if summary_type == "Full Value Consideration":
+                fvc_count += 1
+                if fvc_count == 1:  # First occurrence = Short-term
+                    equity_st_sale = total_value
+                elif fvc_count == 3:  # Third occurrence = Long-term without index
+                    equity_lt_sale = total_value
+
+            elif summary_type == "Cost of Acquisition":
+                coa_count += 1
+                if coa_count == 1:  # First occurrence = Short-term
+                    equity_st_cost = total_value
+                elif coa_count == 3:  # Third occurrence = Long-term without index
+                    equity_lt_cost = total_value
+
+            elif summary_type == "Short Term Capital Gain/Loss":
+                equity_st_gain = total_value
+
+            elif "LongTermWithOutIndex" in summary_type and "CapitalGain" in summary_type:
+                equity_lt_gain = total_value
+
+        # Extract debt (non-equity) data from OVERALL_SUMMARY_NONEQUITY
+        debt_summary = cas_data.get("OVERALL_SUMMARY_NONEQUITY", [])
+
+        debt_st_sale = 0.0
+        debt_st_cost = 0.0
+        debt_st_gain = 0.0
+
+        debt_lt_sale = 0.0
+        debt_lt_cost = 0.0
+        debt_lt_gain = 0.0
+
+        # Parse debt summary by tracking occurrence counts
+        # Same pattern as equity: ST rows, then LT with index rows, then LT without index rows
+        fvc_count = 0  # Full Value Consideration counter
+        coa_count = 0  # Cost of Acquisition counter
+
+        for row in debt_summary:
+            summary_type = row.get("Summary Of Capital Gains", "")
+            total_value = row.get("Total", 0.0)
+
+            if summary_type == "Full Value Consideration":
+                fvc_count += 1
+                if fvc_count == 1:  # First occurrence = Short-term
+                    debt_st_sale = total_value
+                elif fvc_count == 3:  # Third occurrence = Long-term without index
+                    debt_lt_sale = total_value
+
+            elif summary_type == "Cost of Acquisition":
+                coa_count += 1
+                if coa_count == 1:  # First occurrence = Short-term
+                    debt_st_cost = total_value
+                elif coa_count == 3:  # Third occurrence = Long-term without index
+                    debt_lt_cost = total_value
+
+            elif summary_type == "Short Term Capital Gain/Loss":
+                debt_st_gain = total_value
+
+            elif "LongTermWithOutIndex" in summary_type and "CapitalGain" in summary_type:
+                debt_lt_gain = total_value
+
+        # Build response
+        return CASCapitalGains(
+            equity_short_term=CASCategoryData(
+                sale_consideration=equity_st_sale,
+                acquisition_cost=equity_st_cost,
+                gain_loss=equity_st_gain
+            ),
+            equity_long_term=CASCategoryData(
+                sale_consideration=equity_lt_sale,
+                acquisition_cost=equity_lt_cost,
+                gain_loss=equity_lt_gain
+            ),
+            debt_short_term=CASCategoryData(
+                sale_consideration=debt_st_sale,
+                acquisition_cost=debt_st_cost,
+                gain_loss=debt_st_gain
+            ),
+            debt_long_term=CASCategoryData(
+                sale_consideration=debt_lt_sale,
+                acquisition_cost=debt_lt_cost,
+                gain_loss=debt_lt_gain
+            )
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="CAS capital gains JSON file not found"
+        )
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse CAS JSON: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve CAS capital gains: {str(e)}"
         )

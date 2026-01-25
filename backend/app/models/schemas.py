@@ -46,3 +46,18 @@ class FIFOResponse(BaseModel):
     """Response containing FIFO gains and summary"""
     gains: List[FIFOGainRow]
     summary: FIFOSummary
+
+
+class CASCategoryData(BaseModel):
+    """Capital gains data for a single category"""
+    sale_consideration: float
+    acquisition_cost: float
+    gain_loss: float
+
+
+class CASCapitalGains(BaseModel):
+    """CAS statement capital gains organized by category"""
+    equity_short_term: CASCategoryData
+    equity_long_term: CASCategoryData
+    debt_short_term: CASCategoryData
+    debt_long_term: CASCategoryData
