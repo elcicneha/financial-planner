@@ -9,7 +9,7 @@ export interface VariantEntry {
 
 export const variants: Record<string, VariantEntry> = {
   cas: { name: 'CAS Statement', component: VariantCAS },
-  fifo: { name: 'FIFO Calculations', component: VariantFIFO },
+  fifo: { name: 'My Calculations', component: VariantFIFO },
 };
 
 export const variantKeys = Object.keys(variants);

@@ -170,7 +170,7 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
       <div className="border rounded-lg">
         <Table>
           <TableCaption>
-            FIFO Capital Gains - {sortedGains.length} transaction
+            Capital Gains - {sortedGains.length} transaction
             {sortedGains.length !== 1 ? 's' : ''}
           </TableCaption>
           <TableHeader>

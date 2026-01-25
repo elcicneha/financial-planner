@@ -98,7 +98,7 @@ export default function VariantFIFO() {
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="text-muted-foreground">Calculating capital gains...</p>
           <p className="text-sm text-muted-foreground">
-            This may take a moment if recalculating FIFO for all transactions
+            This may take a moment if recalculating for all transactions
           </p>
         </div>
       </div>
@@ -138,13 +138,13 @@ export default function VariantFIFO() {
               <CardTitle>No Capital Gains Data</CardTitle>
             </div>
             <CardDescription>
-              Upload transaction PDFs to see FIFO capital gains calculations
+              Upload transaction PDFs to see capital gains calculations
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
               Once you upload your mutual fund statement PDFs, we'll automatically calculate your
-              capital gains using FIFO methodology for ITR preparation.
+              capital gains for ITR preparation.
             </p>
           </CardContent>
         </Card>
@@ -159,7 +159,7 @@ export default function VariantFIFO() {
         {/* Header with FY Selector */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Capital Gains - FIFO</h1>
+            <h1 className="text-2xl font-bold tracking-tight">My Calculations</h1>
             <p className="text-sm text-muted-foreground">
               Updated {new Date(data.last_updated).toLocaleDateString('en-IN', {
                 day: 'numeric',
@@ -248,7 +248,7 @@ export default function VariantFIFO() {
               <div>
                 <CardTitle className="text-base">Source Data</CardTitle>
                 <CardDescription>
-                  Detailed FIFO matched transactions ({data.summary.total_transactions} transaction{data.summary.total_transactions !== 1 ? 's' : ''})
+                  Detailed matched transactions ({data.summary.total_transactions} transaction{data.summary.total_transactions !== 1 ? 's' : ''})
                 </CardDescription>
               </div>
               <ChevronDown
