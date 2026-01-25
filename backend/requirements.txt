@@ -4,3 +4,6 @@ python-multipart
 pandas
 pydantic
 PyMuPDF
+openpyxl
+xlrd
+msoffcrypto-tool

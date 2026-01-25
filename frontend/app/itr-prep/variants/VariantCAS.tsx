@@ -123,12 +123,12 @@ export default function VariantCAS() {
                 <CardTitle>No CAS Data Available</CardTitle>
               </div>
               <CardDescription>
-                Upload a CAS JSON file to get started
+                Upload a CAS Excel file to get started
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Upload your Capital Account Statement JSON file to view capital gains data organized for ITR filing.
+                Upload your Capital Gains Statement Excel file to view capital gains data organized for ITR filing.
               </p>
               <CASUploadDialog onUploadSuccess={handleUploadSuccess} />
             </CardContent>

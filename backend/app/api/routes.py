@@ -12,7 +12,7 @@ import shutil
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, Body
+from fastapi import APIRouter, File, HTTPException, UploadFile, Body, Form
 from fastapi.responses import FileResponse
 
 from app.config import (
@@ -44,9 +44,9 @@ from app.services.fifo_calculator import (
 )
 from app.services.cas_parser import (
     CASParserError,
-    infer_financial_year_from_cas,
+    PasswordRequiredError,
     load_and_parse_cas,
-    validate_cas_json,
+    validate_and_save_cas_excel,
 )
 
 router = APIRouter()
@@ -333,55 +333,74 @@ async def update_fund_type_override(request: FundTypeOverrideRequest = Body(...)
 
 
 @router.post("/upload-cas", response_model=CASUploadResponse)
-async def upload_cas_json(file: UploadFile = File(...)):
+async def upload_cas_excel(file: UploadFile = File(...), password: str = Form(None)):
     """
-    Upload a CAS (Capital Account Statement) JSON file.
+    Upload a CAS (Capital Account Statement) Excel file (CAMS .xls or KFINTECH .xlsx).
 
+    The file format is auto-detected (CAMS or KFINTECH).
     The financial year is automatically inferred from transaction dates.
     If a file already exists for that FY, it will be replaced.
+
+    For password-protected files:
+    - First upload without password to get password requirement error
+    - Then re-upload with password field provided
     """
-    if not file.filename or not file.filename.lower().endswith(".json"):
-        raise HTTPException(status_code=400, detail="Only JSON files are allowed")
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    file_ext = file.filename.lower().split('.')[-1]
+    if file_ext not in ['xls', 'xlsx']:
+        raise HTTPException(
+            status_code=400,
+            detail="Only Excel files (.xls or .xlsx) are allowed"
+        )
 
     ensure_directories()
 
     contents = await file.read()
-    try:
-        cas_data = json.loads(contents)
-    except json.JSONDecodeError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid JSON file: {str(e)}")
 
     try:
-        validate_cas_json(cas_data)
+        financial_year, cas_path = await asyncio.to_thread(
+            validate_and_save_cas_excel,
+            contents,
+            password
+        )
+
+        return CASUploadResponse(
+            success=True,
+            message=f"CAS file uploaded successfully for FY {financial_year}",
+            financial_year=financial_year,
+            file_path=str(cas_path.relative_to(BASE_DIR))
+        )
+
+    except PasswordRequiredError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "password_required",
+                "message": str(e)
+            }
+        )
     except CASParserError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-    try:
-        financial_year = infer_financial_year_from_cas(cas_data)
-    except CASParserError as e:
-        raise HTTPException(status_code=400, detail=f"Could not determine financial year: {str(e)}")
-
-    cas_filename = f"FY{financial_year}.json"
-    cas_path = CAS_DIR / cas_filename
-
-    with open(cas_path, "w", encoding="utf-8") as f:
-        json.dump(cas_data, f, indent=2)
-
-    return CASUploadResponse(
-        success=True,
-        message=f"CAS file uploaded successfully for FY {financial_year}",
-        financial_year=financial_year,
-        file_path=str(cas_path.relative_to(BASE_DIR))
-    )
+    except Exception as e:
+        logger.error(f"Failed to process CAS file: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process CAS file: {str(e)}"
+        )
 
 
 @router.get("/cas-files", response_model=CASFilesResponse)
 async def list_cas_files():
-    """List all uploaded CAS files with metadata."""
+    """List all uploaded CAS Excel files with metadata."""
     files = []
 
     if CAS_DIR.exists():
-        for cas_file in sorted(CAS_DIR.glob("FY*.json"), reverse=True):
+        # Get both .xls and .xlsx files
+        cas_files = list(CAS_DIR.glob("FY*.xls")) + list(CAS_DIR.glob("FY*.xlsx"))
+
+        for cas_file in sorted(cas_files, reverse=True):
             fy = cas_file.stem.replace("FY", "")
             stat = cas_file.stat()
 
