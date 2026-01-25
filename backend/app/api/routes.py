@@ -360,7 +360,7 @@ async def upload_cas_excel(file: UploadFile = File(...), password: str = Form(No
     contents = await file.read()
 
     try:
-        financial_year, cas_path = await asyncio.to_thread(
+        financial_year, json_path = await asyncio.to_thread(
             validate_and_save_cas_excel,
             contents,
             password
@@ -368,9 +368,9 @@ async def upload_cas_excel(file: UploadFile = File(...), password: str = Form(No
 
         return CASUploadResponse(
             success=True,
-            message=f"CAS file uploaded successfully for FY {financial_year}",
+            message=f"CAS file uploaded and combined for FY {financial_year}",
             financial_year=financial_year,
-            file_path=str(cas_path.relative_to(BASE_DIR))
+            file_path=str(json_path.relative_to(BASE_DIR))
         )
 
     except PasswordRequiredError as e:
@@ -393,15 +393,18 @@ async def upload_cas_excel(file: UploadFile = File(...), password: str = Form(No
 
 @router.get("/cas-files", response_model=CASFilesResponse)
 async def list_cas_files():
-    """List all uploaded CAS Excel files with metadata."""
+    """List all uploaded CAS JSON files with metadata."""
     files = []
 
     if CAS_DIR.exists():
-        # Get both .xls and .xlsx files
-        cas_files = list(CAS_DIR.glob("FY*.xls")) + list(CAS_DIR.glob("FY*.xlsx"))
+        # Get JSON files (combined data from Excel uploads)
+        cas_files = list(CAS_DIR.glob("FY*.json"))
 
         for cas_file in sorted(cas_files, reverse=True):
-            fy = cas_file.stem.replace("FY", "")
+            # Parse FY from filename like "FY2024-25.json"
+            stem = cas_file.stem
+            fy = stem[2:] if stem.startswith("FY") else stem
+
             stat = cas_file.stat()
 
             files.append(
@@ -414,6 +417,19 @@ async def list_cas_files():
             )
 
     return CASFilesResponse(files=files)
+
+
+def _empty_cas_capital_gains() -> CASCapitalGains:
+    """Return empty CAS capital gains with all zeros when no files uploaded."""
+    from app.models.schemas import CASCategoryData
+    empty_category = CASCategoryData(sale_consideration=0, acquisition_cost=0, gain_loss=0)
+    return CASCapitalGains(
+        equity_short_term=empty_category,
+        equity_long_term=empty_category,
+        debt_short_term=empty_category,
+        debt_long_term=empty_category,
+        has_files=False,
+    )
 
 
 @router.get("/capital-gains-cas", response_model=CASCapitalGains)
@@ -429,10 +445,17 @@ async def get_capital_gains_cas(fy: str = None):
     - Equity Long-term
     - Debt Short-term
     - Debt Long-term
+
+    Returns zeros if no CAS files have been uploaded yet.
     """
     try:
         return await asyncio.to_thread(load_and_parse_cas, fy)
     except FileNotFoundError as e:
+        # No files uploaded yet - return empty data (200) instead of 404
+        # This allows frontend to show empty state without error handling
+        if not fy:
+            return _empty_cas_capital_gains()
+        # Specific FY requested but not found - this is a real 404
         raise HTTPException(status_code=404, detail=str(e))
     except CASParserError as e:
         raise HTTPException(status_code=500, detail=str(e))

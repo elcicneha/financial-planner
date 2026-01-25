@@ -87,10 +87,11 @@ class CASCapitalGains(BaseModel):
     equity_long_term: CASCategoryData
     debt_short_term: CASCategoryData
     debt_long_term: CASCategoryData
+    has_files: bool = True  # False when no CAS files uploaded yet
 
 
 class CASUploadResponse(BaseModel):
-    """Response for CAS JSON upload"""
+    """Response for CAS file upload"""
     success: bool
     message: str
     financial_year: str  # e.g., "2024-25"

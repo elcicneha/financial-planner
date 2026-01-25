@@ -110,13 +110,12 @@ export default function VariantCAS() {
     );
   }
 
-  // Empty state
-  if (!data) {
+  // Empty state - no CAS files uploaded yet
+  if (!data || !data.has_files) {
     return (
       <div className="container mx-auto py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold tracking-tight">ITR Prep - CAS Statement</h1>
-          <CASUploadDialog onUploadSuccess={handleUploadSuccess} />
         </div>
         <div className="flex h-[60vh] items-center justify-center">
           <Card className="w-full max-w-md">

@@ -14,7 +14,7 @@ const FY_STORAGE_KEY = 'itr-prep-fifo-fy';
 export default function VariantFIFO() {
   // Load selected FY from localStorage
   const [selectedFY, setSelectedFY] = useState<string>('');
-  const { financialYears } = useAvailableFinancialYears();
+  const { financialYears, loading: fyLoading } = useAvailableFinancialYears();
 
   // Initialize selectedFY from localStorage or default to first available FY
   useEffect(() => {
@@ -26,7 +26,9 @@ export default function VariantFIFO() {
     }
   }, [financialYears]);
 
-  const { data, loading, error, refetch } = useCapitalGains(0, selectedFY || undefined);
+  // Only fetch when FYs are loaded AND (selectedFY is set OR no FYs available)
+  const enabled = !fyLoading && (selectedFY !== '' || financialYears.length === 0);
+  const { data, loading, error, refetch } = useCapitalGains(0, selectedFY || undefined, enabled);
 
   const handleFYChange = (fy: string) => {
     setSelectedFY(fy);

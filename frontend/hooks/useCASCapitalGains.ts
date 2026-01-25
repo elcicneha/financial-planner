@@ -11,6 +11,7 @@ export interface CASCapitalGainsData {
   equity_long_term: CASCategoryData;
   debt_short_term: CASCategoryData;
   debt_long_term: CASCategoryData;
+  has_files: boolean;
 }
 
 interface UseCASCapitalGainsResult {

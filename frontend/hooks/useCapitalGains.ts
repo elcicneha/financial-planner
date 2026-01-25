@@ -37,7 +37,7 @@ interface UseCapitalGainsResult {
   refetch: () => void;
 }
 
-export function useCapitalGains(refreshKey = 0, fy?: string): UseCapitalGainsResult {
+export function useCapitalGains(refreshKey = 0, fy?: string, enabled = true): UseCapitalGainsResult {
   const [data, setData] = useState<CapitalGainsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,8 +66,10 @@ export function useCapitalGains(refreshKey = 0, fy?: string): UseCapitalGainsRes
   }, [fy]);
 
   useEffect(() => {
-    fetchCapitalGains();
-  }, [fetchCapitalGains, refreshKey]);
+    if (enabled) {
+      fetchCapitalGains();
+    }
+  }, [fetchCapitalGains, refreshKey, enabled]);
 
   const refetch = useCallback(() => {
     fetchCapitalGains();
