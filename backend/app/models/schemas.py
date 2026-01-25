@@ -82,12 +82,27 @@ class CASCategoryData(BaseModel):
     gain_loss: float
 
 
+class CASTransaction(BaseModel):
+    """Individual transaction from CAS statement"""
+    fund_name: str
+    folio: str
+    buy_date: str
+    sell_date: str
+    units: float
+    buy_nav: float
+    sell_nav: float
+    sale_consideration: float
+    acquisition_cost: float
+    gain_loss: float
+
+
 class CASCapitalGains(BaseModel):
     """CAS statement capital gains organized by category"""
     equity_short_term: CASCategoryData
     equity_long_term: CASCategoryData
     debt_short_term: CASCategoryData
     debt_long_term: CASCategoryData
+    transactions: List[CASTransaction] = []  # Raw transactions for source data view
     has_files: bool = True  # False when no CAS files uploaded yet
     last_updated: str  # ISO format timestamp
 

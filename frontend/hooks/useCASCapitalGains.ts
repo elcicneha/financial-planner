@@ -6,11 +6,25 @@ export interface CASCategoryData {
   gain_loss: number;
 }
 
+export interface CASTransaction {
+  fund_name: string;
+  folio: string;
+  buy_date: string;
+  sell_date: string;
+  units: number;
+  buy_nav: number;
+  sell_nav: number;
+  sale_consideration: number;
+  acquisition_cost: number;
+  gain_loss: number;
+}
+
 export interface CASCapitalGainsData {
   equity_short_term: CASCategoryData;
   equity_long_term: CASCategoryData;
   debt_short_term: CASCategoryData;
   debt_long_term: CASCategoryData;
+  transactions: CASTransaction[];
   has_files: boolean;
   last_updated: string;
 }

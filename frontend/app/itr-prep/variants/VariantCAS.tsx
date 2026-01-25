@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useCASCapitalGains } from '@/hooks/useCASCapitalGains';
 import { useCASFiles } from '@/hooks/useCASFiles';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, AlertCircle, FileText } from 'lucide-react';
+import { Loader2, AlertCircle, FileText, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CASUploadDialog } from '../components/CASUploadDialog';
 import { formatCurrency } from '@/lib/currency';
@@ -18,10 +18,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export default function VariantCAS() {
   const [selectedFY, setSelectedFY] = useState<string | undefined>(undefined);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isSourceOpen, setIsSourceOpen] = useState(false);
 
   // Fetch available CAS files
   const { files: casFiles } = useCASFiles(refreshKey);
@@ -202,6 +211,94 @@ export default function VariantCAS() {
             />
           </div>
         </div>
+
+        {/* Collapsible Source Data */}
+        <Card>
+          <button
+            onClick={() => setIsSourceOpen(!isSourceOpen)}
+            className="w-full text-left"
+          >
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Source Data</CardTitle>
+                <CardDescription>
+                  {data.transactions && data.transactions.length > 0
+                    ? `Individual transactions from CAS (${data.transactions.length} transaction${data.transactions.length !== 1 ? 's' : ''})`
+                    : 'Transaction details not available in CAS file'}
+                </CardDescription>
+              </div>
+              <ChevronDown
+                className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
+                  isSourceOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </CardHeader>
+          </button>
+          {isSourceOpen && (
+            <CardContent>
+              {data.transactions && data.transactions.length > 0 ? (
+                <div className="border rounded-lg overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fund Name</TableHead>
+                        <TableHead>Folio</TableHead>
+                        <TableHead>Buy Date</TableHead>
+                        <TableHead>Sell Date</TableHead>
+                        <TableHead className="text-right">Units</TableHead>
+                        <TableHead className="text-right">Buy NAV</TableHead>
+                        <TableHead className="text-right">Sell NAV</TableHead>
+                        <TableHead className="text-right">Sale Value</TableHead>
+                        <TableHead className="text-right">Cost</TableHead>
+                        <TableHead className="text-right">Gain/Loss</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.transactions.map((txn, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium max-w-[200px] truncate" title={txn.fund_name}>
+                            {txn.fund_name}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{txn.folio}</TableCell>
+                          <TableCell className="font-mono text-sm">{txn.buy_date}</TableCell>
+                          <TableCell className="font-mono text-sm">{txn.sell_date}</TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {txn.units.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {txn.buy_nav.toLocaleString('en-IN', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {txn.sell_nav.toLocaleString('en-IN', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {formatCurrency(txn.sale_consideration)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {formatCurrency(txn.acquisition_cost)}
+                          </TableCell>
+                          <TableCell
+                            className={`text-right font-mono text-sm font-medium ${
+                              txn.gain_loss >= 0
+                                ? 'text-green-600 dark:text-green-400'
+                                : 'text-red-600 dark:text-red-400'
+                            }`}
+                          >
+                            {formatCurrency(txn.gain_loss)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  Individual transaction details are not available. The CAS file only contains summary totals.
+                </p>
+              )}
+            </CardContent>
+          )}
+        </Card>
       </div>
     </TooltipProvider>
   );

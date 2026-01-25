@@ -6,7 +6,7 @@ import { useAvailableFinancialYears } from '@/hooks/useAvailableFinancialYears';
 import CapitalGainsTable from '@/components/CapitalGainsTable';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, AlertCircle, TrendingUp } from 'lucide-react';
+import { Loader2, AlertCircle, TrendingUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CategoryCard, CategoryData } from '../components/CategoryCard';
 import { CopyButton } from '@/components/ui/copy-button';
@@ -55,6 +55,7 @@ const FY_STORAGE_KEY = 'itr-prep-fifo-fy';
 export default function VariantFIFO() {
   // Load selected FY from localStorage
   const [selectedFY, setSelectedFY] = useState<string>('');
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const { financialYears, loading: fyLoading } = useAvailableFinancialYears();
 
   // Initialize selectedFY from localStorage or default to first available FY
@@ -237,17 +238,31 @@ export default function VariantFIFO() {
           </div>
         </div>
 
-        {/* Gains Table */}
+        {/* Collapsible Gains Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>Capital Gains Details</CardTitle>
-            <CardDescription>
-              Detailed FIFO matched transactions for each sale ({data.summary.total_transactions} transaction{data.summary.total_transactions !== 1 ? 's' : ''})
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CapitalGainsTable gains={data.gains} refetch={refetch} />
-          </CardContent>
+          <button
+            onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+            className="w-full text-left"
+          >
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Source Data</CardTitle>
+                <CardDescription>
+                  Detailed FIFO matched transactions ({data.summary.total_transactions} transaction{data.summary.total_transactions !== 1 ? 's' : ''})
+                </CardDescription>
+              </div>
+              <ChevronDown
+                className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
+                  isDetailsOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </CardHeader>
+          </button>
+          {isDetailsOpen && (
+            <CardContent>
+              <CapitalGainsTable gains={data.gains} refetch={refetch} />
+            </CardContent>
+          )}
         </Card>
       </div>
     </TooltipProvider>

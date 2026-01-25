@@ -17,7 +17,7 @@ import msoffcrypto
 import pandas as pd
 
 from app.config import CAS_DIR
-from app.models.schemas import CASCapitalGains, CASCategoryData
+from app.models.schemas import CASCapitalGains, CASCategoryData, CASTransaction
 
 logger = logging.getLogger(__name__)
 
@@ -533,11 +533,29 @@ def load_and_parse_cas(
     summary = data.get('summary', {})
     last_updated = data.get('updated_at', datetime.now().isoformat())
 
+    # Parse transactions for source data view
+    raw_transactions = data.get('transactions', [])
+    transactions = []
+    for txn in raw_transactions:
+        transactions.append(CASTransaction(
+            fund_name=txn.get('fund_name', ''),
+            folio=txn.get('folio', ''),
+            buy_date=txn.get('buy_date', ''),
+            sell_date=txn.get('sell_date', ''),
+            units=txn.get('units', 0.0),
+            buy_nav=txn.get('buy_nav', 0.0),
+            sell_nav=txn.get('sell_nav', 0.0),
+            sale_consideration=txn.get('sale_consideration', 0.0),
+            acquisition_cost=txn.get('acquisition_cost', 0.0),
+            gain_loss=txn.get('gain_loss', 0.0),
+        ))
+
     return CASCapitalGains(
         equity_short_term=CASCategoryData(**summary.get('equity_short_term', {})),
         equity_long_term=CASCategoryData(**summary.get('equity_long_term', {})),
         debt_short_term=CASCategoryData(**summary.get('debt_short_term', {})),
         debt_long_term=CASCategoryData(**summary.get('debt_long_term', {})),
+        transactions=transactions,
         last_updated=last_updated
     )
 
