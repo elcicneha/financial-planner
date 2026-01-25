@@ -1,13 +1,28 @@
+"""
+API Routes for the Financial Planner application.
+
+Handles PDF upload, transaction extraction, and capital gains calculations.
+"""
+
 import asyncio
 import json
+import logging
 import re
+import shutil
 import uuid
 from datetime import datetime
-from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile, Body
 from fastapi.responses import FileResponse
 
+from app.config import (
+    BASE_DIR,
+    UPLOADS_DIR,
+    OUTPUTS_DIR,
+    CAS_DIR,
+    FILE_ID_LENGTH,
+    ensure_directories,
+)
 from app.models.schemas import (
     ProcessingResult,
     UploadResponse,
@@ -15,121 +30,84 @@ from app.models.schemas import (
     FIFOGainRow,
     FIFOSummary,
     CASCapitalGains,
-    CASCategoryData,
     CASUploadResponse,
     CASFileInfo,
     CASFilesResponse,
+    FundTypeOverrideRequest,
 )
 from app.services.pdf_extractor import extract_transactions
 from app.services.fifo_calculator import get_cached_gains, save_fund_type_override
+from app.services.cas_parser import (
+    CASParserError,
+    infer_financial_year_from_cas,
+    load_and_parse_cas,
+    validate_cas_json,
+)
 
 router = APIRouter()
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
-DATA_DIR = BASE_DIR / "data"
-UPLOADS_DIR = DATA_DIR / "uploads"
-OUTPUTS_DIR = DATA_DIR / "outputs"
-CAS_DIR = DATA_DIR / "cas"
-
-
-def ensure_directories():
-    """Create data directories if they don't exist."""
-    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
-    CAS_DIR.mkdir(parents=True, exist_ok=True)
+logger = logging.getLogger(__name__)
 
 
 def sanitize_filename(filename: str) -> str:
-    """Sanitize filename to prevent path traversal and special characters."""
-    # Remove path components
+    """
+    Sanitize filename to prevent path traversal and special characters.
+
+    Args:
+        filename: Original filename from upload.
+
+    Returns:
+        Sanitized filename safe for filesystem use.
+    """
+    from pathlib import Path
     filename = Path(filename).name
-    # Remove special characters, keep only alphanumeric, dash, underscore, dot
     sanitized = re.sub(r'[^\w\-.]', '_', filename)
-    # Ensure it ends with .pdf
     if not sanitized.lower().endswith('.pdf'):
         sanitized = sanitized + '.pdf'
     return sanitized
 
 
-def get_latest_cas_file() -> Path | None:
-    """Get the most recent CAS file based on filename (financial year)."""
-    if not CAS_DIR.exists():
-        return None
-
-    cas_files = sorted(CAS_DIR.glob("FY*.json"), reverse=True)
-    return cas_files[0] if cas_files else None
-
-
-def get_cas_file_for_fy(fy: str) -> Path:
-    """Get CAS file path for a specific financial year."""
-    return CAS_DIR / f"FY{fy}.json"
-
-
-def infer_financial_year_from_cas(cas_data: dict) -> str:
+def cleanup_upload(upload_folder) -> None:
     """
-    Infer financial year from CAS JSON transaction dates.
+    Remove upload folder and its contents after processing.
 
-    Financial year in India runs from April 1 to March 31.
-    Reads a single transaction date to determine the FY.
-
-    Returns FY in format "2025-26"
+    Args:
+        upload_folder: Path to the upload folder to clean up.
     """
-    # Get first transaction date
-    transactions = cas_data.get("TRXN_DETAILS", [])
-
-    if not transactions:
-        raise ValueError("No transaction details found in CAS JSON")
-
-    # Get date from first transaction
-    first_txn = transactions[0]
-    date_str = first_txn.get("Date")
-
-    if not date_str:
-        raise ValueError("No date found in CAS transaction")
-
     try:
-        # Parse date in format "24-Apr-2025"
-        date_obj = datetime.strptime(date_str, "%d-%b-%Y")
-    except (ValueError, TypeError) as e:
-        raise ValueError(f"Could not parse transaction date: {date_str}") from e
-
-    # Determine FY based on the date
-    # FY starts on April 1
-    if date_obj.month >= 4:  # Apr to Dec
-        fy_start_year = date_obj.year
-        fy_end_year = date_obj.year + 1
-    else:  # Jan to Mar
-        fy_start_year = date_obj.year - 1
-        fy_end_year = date_obj.year
-
-    # Format as "2025-26"
-    return f"{fy_start_year}-{str(fy_end_year)[-2:]}"
+        if upload_folder.exists():
+            shutil.rmtree(upload_folder)
+            logger.info(f"Cleaned up upload folder: {upload_folder}")
+    except Exception as e:
+        logger.warning(f"Failed to cleanup upload folder {upload_folder}: {e}")
 
 
 @router.get("/health")
 async def health_check():
+    """Health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_pdf(file: UploadFile = File(...)):
-    """Upload a PDF file and process it to extract mutual fund transactions."""
-    if not file.filename.endswith(".pdf"):
+    """
+    Upload a PDF file and process it to extract mutual fund transactions.
+
+    The uploaded PDF is processed to extract transactions, saved as JSON,
+    and then the original PDF is cleaned up.
+    """
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
 
     ensure_directories()
 
-    # Generate unique ID for this upload
-    file_id = str(uuid.uuid4())[:8]
+    file_id = str(uuid.uuid4())[:FILE_ID_LENGTH]
     date_folder = datetime.now().strftime("%Y-%m-%d")
 
-    # Create date-based subdirectories
     upload_folder = UPLOADS_DIR / date_folder
     output_folder = OUTPUTS_DIR / date_folder
     upload_folder.mkdir(parents=True, exist_ok=True)
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    # Save uploaded PDF with sanitized filename
     safe_filename = sanitize_filename(file.filename)
     pdf_filename = f"{file_id}_{safe_filename}"
     pdf_path = upload_folder / pdf_filename
@@ -138,72 +116,84 @@ async def upload_pdf(file: UploadFile = File(...)):
     with open(pdf_path, "wb") as f:
         f.write(contents)
 
-    # Process PDF in thread pool to avoid blocking event loop
     try:
-        csv_path = await asyncio.to_thread(
+        output_path = await asyncio.to_thread(
             extract_transactions, pdf_path, output_folder, file_id
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
 
-    return UploadResponse(
-        success=True,
-        message="File uploaded successfully",
-        file_id=file_id,
-        pdf_path=str(pdf_path.relative_to(BASE_DIR)),
-        csv_path=str(csv_path.relative_to(BASE_DIR)),
-    )
+        # Clean up the upload folder after successful processing
+        cleanup_upload(upload_folder)
+
+        return UploadResponse(
+            success=True,
+            message="File uploaded and processed successfully",
+            file_id=file_id,
+            output_path=str(output_path.relative_to(BASE_DIR)),
+        )
+    except Exception as e:
+        logger.error(f"Failed to process PDF: {e}")
+        # Clean up on failure too
+        cleanup_upload(upload_folder)
+        raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
 
 
 @router.get("/results/{file_id}", response_model=ProcessingResult)
 async def get_results(file_id: str):
     """Retrieve processing results for a given file ID."""
-    # Search for the CSV file across date folders
-    for date_folder in OUTPUTS_DIR.iterdir():
-        if date_folder.is_dir():
-            for csv_file in date_folder.glob(f"transactions_{file_id}.csv"):
-                # Read CSV content
-                with open(csv_file, "r") as f:
-                    content = f.read()
+    if not OUTPUTS_DIR.exists():
+        raise HTTPException(status_code=404, detail=f"Results not found for file_id: {file_id}")
 
-                return ProcessingResult(
-                    file_id=file_id,
-                    csv_path=str(csv_file.relative_to(BASE_DIR)),
-                    content=content,
-                )
+    for date_folder in OUTPUTS_DIR.iterdir():
+        if date_folder.is_dir() and date_folder.name != 'fifo_cache':
+            for json_file in date_folder.glob(f"transactions_{file_id}.json"):
+                try:
+                    with open(json_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    return ProcessingResult(
+                        file_id=file_id,
+                        output_path=str(json_file.relative_to(BASE_DIR)),
+                        transactions=data.get("transactions", []),
+                    )
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid JSON in {json_file}: {e}")
+                    raise HTTPException(status_code=500, detail="Failed to read transaction data")
 
     raise HTTPException(status_code=404, detail=f"Results not found for file_id: {file_id}")
 
 
 @router.get("/download/{file_id}")
-async def download_csv(file_id: str):
-    """Download the processed CSV file."""
+async def download_file(file_id: str):
+    """Download the processed transaction file."""
+    if not OUTPUTS_DIR.exists():
+        raise HTTPException(status_code=404, detail=f"File not found for file_id: {file_id}")
+
     for date_folder in OUTPUTS_DIR.iterdir():
-        if date_folder.is_dir():
-            for csv_file in date_folder.glob(f"transactions_{file_id}.csv"):
+        if date_folder.is_dir() and date_folder.name != 'fifo_cache':
+            for json_file in date_folder.glob(f"transactions_{file_id}.json"):
                 return FileResponse(
-                    path=csv_file,
-                    filename=f"transactions_{file_id}.csv",
-                    media_type="text/csv",
+                    path=json_file,
+                    filename=f"transactions_{file_id}.json",
+                    media_type="application/json",
                 )
 
-    raise HTTPException(status_code=404, detail=f"CSV not found for file_id: {file_id}")
+    raise HTTPException(status_code=404, detail=f"File not found for file_id: {file_id}")
 
 
 @router.get("/files")
 async def list_files():
-    """List all processed CSV files."""
+    """List all processed transaction files."""
     files = []
 
     if OUTPUTS_DIR.exists():
         for date_folder in sorted(OUTPUTS_DIR.iterdir(), reverse=True):
-            if date_folder.is_dir():
-                for csv_file in date_folder.glob("transactions_*.csv"):
-                    file_id = csv_file.stem.replace("transactions_", "")
+            if date_folder.is_dir() and date_folder.name != 'fifo_cache':
+                for json_file in date_folder.glob("transactions_*.json"):
+                    file_id = json_file.stem.replace("transactions_", "")
                     files.append({
                         "file_id": file_id,
                         "date": date_folder.name,
-                        "csv_path": str(csv_file.relative_to(BASE_DIR)),
+                        "path": str(json_file.relative_to(BASE_DIR)),
                     })
 
     return {"files": files}
@@ -214,18 +204,13 @@ async def get_capital_gains():
     """
     Get FIFO capital gains calculations.
 
-    This endpoint:
-    1. Checks if cached results are valid
-    2. If invalid: Recalculates FIFO gains from all transactions
-    3. If valid: Returns cached results
-    4. Returns all realized capital gains with summary statistics
+    Checks if cached results are valid, recalculates if needed,
+    and returns all realized capital gains with summary statistics.
     """
     try:
-        # Get cached gains (will recalculate if cache is invalid)
         gains_data = await asyncio.to_thread(get_cached_gains)
 
         if not gains_data:
-            # No transactions or gains yet
             return FIFOResponse(
                 gains=[],
                 summary=FIFOSummary(
@@ -237,15 +222,12 @@ async def get_capital_gains():
                 )
             )
 
-        # Convert to Pydantic models
         gains = [FIFOGainRow(**g) for g in gains_data]
 
-        # Calculate summary statistics
         total_stcg = sum(g.gain for g in gains if g.term == "Short-term")
         total_ltcg = sum(g.gain for g in gains if g.term == "Long-term")
         total_gains = sum(g.gain for g in gains)
 
-        # Get date range
         if gains:
             dates = sorted([g.sell_date for g in gains])
             date_range = f"{dates[0]} to {dates[-1]}"
@@ -263,6 +245,7 @@ async def get_capital_gains():
         return FIFOResponse(gains=gains, summary=summary)
 
     except Exception as e:
+        logger.error(f"Failed to calculate capital gains: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to calculate capital gains: {str(e)}"
@@ -270,42 +253,28 @@ async def get_capital_gains():
 
 
 @router.put("/fund-type-override")
-async def update_fund_type_override(ticker: str, fund_type: str):
+async def update_fund_type_override(request: FundTypeOverrideRequest = Body(...)):
     """
     Update manual fund type override for a ticker.
 
-    This allows users to manually classify a fund as 'equity' or 'debt',
-    overriding the automatic classification. The override persists across
-    FIFO recalculations and invalidates the FIFO cache.
-
-    Args:
-        ticker: Fund ticker symbol (e.g., "BAND_NIFT_50_1Y4SPBO")
-        fund_type: Classification - must be 'equity' or 'debt'
-
-    Returns:
-        Success message with the updated classification
+    Allows users to manually classify a fund as 'equity' or 'debt',
+    overriding the automatic classification. The override persists
+    and invalidates the FIFO cache.
     """
     try:
-        # Validate fund_type
-        if fund_type not in ['equity', 'debt']:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid fund_type: '{fund_type}'. Must be 'equity' or 'debt'"
-            )
-
-        # Save override (this also invalidates the FIFO cache)
-        await asyncio.to_thread(save_fund_type_override, ticker, fund_type)
+        await asyncio.to_thread(save_fund_type_override, request.ticker, request.fund_type)
 
         return {
             "success": True,
-            "message": f"Fund type updated for {ticker}",
-            "ticker": ticker,
-            "fund_type": fund_type
+            "message": f"Fund type updated for {request.ticker}",
+            "ticker": request.ticker,
+            "fund_type": request.fund_type
         }
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Failed to update fund type override: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update fund type override: {str(e)}"
@@ -317,50 +286,34 @@ async def upload_cas_json(file: UploadFile = File(...)):
     """
     Upload a CAS (Capital Account Statement) JSON file.
 
-    The financial year is automatically inferred from transaction dates in the JSON.
-    The file will be saved as data/cas/FY{financial_year}.json
+    The financial year is automatically inferred from transaction dates.
     If a file already exists for that FY, it will be replaced.
-
-    Args:
-        file: JSON file from CAMS/Karvy
     """
-    if not file.filename.endswith(".json"):
+    if not file.filename or not file.filename.lower().endswith(".json"):
         raise HTTPException(status_code=400, detail="Only JSON files are allowed")
 
     ensure_directories()
 
-    # Read and validate JSON
     contents = await file.read()
     try:
         cas_data = json.loads(contents)
     except json.JSONDecodeError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid JSON file: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid JSON file: {str(e)}")
 
-    # Basic validation - check if it looks like a CAS JSON
-    if "OVERALL_SUMMARY_EQUITY" not in cas_data and "OVERALL_SUMMARY_NONEQUITY" not in cas_data:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid CAS JSON format. Missing expected fields."
-        )
+    try:
+        validate_cas_json(cas_data)
+    except CASParserError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    # Infer financial year from transaction dates
     try:
         financial_year = infer_financial_year_from_cas(cas_data)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Could not determine financial year: {str(e)}"
-        )
+    except CASParserError as e:
+        raise HTTPException(status_code=400, detail=f"Could not determine financial year: {str(e)}")
 
-    # Save to data/cas/FY{financial_year}.json
     cas_filename = f"FY{financial_year}.json"
     cas_path = CAS_DIR / cas_filename
 
-    # Save the file (will replace if exists)
-    with open(cas_path, "w") as f:
+    with open(cas_path, "w", encoding="utf-8") as f:
         json.dump(cas_data, f, indent=2)
 
     return CASUploadResponse(
@@ -373,19 +326,12 @@ async def upload_cas_json(file: UploadFile = File(...)):
 
 @router.get("/cas-files", response_model=CASFilesResponse)
 async def list_cas_files():
-    """
-    List all uploaded CAS files with metadata.
-
-    Returns a list of financial years with upload information.
-    """
+    """List all uploaded CAS files with metadata."""
     files = []
 
     if CAS_DIR.exists():
         for cas_file in sorted(CAS_DIR.glob("FY*.json"), reverse=True):
-            # Extract FY from filename (e.g., "FY2024-25.json" -> "2024-25")
             fy = cas_file.stem.replace("FY", "")
-
-            # Get file stats
             stat = cas_file.stat()
 
             files.append(
@@ -408,171 +354,20 @@ async def get_capital_gains_cas(fy: str = None):
     Args:
         fy: Financial year in format "2024-25" (optional, defaults to latest)
 
-    Reads the capital gain loss statement JSON file and extracts
-    the 4 categories of capital gains:
+    Returns structured data with 4 categories:
     - Equity Short-term
     - Equity Long-term
     - Debt Short-term
     - Debt Long-term
-
-    Returns structured data with sale consideration, acquisition cost,
-    and gain/loss for each category.
     """
     try:
-        # Determine which CAS file to use
-        if fy:
-            cas_json_path = get_cas_file_for_fy(fy)
-            if not cas_json_path.exists():
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"CAS file not found for financial year {fy}"
-                )
-        else:
-            # Get latest file
-            cas_json_path = get_latest_cas_file()
-            if not cas_json_path:
-                raise HTTPException(
-                    status_code=404,
-                    detail="No CAS files found. Please upload a CAS JSON file."
-                )
-
-        # Read and parse JSON
-        with open(cas_json_path, 'r') as f:
-            cas_data = json.load(f)
-
-        # Extract equity data from OVERALL_SUMMARY_EQUITY
-        equity_summary = cas_data.get("OVERALL_SUMMARY_EQUITY", [])
-
-        # Find equity short-term data
-        equity_st_sale = 0.0
-        equity_st_cost = 0.0
-        equity_st_gain = 0.0
-
-        equity_lt_sale = 0.0
-        equity_lt_cost = 0.0
-        equity_lt_gain = 0.0
-
-        for row in equity_summary:
-            summary_type = row.get("Summary Of Capital Gains", "")
-            total_value = row.get("Total", 0.0)
-
-            if summary_type == "Full Value Consideration":
-                # This appears twice - once for ST, once for LT
-                # We need to look at the context to determine which is which
-                # The first occurrence is for ST (before "Short Term Capital Gain/Loss")
-                # But simpler: we can track indices
-                pass
-            elif summary_type == "Short Term Capital Gain/Loss":
-                equity_st_gain = total_value
-            elif "LongTermWithOutIndex" in summary_type and "CapitalGain" in summary_type:
-                equity_lt_gain = total_value
-
-        # Parse equity summary by tracking occurrence counts
-        # The pattern is: ST rows, then LT with index rows, then LT without index rows
-        # Each section has: Fair Market Value (optional), Full Value Consideration, Cost of Acquisition, Gain/Loss
-
-        fvc_count = 0  # Full Value Consideration counter
-        coa_count = 0  # Cost of Acquisition counter
-
-        for row in equity_summary:
-            summary_type = row.get("Summary Of Capital Gains", "")
-            total_value = row.get("Total", 0.0)
-
-            if summary_type == "Full Value Consideration":
-                fvc_count += 1
-                if fvc_count == 1:  # First occurrence = Short-term
-                    equity_st_sale = total_value
-                elif fvc_count == 3:  # Third occurrence = Long-term without index
-                    equity_lt_sale = total_value
-
-            elif summary_type == "Cost of Acquisition":
-                coa_count += 1
-                if coa_count == 1:  # First occurrence = Short-term
-                    equity_st_cost = total_value
-                elif coa_count == 3:  # Third occurrence = Long-term without index
-                    equity_lt_cost = total_value
-
-            elif summary_type == "Short Term Capital Gain/Loss":
-                equity_st_gain = total_value
-
-            elif "LongTermWithOutIndex" in summary_type and "CapitalGain" in summary_type:
-                equity_lt_gain = total_value
-
-        # Extract debt (non-equity) data from OVERALL_SUMMARY_NONEQUITY
-        debt_summary = cas_data.get("OVERALL_SUMMARY_NONEQUITY", [])
-
-        debt_st_sale = 0.0
-        debt_st_cost = 0.0
-        debt_st_gain = 0.0
-
-        debt_lt_sale = 0.0
-        debt_lt_cost = 0.0
-        debt_lt_gain = 0.0
-
-        # Parse debt summary by tracking occurrence counts
-        # Same pattern as equity: ST rows, then LT with index rows, then LT without index rows
-        fvc_count = 0  # Full Value Consideration counter
-        coa_count = 0  # Cost of Acquisition counter
-
-        for row in debt_summary:
-            summary_type = row.get("Summary Of Capital Gains", "")
-            total_value = row.get("Total", 0.0)
-
-            if summary_type == "Full Value Consideration":
-                fvc_count += 1
-                if fvc_count == 1:  # First occurrence = Short-term
-                    debt_st_sale = total_value
-                elif fvc_count == 3:  # Third occurrence = Long-term without index
-                    debt_lt_sale = total_value
-
-            elif summary_type == "Cost of Acquisition":
-                coa_count += 1
-                if coa_count == 1:  # First occurrence = Short-term
-                    debt_st_cost = total_value
-                elif coa_count == 3:  # Third occurrence = Long-term without index
-                    debt_lt_cost = total_value
-
-            elif summary_type == "Short Term Capital Gain/Loss":
-                debt_st_gain = total_value
-
-            elif "LongTermWithOutIndex" in summary_type and "CapitalGain" in summary_type:
-                debt_lt_gain = total_value
-
-        # Build response
-        return CASCapitalGains(
-            equity_short_term=CASCategoryData(
-                sale_consideration=equity_st_sale,
-                acquisition_cost=equity_st_cost,
-                gain_loss=equity_st_gain
-            ),
-            equity_long_term=CASCategoryData(
-                sale_consideration=equity_lt_sale,
-                acquisition_cost=equity_lt_cost,
-                gain_loss=equity_lt_gain
-            ),
-            debt_short_term=CASCategoryData(
-                sale_consideration=debt_st_sale,
-                acquisition_cost=debt_st_cost,
-                gain_loss=debt_st_gain
-            ),
-            debt_long_term=CASCategoryData(
-                sale_consideration=debt_lt_sale,
-                acquisition_cost=debt_lt_cost,
-                gain_loss=debt_lt_gain
-            )
-        )
-
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=404,
-            detail="CAS capital gains JSON file not found"
-        )
-    except json.JSONDecodeError as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to parse CAS JSON: {str(e)}"
-        )
+        return await asyncio.to_thread(load_and_parse_cas, fy)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except CASParserError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
+        logger.error(f"Failed to retrieve CAS capital gains: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve CAS capital gains: {str(e)}"

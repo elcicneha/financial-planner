@@ -34,7 +34,7 @@ export default function ITRPrepPage() {
   return (
     <>
       <VariantSwitcher selected={selectedVariant} onChange={setSelectedVariant} variants={variants} />
-      <div className={isDevMode ? 'pt-12' : ''}>
+      <div className={isDevMode ? 'pt-2' : ''}>
         <SelectedComponent />
       </div>
     </>

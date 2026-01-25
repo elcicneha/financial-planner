@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Loader2, AlertCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CASUploadDialog } from '../components/CASUploadDialog';
+import { formatCurrency } from '@/lib/currency';
 import {
   Select,
   SelectContent,
@@ -21,13 +22,6 @@ interface CategoryCardProps {
 }
 
 function CategoryCard({ title, data }: CategoryCardProps) {
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
-
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -36,20 +30,19 @@ function CategoryCard({ title, data }: CategoryCardProps) {
       <CardContent className="space-y-3">
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">Sale Consideration</p>
-          <p className="text-xl font-semibold">₹{formatCurrency(data.sale_consideration)}</p>
+          <p className="text-xl font-semibold">{formatCurrency(data.sale_consideration)}</p>
         </div>
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">Acquisition Cost</p>
-          <p className="text-xl font-semibold">₹{formatCurrency(data.acquisition_cost)}</p>
+          <p className="text-xl font-semibold">{formatCurrency(data.acquisition_cost)}</p>
         </div>
         <div className="space-y-1 pt-2 border-t">
           <p className="text-sm text-muted-foreground">Gain/Loss</p>
-          <p className={`text-2xl font-bold ${
-            data.gain_loss >= 0
-              ? 'text-green-600 dark:text-green-400'
-              : 'text-red-600 dark:text-red-400'
-          }`}>
-            ₹{formatCurrency(data.gain_loss)}
+          <p className={`text-2xl font-bold ${data.gain_loss >= 0
+            ? 'text-green-600 dark:text-green-400'
+            : 'text-red-600 dark:text-red-400'
+            }`}>
+            {formatCurrency(data.gain_loss)}
           </p>
         </div>
       </CardContent>
@@ -152,13 +145,6 @@ export default function VariantCAS() {
     data.debt_short_term.gain_loss +
     data.debt_long_term.gain_loss;
 
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
-
   // Success state with data
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -197,18 +183,17 @@ export default function VariantCAS() {
           <CardTitle className="text-lg">Total Capital Gains</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className={`text-4xl font-bold ${
-            totalGains >= 0
-              ? 'text-green-600 dark:text-green-400'
-              : 'text-red-600 dark:text-red-400'
-          }`}>
-            ₹{formatCurrency(totalGains)}
+          <p className={`text-4xl font-bold ${totalGains >= 0
+            ? 'text-green-600 dark:text-green-400'
+            : 'text-red-600 dark:text-red-400'
+            }`}>
+            {formatCurrency(totalGains)}
           </p>
         </CardContent>
       </Card>
 
       {/* Info Card */}
-      <Card className="bg-muted/50">
+      {/* <Card className="bg-muted/50">
         <CardContent className="pt-6">
           <div className="flex items-start gap-3">
             <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
@@ -221,7 +206,7 @@ export default function VariantCAS() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Equity Section */}
       <div className="space-y-4">

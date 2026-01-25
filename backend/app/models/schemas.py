@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Literal
 
 
@@ -6,14 +6,39 @@ class UploadResponse(BaseModel):
     success: bool
     message: str
     file_id: str
-    pdf_path: str
-    csv_path: str
+    output_path: str
 
 
 class ProcessingResult(BaseModel):
     file_id: str
-    csv_path: str
-    content: str
+    output_path: str
+    transactions: List[dict]
+
+
+class TransactionData(BaseModel):
+    """Individual transaction record."""
+    date: str
+    ticker: str
+    folio: str
+    isin: str
+    amount: str
+    nav: str
+    units: str
+    balance: str
+    fund_name: str = ""
+
+
+class TransactionsFile(BaseModel):
+    """Transaction file structure."""
+    file_id: str
+    created_at: str
+    transactions: List[TransactionData]
+
+
+class FundTypeOverrideRequest(BaseModel):
+    """Request to override fund type classification."""
+    ticker: str = Field(..., min_length=1, max_length=100, description="Fund ticker symbol")
+    fund_type: Literal['equity', 'debt'] = Field(..., description="Fund classification")
 
 
 class FIFOGainRow(BaseModel):

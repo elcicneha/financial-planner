@@ -42,38 +42,102 @@ Located in `backend/app/services/pdf_extractor/`:
 
 Entry point: `extract_transactions()` in `__init__.py`
 
+### ITR Prep Feature
+
+The `/itr-prep` page provides capital gains calculations for Income Tax Return preparation using a variant switching UI pattern.
+
+**Variants:**
+- **CAS** (default): Displays capital gains from uploaded CAS JSON files
+  - Shows 4 categories: Equity/Debt × Short-term/Long-term
+  - Data extracted from OVERALL_SUMMARY_EQUITY and OVERALL_SUMMARY_NONEQUITY
+  - Supports multiple financial years (FY2024-25, etc.)
+- **FIFO**: Transaction-level capital gains using First-In-First-Out method
+  - Calculates gains from all transaction CSVs in `data/outputs/`
+  - Cached in `data/fifo_cache.json` for performance
+  - Manual fund type override stored in `data/fund_type_overrides.json`
+  - Cache invalidates when transactions or overrides change
+
+**Variant System:**
+- Each variant is a standalone component in `frontend/app/itr-prep/variants/`
+- Variant selection persisted in localStorage (`itr-prep-variant` key)
+- Switcher shows in dev mode only (toggleable via gear icon)
+
 ### Data Flow
+
+**PDF Processing:**
 1. User uploads PDF via frontend
 2. Backend saves PDF to `data/uploads/{date}/{file_id}_{filename}.pdf`
 3. PDF extraction pipeline processes the file
 4. Final CSV saved to `data/outputs/{date}/transactions_{file_id}.csv`
 5. User downloads CSV via `/api/download/{file_id}`
 
+**CAS Processing:**
+1. User uploads CAS JSON via `/itr-prep` page (CAS variant)
+2. Backend infers financial year from transaction dates
+3. File saved to `data/cas/FY{year}.json` (replaces if exists)
+4. Capital gains extracted from OVERALL_SUMMARY_EQUITY/NONEQUITY sections
+
+**FIFO Calculations:**
+1. Backend reads all CSVs from `data/outputs/`
+2. Applies fund type classification (with manual overrides from `data/fund_type_overrides.json`)
+3. Calculates FIFO gains and caches in `data/fifo_cache.json`
+4. Cache invalidates when transactions or overrides change
+
 ### API Endpoints
+
+**PDF Processing:**
 - `POST /api/upload` - Upload PDF and process
 - `GET /api/results/{file_id}` - Get processing results
 - `GET /api/download/{file_id}` - Download CSV
 - `GET /api/files` - List all processed CSV files
+
+**ITR Prep - FIFO Calculations:**
+- `GET /api/capital-gains` - Get FIFO capital gains calculations (cached, recalculates if invalid)
+- `PUT /api/fund-type-override` - Manually override fund type (equity/debt) for a ticker
+
+**ITR Prep - CAS (Capital Account Statement):**
+- `POST /api/upload-cas` - Upload CAS JSON file (auto-detects financial year from transactions)
+- `GET /api/cas-files` - List all uploaded CAS files
+- `GET /api/capital-gains-cas?fy={FY}` - Get CAS capital gains data (4 categories: equity/debt × short/long term)
+
+**Misc:**
 - `GET /api/health` - Health check
 
 ### Key Files
-- Backend entry: `backend/app/main.py`
+
+**Backend:**
+- Entry point: `backend/app/main.py`
 - API routes: `backend/app/api/routes.py`
 - Pydantic schemas: `backend/app/models/schemas.py`
-- PDF extraction entry: `backend/app/services/pdf_extractor/__init__.py` (calls `extract_transactions()`)
-- Frontend home: `frontend/app/page.tsx`
-- Upload component: `frontend/components/FileUpload.tsx`
+- PDF extraction: `backend/app/services/pdf_extractor/__init__.py` (calls `extract_transactions()`)
+- FIFO calculator: `backend/app/services/fifo_calculator.py` (caching, fund type overrides)
+
+**Frontend:**
+- Home: `frontend/app/page.tsx`
+- Upload page: `frontend/app/upload/page.tsx`
+- ITR prep page: `frontend/app/itr-prep/page.tsx`
+- ITR variants: `frontend/app/itr-prep/variants/` (VariantCAS.tsx, VariantFIFO.tsx)
+- Components: `frontend/components/` (VariantSwitcher, CapitalGainsTable, etc.)
+- Dev mode context: `frontend/components/dev/DevModeProvider.tsx`
 - Transaction data hook: `frontend/hooks/useTransactionData.ts`
 - API proxy config: `frontend/next.config.js` (rewrites `/api/*` to `BACKEND_URL`)
 
 ### Frontend Structure
-- Pages: `/` (home), `/upload` (upload interface), `/playground` (dev mode)
+- Pages: `/` (home), `/upload` (upload interface), `/itr-prep` (ITR preparation with variants), `/playground` (dev mode)
 - TypeScript with path aliases (`@/` imports configured in `tsconfig.json`)
 - Styling: Tailwind CSS with custom theme in `tailwind.config.js`, supports dark mode
+- Dev mode: Toggle via `DevModeProvider` context, persisted in localStorage
 
 ### Environment Variables
 - `BACKEND_URL` (frontend) - Backend API base URL for rewrites, defaults to `http://localhost:8000`
 - `CORS_ORIGINS` (backend) - Comma-separated origins allowed for CORS
+
+### Data Directory Structure
+- `data/uploads/{date}/` - Uploaded PDF files
+- `data/outputs/{date}/` - Generated transaction CSVs
+- `data/cas/` - CAS JSON files (named `FY{year}.json`, e.g., `FY2024-25.json`)
+- `data/fifo_cache.json` - Cached FIFO capital gains calculations
+- `data/fund_type_overrides.json` - Manual fund type classifications
 
 ### Reference Data
 - `isin_ticker_db.csv` and `isin_ticker_links_db.csv` in backend are used in step 4 (processFundDeets.py) to standardize and validate fund identifiers

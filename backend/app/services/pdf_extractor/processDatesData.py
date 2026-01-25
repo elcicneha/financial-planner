@@ -1,8 +1,49 @@
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import pandas as pd
+
+# Pre-compile the date pattern for better performance
+DATE_PATTERN = re.compile(r"\d{2}-[A-Za-z]{3}-\d{4}")
+
+
+def _split_text_by_date(text: str) -> List[Tuple[str, str]]:
+    """
+    Split text by date patterns.
+
+    Args:
+        text: Raw text containing dates.
+
+    Returns:
+        List of (date, content) tuples.
+    """
+    dates = DATE_PATTERN.findall(text)
+    split_text = DATE_PATTERN.split(text)
+
+    result = []
+    for date, content in zip(dates, split_text[1:]):
+        result.append((date, content.strip()))
+
+    if len(split_text) > len(dates) + 1:
+        result.append(('', split_text[-1].strip()))
+
+    return result
+
+
+def _process_row(row_data: Tuple[int, str]) -> List[List]:
+    """
+    Process a single row and return all date-split entries.
+
+    Args:
+        row_data: Tuple of (row_index, text_content)
+
+    Returns:
+        List of [row_number, date, content] entries
+    """
+    row_idx, text = row_data
+    entries = _split_text_by_date(text)
+    return [[row_idx + 1, date, content] for date, content in entries]
 
 
 def process_dates_data(input_file: str, work_dir: Optional[Path] = None) -> str:
@@ -21,28 +62,14 @@ def process_dates_data(input_file: str, work_dir: Optional[Path] = None) -> str:
     if work_dir is None:
         work_dir = input_path.parent
 
-    def split_text_by_date(text: str) -> List[List[str]]:
-        date_pattern = r"\d{2}-[A-Za-z]{3}-\d{4}"
-        dates = re.findall(date_pattern, text)
-        split_text = re.split(date_pattern, text)
-
-        result = []
-        for i in range(len(dates)):
-            result.append([dates[i], split_text[i + 1].strip()])
-
-        if len(split_text) > len(dates):
-            result.append(['', split_text[-1].strip()])
-
-        return result
-
     df = pd.read_csv(input_file, header=None)
 
+    # Use list comprehension instead of iterrows for better performance
     all_split_data = []
-    for index, row in df.iterrows():
-        text = row[0]
-        split_data = split_text_by_date(text)
-        for entry in split_data:
-            all_split_data.append([index + 1] + entry)
+    for idx, text in enumerate(df[0].values):
+        entries = _split_text_by_date(text)
+        for date, content in entries:
+            all_split_data.append([idx + 1, date, content])
 
     result_df = pd.DataFrame(all_split_data, columns=['Row Number', 'Date', 'Content'])
 
