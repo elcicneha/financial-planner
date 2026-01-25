@@ -21,7 +21,7 @@ export function usePlaygroundState() {
     }
   }, [results.corpusRunsOutAge]);
 
-  const updateInput = (field: keyof RetirementInputs) => (value: number) => {
+  const updateInput = <K extends keyof RetirementInputs>(field: K) => (value: RetirementInputs[K]) => {
     setInputs((prev) => ({ ...prev, [field]: value }));
   };
 

@@ -1,80 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
 import { ChevronRight, ArrowRight } from 'lucide-react';
-import { formatCurrency, formatNumber } from '@/lib/currency';
+import { formatCurrency } from '@/lib/currency';
 import { PlaygroundState } from '@/hooks/usePlaygroundState';
 import { Switch } from '@/components/ui/switch';
-
-// Inline editable input component
-function InlineInput({
-  value,
-  onChange,
-  unit,
-  prefix,
-  formatAsCurrency = false,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-  unit?: string;
-  prefix?: string;
-  formatAsCurrency?: boolean;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [localValue, setLocalValue] = useState(String(value));
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!isEditing) {
-      setLocalValue(String(value));
-    }
-  }, [value, isEditing]);
-
-  const handleFocus = () => {
-    setIsEditing(true);
-    setLocalValue(String(value));
-  };
-
-  const handleBlur = () => {
-    setIsEditing(false);
-    const cleanValue = localValue.replace(/[^0-9.]/g, '');
-    const numValue = parseFloat(cleanValue) || 0;
-    onChange(numValue);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      inputRef.current?.blur();
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLocalValue(e.target.value);
-  };
-
-  const displayValue = formatAsCurrency ? formatNumber(value) : String(value);
-  const currentValue = isEditing ? localValue : displayValue;
-  const width = Math.max(currentValue.length, 2) + 1;
-
-  return (
-    <span className="inline-flex items-center relative">
-      {prefix && <span className="text-muted-foreground mr-0.5">{prefix}</span>}
-      <input
-        ref={inputRef}
-        type="text"
-        value={currentValue}
-        onChange={handleChange}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-        style={{ width: `${width}ch` }}
-        inputMode="numeric"
-        className="bg-transparent border-0 p-0 m-0 font-semibold text-foreground text-center rounded transition-all duration-150 focus:outline-none focus:ring-0 focus:bg-primary/10 focus:shadow-[0_2px_0_hsl(var(--primary))] shadow-[0_2px_0_hsl(var(--primary)/0.3)] cursor-pointer hover:bg-primary/5 hover:shadow-[0_2px_0_hsl(var(--primary)/0.5)]"
-      />
-      {unit && <span className="text-muted-foreground ml-0.5 text-[0.85em]">{unit}</span>}
-    </span>
-  );
-}
+import { InlineInput } from '@/components/ui/inline-input';
 
 interface DesignProps {
   state: PlaygroundState;
@@ -154,6 +84,7 @@ export function DesignCurrent({ state }: DesignProps) {
             onChange={updateInput('currentSavings')}
             formatAsCurrency
             prefix={currencySymbol}
+            arrowKeyOffset="auto"
           />{' '}
           saved and save{' '}
           <InlineInput
@@ -161,6 +92,7 @@ export function DesignCurrent({ state }: DesignProps) {
             onChange={updateInput('monthlySavings')}
             formatAsCurrency
             prefix={currencySymbol}
+            arrowKeyOffset="auto"
           />{' '}
           every month.
         </p>
@@ -171,6 +103,7 @@ export function DesignCurrent({ state }: DesignProps) {
             onChange={updateInput('monthlyExpense')}
             formatAsCurrency
             prefix={currencySymbol}
+            arrowKeyOffset="auto"
           />
           /month (increasing{' '}
           <InlineInput
