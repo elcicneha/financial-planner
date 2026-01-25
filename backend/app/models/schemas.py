@@ -56,6 +56,7 @@ class FIFOGainRow(BaseModel):
     holding_days: int
     fund_type: Literal['equity', 'debt', 'unknown']  # Fund classification
     term: str  # "Short-term" or "Long-term"
+    financial_year: str  # e.g., "2024-25"
 
 
 class FIFOSummary(BaseModel):

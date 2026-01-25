@@ -36,7 +36,12 @@ from app.models.schemas import (
     FundTypeOverrideRequest,
 )
 from app.services.pdf_extractor import extract_transactions
-from app.services.fifo_calculator import get_cached_gains, save_fund_type_override
+from app.services.fifo_calculator import (
+    get_cached_gains,
+    save_fund_type_override,
+    invalidate_fifo_cache,
+    recalculate_and_cache_fifo,
+)
 from app.services.cas_parser import (
     CASParserError,
     infer_financial_year_from_cas,
@@ -199,10 +204,43 @@ async def list_files():
     return {"files": files}
 
 
+@router.get("/available-financial-years")
+async def get_available_financial_years():
+    """
+    Get list of all unique financial years from FIFO gains data.
+
+    Returns:
+        List of financial year strings sorted in descending order (e.g., ["2024-25", "2023-24"])
+    """
+    try:
+        gains_data = await asyncio.to_thread(get_cached_gains)
+
+        if not gains_data:
+            return {"financial_years": []}
+
+        # Extract unique financial years from gains
+        fys = set()
+        for g in gains_data:
+            fys.add(g['financial_year'])
+
+        sorted_fys = sorted(fys, reverse=True)
+        return {"financial_years": sorted_fys}
+
+    except Exception as e:
+        logger.error(f"Failed to get financial years: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get financial years: {str(e)}"
+        )
+
+
 @router.get("/capital-gains", response_model=FIFOResponse)
-async def get_capital_gains():
+async def get_capital_gains(fy: str = None):
     """
     Get FIFO capital gains calculations.
+
+    Args:
+        fy: Optional financial year filter in format "2024-25"
 
     Checks if cached results are valid, recalculates if needed,
     and returns all realized capital gains with summary statistics.
@@ -222,7 +260,20 @@ async def get_capital_gains():
                 )
             )
 
-        gains = [FIFOGainRow(**g) for g in gains_data]
+        try:
+            # Try to parse cached data with current schema
+            gains = [FIFOGainRow(**g) for g in gains_data]
+        except Exception as validation_error:
+            # If validation fails (e.g., schema mismatch), invalidate cache and recalculate
+            logger.warning(f"Cache schema mismatch, recalculating: {validation_error}")
+            await asyncio.to_thread(invalidate_fifo_cache)
+            fresh_gains = await asyncio.to_thread(recalculate_and_cache_fifo)
+            gains_data = [g.to_dict() for g in fresh_gains]
+            gains = [FIFOGainRow(**g) for g in gains_data]
+
+        # Filter by financial year if specified
+        if fy:
+            gains = [g for g in gains if g.financial_year == fy]
 
         total_stcg = sum(g.gain for g in gains if g.term == "Short-term")
         total_ltcg = sum(g.gain for g in gains if g.term == "Long-term")

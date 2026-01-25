@@ -25,6 +25,7 @@ from app.config import (
     DEBT_LTCG_THRESHOLD_DAYS,
     EQUITY_PERCENTAGE_THRESHOLD,
 )
+from app.utils import get_financial_year
 
 logger = logging.getLogger(__name__)
 
@@ -251,11 +252,11 @@ class BuyLot:
 class FIFOGain:
     """Represents a FIFO gain calculation result."""
     __slots__ = ('sell_date', 'ticker', 'folio', 'units', 'sell_nav', 'proceeds',
-                 'buy_date', 'buy_nav', 'cost_basis', 'gain', 'holding_days', 'fund_type', 'term')
+                 'buy_date', 'buy_nav', 'cost_basis', 'gain', 'holding_days', 'fund_type', 'term', 'financial_year')
 
     def __init__(self, sell_date: str, ticker: str, folio: str, units: Decimal,
                  sell_nav: Decimal, proceeds: Decimal, buy_date: str, buy_nav: Decimal,
-                 cost_basis: Decimal, gain: Decimal, holding_days: int, fund_type: str, term: str):
+                 cost_basis: Decimal, gain: Decimal, holding_days: int, fund_type: str, term: str, financial_year: str):
         self.sell_date = sell_date
         self.ticker = ticker
         self.folio = folio
@@ -269,6 +270,7 @@ class FIFOGain:
         self.holding_days = holding_days
         self.fund_type = fund_type
         self.term = term
+        self.financial_year = financial_year
 
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization."""
@@ -285,7 +287,8 @@ class FIFOGain:
             'gain': float(self.gain),
             'holding_days': self.holding_days,
             'fund_type': self.fund_type,
-            'term': self.term
+            'term': self.term,
+            'financial_year': self.financial_year
         }
 
 
@@ -518,6 +521,7 @@ def calculate_fifo_gains(transactions: List[Transaction]) -> List[FIFOGain]:
                         threshold_days = DEBT_LTCG_THRESHOLD_DAYS
 
                     term = 'Long-term' if holding_days >= threshold_days else 'Short-term'
+                    financial_year = get_financial_year(tx.date)
 
                     fifo_gain = FIFOGain(
                         sell_date=tx.date.strftime('%Y-%m-%d'),
@@ -532,7 +536,8 @@ def calculate_fifo_gains(transactions: List[Transaction]) -> List[FIFOGain]:
                         gain=gain,
                         holding_days=holding_days,
                         fund_type=fund_type,
-                        term=term
+                        term=term,
+                        financial_year=financial_year
                     )
                     all_gains.append(fifo_gain)
 

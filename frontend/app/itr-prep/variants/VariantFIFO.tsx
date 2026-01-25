@@ -1,13 +1,37 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useCapitalGains } from '@/hooks/useCapitalGains';
+import { useAvailableFinancialYears } from '@/hooks/useAvailableFinancialYears';
 import CapitalGainsTable from '@/components/CapitalGainsTable';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, AlertCircle, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+const FY_STORAGE_KEY = 'itr-prep-fifo-fy';
+
 export default function VariantFIFO() {
-  const { data, loading, error, refetch } = useCapitalGains();
+  // Load selected FY from localStorage
+  const [selectedFY, setSelectedFY] = useState<string>('');
+  const { financialYears } = useAvailableFinancialYears();
+
+  // Initialize selectedFY from localStorage or default to first available FY
+  useEffect(() => {
+    const stored = localStorage.getItem(FY_STORAGE_KEY);
+    if (stored && financialYears.includes(stored)) {
+      setSelectedFY(stored);
+    } else if (financialYears.length > 0) {
+      setSelectedFY(financialYears[0]);
+    }
+  }, [financialYears]);
+
+  const { data, loading, error, refetch } = useCapitalGains(0, selectedFY || undefined);
+
+  const handleFYChange = (fy: string) => {
+    setSelectedFY(fy);
+    localStorage.setItem(FY_STORAGE_KEY, fy);
+  };
 
   // Loading state
   if (loading) {
@@ -75,11 +99,34 @@ export default function VariantFIFO() {
   return (
     <div className="container mx-auto py-8 space-y-6">
       {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">ITR Prep - FIFO Calculations</h1>
-        <p className="text-muted-foreground">
-          FIFO Capital Gains calculations for Income Tax Return filing
-        </p>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">ITR Prep - FIFO Calculations</h1>
+            <p className="text-muted-foreground">
+              FIFO Capital Gains calculations for Income Tax Return filing
+            </p>
+          </div>
+
+          {/* FY Selector */}
+          {financialYears.length > 0 && (
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium">Financial Year:</label>
+              <Select value={selectedFY} onValueChange={handleFYChange}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select FY" />
+                </SelectTrigger>
+                <SelectContent>
+                  {financialYears.map((fy) => (
+                    <SelectItem key={fy} value={fy}>
+                      FY {fy}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}

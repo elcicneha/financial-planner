@@ -14,6 +14,7 @@ export interface FIFOGainRow {
   holding_days: number;
   fund_type: string;  // "equity" or "debt"
   term: string;
+  financial_year: string;  // e.g., "2024-25"
 }
 
 export interface FIFOSummary {
@@ -36,7 +37,7 @@ interface UseCapitalGainsResult {
   refetch: () => void;
 }
 
-export function useCapitalGains(refreshKey = 0): UseCapitalGainsResult {
+export function useCapitalGains(refreshKey = 0, fy?: string): UseCapitalGainsResult {
   const [data, setData] = useState<CapitalGainsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +47,8 @@ export function useCapitalGains(refreshKey = 0): UseCapitalGainsResult {
     setError(null);
 
     try {
-      const response = await fetch('/api/capital-gains');
+      const url = fy ? `/api/capital-gains?fy=${encodeURIComponent(fy)}` : '/api/capital-gains';
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch capital gains: ${response.statusText}`);
@@ -61,7 +63,7 @@ export function useCapitalGains(refreshKey = 0): UseCapitalGainsResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fy]);
 
   useEffect(() => {
     fetchCapitalGains();
