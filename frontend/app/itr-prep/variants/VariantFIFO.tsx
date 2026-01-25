@@ -1,13 +1,54 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useCapitalGains } from '@/hooks/useCapitalGains';
+import { useState, useEffect, useMemo } from 'react';
+import { useCapitalGains, FIFOGainRow } from '@/hooks/useCapitalGains';
 import { useAvailableFinancialYears } from '@/hooks/useAvailableFinancialYears';
 import CapitalGainsTable from '@/components/CapitalGainsTable';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, AlertCircle, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CategoryCard, CategoryData } from '../components/CategoryCard';
+import { CopyButton } from '@/components/ui/copy-button';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { formatCurrency } from '@/lib/currency';
+
+// Aggregate FIFO gains into 4 categories
+function aggregateGainsByCategory(gains: FIFOGainRow[]): {
+  equity_short_term: CategoryData;
+  equity_long_term: CategoryData;
+  debt_short_term: CategoryData;
+  debt_long_term: CategoryData;
+} {
+  const categories = {
+    equity_short_term: { sale_consideration: 0, acquisition_cost: 0, gain_loss: 0 },
+    equity_long_term: { sale_consideration: 0, acquisition_cost: 0, gain_loss: 0 },
+    debt_short_term: { sale_consideration: 0, acquisition_cost: 0, gain_loss: 0 },
+    debt_long_term: { sale_consideration: 0, acquisition_cost: 0, gain_loss: 0 },
+  };
+
+  for (const gain of gains) {
+    const isEquity = gain.fund_type === 'equity';
+    const isLongTerm = gain.term === 'Long-term';
+
+    let category: CategoryData;
+    if (isEquity && !isLongTerm) {
+      category = categories.equity_short_term;
+    } else if (isEquity && isLongTerm) {
+      category = categories.equity_long_term;
+    } else if (!isEquity && !isLongTerm) {
+      category = categories.debt_short_term;
+    } else {
+      category = categories.debt_long_term;
+    }
+
+    category.sale_consideration += gain.sale_consideration;
+    category.acquisition_cost += gain.acquisition_cost;
+    category.gain_loss += gain.gain;
+  }
+
+  return categories;
+}
 
 const FY_STORAGE_KEY = 'itr-prep-fifo-fy';
 
@@ -29,6 +70,19 @@ export default function VariantFIFO() {
   // Only fetch when FYs are loaded AND (selectedFY is set OR no FYs available)
   const enabled = !fyLoading && (selectedFY !== '' || financialYears.length === 0);
   const { data, loading, error, refetch } = useCapitalGains(0, selectedFY || undefined, enabled);
+
+  // Aggregate gains into 4 categories (must be called before any early returns)
+  const categories = useMemo(
+    () => aggregateGainsByCategory(data?.gains ?? []),
+    [data?.gains]
+  );
+
+  // Calculate total gains
+  const totalGains =
+    categories.equity_short_term.gain_loss +
+    categories.equity_long_term.gain_loss +
+    categories.debt_short_term.gain_loss +
+    categories.debt_long_term.gain_loss;
 
   const handleFYChange = (fy: string) => {
     setSelectedFY(fy);
@@ -99,32 +153,24 @@ export default function VariantFIFO() {
 
   // Success state with data
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      {/* Header */}
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Last updated: {new Date(data.last_updated).toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </p>
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">ITR Prep - FIFO Calculations</h1>
-            <p className="text-muted-foreground">
-              FIFO Capital Gains calculations for Income Tax Return filing
+    <TooltipProvider>
+      <div className="container mx-auto py-6 space-y-5 max-w-4xl">
+        {/* Header with FY Selector */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Capital Gains - FIFO</h1>
+            <p className="text-sm text-muted-foreground">
+              Updated {new Date(data.last_updated).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
             </p>
           </div>
-
-          {/* FY Selector */}
-          {financialYears.length > 0 && (
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium">Financial Year:</label>
+          <div className="flex items-center gap-2">
+            {financialYears.length > 0 && (
               <Select value={selectedFY} onValueChange={handleFYChange}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[130px] h-9">
                   <SelectValue placeholder="Select FY" />
                 </SelectTrigger>
                 <SelectContent>
@@ -135,106 +181,75 @@ export default function VariantFIFO() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Short-term Capital Gains
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ₹{data.summary.total_stcg.toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Held for less than 365 days
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Long-term Capital Gains
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ₹{data.summary.total_ltcg.toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Held for 365 days or more
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Capital Gains
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${
-              data.summary.total_gains >= 0
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-red-600 dark:text-red-400'
-            }`}>
-              ₹{data.summary.total_gains.toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {data.summary.total_transactions} transaction{data.summary.total_transactions !== 1 ? 's' : ''}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Info Card */}
-      <Card className="bg-muted/50">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <TrendingUp className="h-5 w-5 text-muted-foreground mt-0.5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium">FIFO Calculation</p>
-              <p className="text-sm text-muted-foreground">
-                Gains calculated using First-In-First-Out methodology.
-                Sale Consideration and Acquisition Cost match ITR terminology for easy copy-paste filing.
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                Date Range: {data.summary.date_range}
-              </p>
-            </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Gains Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Capital Gains Details</CardTitle>
-          <CardDescription>
-            Detailed FIFO matched transactions for each sale
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <CapitalGainsTable gains={data.gains} refetch={refetch} />
-        </CardContent>
-      </Card>
-    </div>
+        {/* Total Gains - Compact */}
+        <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-muted/50 border">
+          <span className="text-sm font-medium text-muted-foreground">Total Capital Gains</span>
+          <div className="flex items-center gap-1">
+            <span className={`font-mono text-lg font-semibold tabular-nums ${totalGains >= 0
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-red-500 dark:text-red-400'
+              }`}>
+              {formatCurrency(totalGains)}
+            </span>
+            <CopyButton
+              value={Math.abs(totalGains).toFixed(4)}
+              tooltip="Copy Total"
+              className="h-7 w-7"
+            />
+          </div>
+        </div>
+
+        {/* Equity Section */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Equity</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CategoryCard
+              title="Short-term"
+              subtitle="< 1 year"
+              data={categories.equity_short_term}
+            />
+            <CategoryCard
+              title="Long-term"
+              subtitle="≥ 1 year"
+              data={categories.equity_long_term}
+            />
+          </div>
+        </div>
+
+        {/* Debt Section */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Debt</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CategoryCard
+              title="Short-term"
+              subtitle="< 3 years"
+              data={categories.debt_short_term}
+            />
+            <CategoryCard
+              title="Long-term"
+              subtitle="≥ 3 years"
+              data={categories.debt_long_term}
+            />
+          </div>
+        </div>
+
+        {/* Gains Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Capital Gains Details</CardTitle>
+            <CardDescription>
+              Detailed FIFO matched transactions for each sale ({data.summary.total_transactions} transaction{data.summary.total_transactions !== 1 ? 's' : ''})
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CapitalGainsTable gains={data.gains} refetch={refetch} />
+          </CardContent>
+        </Card>
+      </div>
+    </TooltipProvider>
   );
 }
