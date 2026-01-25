@@ -1,4 +1,4 @@
-import { Upload, Sparkles } from 'lucide-react';
+import { Upload, Sparkles, FileText } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export interface NavItem {
@@ -17,5 +17,10 @@ export const navItems: NavItem[] = [
     title: 'Upload',
     href: '/upload',
     icon: Upload,
+  },
+  {
+    title: 'ITR Prep',
+    href: '/itr-prep',
+    icon: FileText,
   },
 ];

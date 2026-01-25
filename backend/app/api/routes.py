@@ -7,8 +7,15 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-from app.models.schemas import ProcessingResult, UploadResponse
+from app.models.schemas import (
+    ProcessingResult,
+    UploadResponse,
+    FIFOResponse,
+    FIFOGainRow,
+    FIFOSummary,
+)
 from app.services.pdf_extractor import extract_transactions
+from app.services.fifo_calculator import get_cached_gains
 
 router = APIRouter()
 
@@ -137,3 +144,63 @@ async def list_files():
                     })
 
     return {"files": files}
+
+
+@router.get("/capital-gains", response_model=FIFOResponse)
+async def get_capital_gains():
+    """
+    Get FIFO capital gains calculations.
+
+    This endpoint:
+    1. Checks if cached results are valid
+    2. If invalid: Recalculates FIFO gains from all transactions
+    3. If valid: Returns cached results
+    4. Returns all realized capital gains with summary statistics
+    """
+    try:
+        # Get cached gains (will recalculate if cache is invalid)
+        gains_data = await asyncio.to_thread(get_cached_gains)
+
+        if not gains_data:
+            # No transactions or gains yet
+            return FIFOResponse(
+                gains=[],
+                summary=FIFOSummary(
+                    total_stcg=0.0,
+                    total_ltcg=0.0,
+                    total_gains=0.0,
+                    total_transactions=0,
+                    date_range="N/A"
+                )
+            )
+
+        # Convert to Pydantic models
+        gains = [FIFOGainRow(**g) for g in gains_data]
+
+        # Calculate summary statistics
+        total_stcg = sum(g.gain for g in gains if g.term == "Short-term")
+        total_ltcg = sum(g.gain for g in gains if g.term == "Long-term")
+        total_gains = sum(g.gain for g in gains)
+
+        # Get date range
+        if gains:
+            dates = sorted([g.sell_date for g in gains])
+            date_range = f"{dates[0]} to {dates[-1]}"
+        else:
+            date_range = "N/A"
+
+        summary = FIFOSummary(
+            total_stcg=round(total_stcg, 2),
+            total_ltcg=round(total_ltcg, 2),
+            total_gains=round(total_gains, 2),
+            total_transactions=len(gains),
+            date_range=date_range
+        )
+
+        return FIFOResponse(gains=gains, summary=summary)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to calculate capital gains: {str(e)}"
+        )
