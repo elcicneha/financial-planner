@@ -1,0 +1,98 @@
+[
+  {
+    "ISIN": "INF209K01VA3",
+    "Ticker": "ADIT_BSL_LIQU_1UQ3S7"
+  },
+  {
+    "ISIN": "INF209KB1O82",
+    "Ticker": "ADIT_BSL_PSU_10JHJEX"
+  },
+  {
+    "ISIN": "INF754K01GM4",
+    "Ticker": "EDEL_LIQU_DIR_OJUFLT"
+  },
+  {
+    "ISIN": "INF109K013N3",
+    "Ticker": "ICIC_PRU_SHOR_1II1866"
+  },
+  {
+    "ISIN": "INF194K012A8",
+    "Ticker": "BAND_NIFT_50_1Y4SPBO"
+  },
+  {
+    "ISIN": "INF192K01BQ9",
+    "Ticker": "JM_AGGR_HYBR_LB5BGF"
+  },
+  {
+    "ISIN": "INF174K01JZ1",
+    "Ticker": "KOTA_DEBT_HYBR_2BY43F"
+  },
+  {
+    "ISIN": "INF959L01GR6",
+    "Ticker": "NAVI_ELSS_TAX_146OV6D"
+  },
+  {
+    "ISIN": "INF204K01E54",
+    "Ticker": "NIPP_INDI_GROW_CEYFMY"
+  },
+  {
+    "ISIN": "INF966L01986",
+    "Ticker": "QUAN_ELSS_TAX_KBGFAS"
+  },
+  {
+    "ISIN": "INF966L01689",
+    "Ticker": "QUAN_SMAL_CAP_1B5O3CE"
+  },
+  {
+    "ISIN": "INF966L01556",
+    "Ticker": "QUAN_ABSO_DIR_RGF201"
+  },
+  {
+    "ISIN": "INF966L01648",
+    "Ticker": "QUAN_LARG_AND_11NYPPT"
+  },
+  {
+    "ISIN": "INF846K01U09",
+    "Ticker": "AXIS_ALL_SEAS_19WSVMZ"
+  },
+  {
+    "ISIN": "INF209K01XA9",
+    "Ticker": "ADIT_BSL_MEDI_1579EY4"
+  },
+  {
+    "ISIN": "INF209K01XK8",
+    "Ticker": "ADIT_BSL_SHOR_13YUUPD"
+  },
+  {
+    "ISIN": "INF846K01DS2",
+    "Ticker": "AXIS_GOLD_DIR_1U5AB87"
+  },
+  {
+    "ISIN": "INF846K01CX4",
+    "Ticker": "AXIS_LIQU_DIR_1LRVHN"
+  },
+  {
+    "ISIN": "INF179K01WM1",
+    "Ticker": "HDFC_NIFT_50_10DMA9R"
+  },
+  {
+    "ISIN": "INF247L01445",
+    "Ticker": "MOTI_OSWA_MIDC_1E5B8T2"
+  },
+  {
+    "ISIN": "INF966L01820",
+    "Ticker": "QUAN_LIQU_DIR_A3L2WA"
+  },
+  {
+    "ISIN": "INF277K017Q3",
+    "Ticker": "TATA_ARBI_DIR_18P1ZST"
+  },
+  {
+    "ISIN": "INF204K01K15",
+    "Ticker": "NIPP_INDI_SMAL_A3DVE4"
+  },
+  {
+    "ISIN": "INF879O01027",
+    "Ticker": "PARA_PARI_FLEX_17J17OL"
+  }
+]

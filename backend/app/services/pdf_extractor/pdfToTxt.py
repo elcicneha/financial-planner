@@ -1,62 +1,47 @@
-import logging
-from pathlib import Path
-from typing import Optional
-
 import fitz  # PyMuPDF
+import os
 
-logger = logging.getLogger(__name__)
-
-
-class PDFExtractionError(Exception):
-    """Raised when PDF text extraction fails."""
-    pass
-
-
-def pdf_to_txt(pdf_path: str, work_dir: Optional[Path] = None) -> str:
+def pdf_to_txt(pdf_path):
     """
     Converts a PDF file to a text file and returns the path of the text file.
 
     Args:
-        pdf_path: The path to the PDF file.
-        work_dir: Directory to create output file. If None, uses pdf's directory.
+        pdf_path (str): The path to the PDF file.
 
     Returns:
-        The path to the generated text file.
-
-    Raises:
-        PDFExtractionError: If PDF cannot be read or text extraction fails.
-        FileNotFoundError: If the PDF file doesn't exist.
+        str: The path to the generated text file.
     """
-    pdf_path_obj = Path(pdf_path)
-
-    if not pdf_path_obj.exists():
-        raise FileNotFoundError(f"PDF file not found: {pdf_path}")
-
-    if work_dir is None:
-        work_dir = pdf_path_obj.parent
-
-    txt_file_path = work_dir / f"{pdf_path_obj.stem}.txt"
+    # Extract base name and prepare the text file path
+    base_name = os.path.splitext(pdf_path)[0]
+    txt_file_path = f"{base_name}.txt"
 
     try:
-        with fitz.open(pdf_path) as pdf_document:
-            pages = [page.get_text() for page in pdf_document]
-            pdf_content = ''.join(pages)
+        # Open the PDF file
+        pdf_document = fitz.open(pdf_path)
+        pdf_content = ''
 
-        if not pdf_content.strip():
-            raise PDFExtractionError(f"No text content found in PDF: {pdf_path}")
+        # Extract text from each page
+        for page_num in range(len(pdf_document)):
+            pdf_content += pdf_document[page_num].get_text()
 
+        # Write the extracted text to a file
         with open(txt_file_path, 'w', encoding='utf-8') as txt_file:
             txt_file.write(pdf_content)
 
-        logger.info(f"Extracted text from PDF: {pdf_path} -> {txt_file_path}")
-        return str(txt_file_path)
+        print(f"Content written to {txt_file_path}")
+        return txt_file_path
 
-    except fitz.FileDataError as e:
-        logger.error(f"Invalid or corrupted PDF file: {pdf_path} - {e}")
-        raise PDFExtractionError(f"Invalid or corrupted PDF file: {e}") from e
-    except PermissionError as e:
-        logger.error(f"Permission denied accessing file: {pdf_path} - {e}")
-        raise PDFExtractionError(f"Permission denied: {e}") from e
     except Exception as e:
-        logger.error(f"Failed to extract text from PDF: {pdf_path} - {e}")
-        raise PDFExtractionError(f"Failed to extract text from PDF: {e}") from e
+        print(f"An error occurred: {e}")
+        return None
+
+
+# # **** Example usage ****
+if __name__ == "__main__":
+    pdf_path = 'adarsh.pdf'
+    txt_path = pdf_to_txt(pdf_path)
+
+    if txt_path:
+        print(f"Text file created at: {txt_path}")
+    else:
+        print("Failed to convert PDF to text.")

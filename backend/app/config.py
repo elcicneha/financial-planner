@@ -24,8 +24,8 @@ FUND_TYPE_OVERRIDES_FILE = DATA_DIR / "fund_type_overrides.json"
 
 # Reference data
 PDF_EXTRACTOR_DIR = BASE_DIR / "backend" / "app" / "services" / "pdf_extractor"
-ISIN_TICKER_DB = PDF_EXTRACTOR_DIR / "isin_ticker_db.csv"
-ISIN_TICKER_LINKS_DB = PDF_EXTRACTOR_DIR / "isin_ticker_links_db.csv"
+ISIN_TICKER_DB = PDF_EXTRACTOR_DIR / "isin_ticker_db.json"
+ISIN_TICKER_LINKS_DB = PDF_EXTRACTOR_DIR / "isin_ticker_links_db.json"
 
 # Constants
 FILE_ID_LENGTH = 8  # Length of UUID prefix used for file IDs

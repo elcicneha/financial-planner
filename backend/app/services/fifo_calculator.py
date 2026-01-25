@@ -5,7 +5,6 @@ This module calculates capital gains/losses using FIFO (First-In-First-Out) meth
 for mutual fund transactions. Uses Decimal for financial precision.
 """
 
-import csv
 import json
 import logging
 from collections import defaultdict
@@ -132,8 +131,8 @@ def get_fund_type_mapping() -> Dict[str, str]:
 
     try:
         with open(ISIN_TICKER_LINKS_DB, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
+            data = json.load(f)
+            for row in data:
                 ticker = row.get('Ticker', '').strip()
                 if not ticker:
                     continue

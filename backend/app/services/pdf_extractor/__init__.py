@@ -3,8 +3,8 @@ import shutil
 from pathlib import Path
 from typing import List
 
-from .pdfToTxt import pdf_to_txt, PDFExtractionError
-from .extractTextToCSV import extract_text_to_csv, TextExtractionError
+from .pdfToTxt import pdf_to_txt
+from .extractTextToCSV import extract_text_to_csv
 from .processDatesData import process_dates_data
 from .processFundDeets import clean_fund_details
 from .finalCombine import combine_dates_and_fund_details, CombineError
@@ -14,8 +14,6 @@ logger = logging.getLogger(__name__)
 # Export error types for external handling
 __all__ = [
     'extract_transactions',
-    'PDFExtractionError',
-    'TextExtractionError',
     'CombineError',
 ]
 
@@ -33,13 +31,10 @@ def extract_transactions(pdf_path: Path, output_dir: Path, file_id: str) -> Path
         Path to the generated JSON file
 
     Raises:
-        PDFExtractionError: If PDF text extraction fails.
-        TextExtractionError: If segment extraction fails.
-        CombineError: If data combination fails.
-        FileNotFoundError: If required files are missing.
+        Exception: If any step in the extraction pipeline fails.
     """
     module_dir = Path(__file__).parent
-    isin_ticker_db = module_dir / "isin_ticker_db.csv"
+    isin_ticker_db = module_dir / "isin_ticker_db.json"
 
     work_dir = pdf_path.parent
     intermediate_files: List[Path] = []
@@ -48,23 +43,23 @@ def extract_transactions(pdf_path: Path, output_dir: Path, file_id: str) -> Path
     try:
         # Step 1: Extract text from PDF
         logger.info(f"Step 1: Extracting text from PDF: {pdf_path}")
-        txt_file_path = pdf_to_txt(str(pdf_path), work_dir)
+        txt_file_path = pdf_to_txt(str(pdf_path))
         intermediate_files.append(Path(txt_file_path))
 
         # Step 2: Extract segments to CSV
         logger.info("Step 2: Extracting segments from text")
-        fund_deets_csv, dates_data_csv = extract_text_to_csv(txt_file_path, work_dir)
+        fund_deets_csv, dates_data_csv = extract_text_to_csv(txt_file_path)
         intermediate_files.append(Path(fund_deets_csv))
         intermediate_files.append(Path(dates_data_csv))
 
         # Step 3: Process dates data
         logger.info("Step 3: Processing dates data")
-        processed_dates_csv = process_dates_data(dates_data_csv, work_dir)
+        processed_dates_csv = process_dates_data(dates_data_csv)
         intermediate_files.append(Path(processed_dates_csv))
 
         # Step 4: Clean fund details
         logger.info("Step 4: Cleaning fund details")
-        cleaned_fund_details_csv = clean_fund_details(fund_deets_csv, str(isin_ticker_db), work_dir)
+        cleaned_fund_details_csv = clean_fund_details(fund_deets_csv, str(isin_ticker_db))
         intermediate_files.append(Path(cleaned_fund_details_csv))
 
         # Step 5: Combine final data (now outputs JSON)
