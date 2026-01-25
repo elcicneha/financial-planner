@@ -13,16 +13,18 @@ function formatFileSize(bytes: number): string {
 export interface InputFileProps {
   /** Accepted file extensions (e.g., '.pdf,.json') */
   accept?: string;
-  /** Current selected file (controlled) */
-  value?: File | null;
-  /** Callback when file is selected */
-  onChange?: (file: File | null) => void;
+  /** Current selected file(s) (controlled) */
+  value?: File | File[] | null;
+  /** Callback when file(s) are selected */
+  onChange?: (file: File | File[] | null) => void;
   /** Disabled state */
   disabled?: boolean;
   /** Custom class name */
   className?: string;
   /** Placeholder text when no file selected */
   placeholder?: string;
+  /** Allow multiple file selection */
+  multiple?: boolean;
 }
 
 export interface InputFileHandle {
@@ -38,11 +40,21 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
       disabled = false,
       className,
       placeholder = 'Drag and drop your file here',
+      multiple = false,
     },
     ref
   ) => {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Helper to check if we have files
+    const hasFiles = multiple
+      ? Array.isArray(value) && value.length > 0
+      : value !== null && !Array.isArray(value);
+
+    const files = multiple
+      ? (Array.isArray(value) ? value : [])
+      : (value && !Array.isArray(value) ? [value] : []);
 
     useImperativeHandle(ref, () => ({
       reset: () => {
@@ -53,8 +65,14 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
       },
     }));
 
-    const handleFileSelect = (file: File) => {
-      onChange?.(file);
+    const handleFileSelect = (selectedFiles: FileList) => {
+      if (multiple) {
+        const existingFiles = Array.isArray(value) ? value : [];
+        const newFiles = Array.from(selectedFiles);
+        onChange?.([...existingFiles, ...newFiles]);
+      } else {
+        onChange?.(selectedFiles[0]);
+      }
     };
 
     const handleDragEnter = (e: React.DragEvent) => {
@@ -81,9 +99,9 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
       e.stopPropagation();
       setIsDragging(false);
       if (disabled) return;
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        handleFileSelect(files[0]);
+      const droppedFiles = e.dataTransfer.files;
+      if (droppedFiles.length > 0) {
+        handleFileSelect(droppedFiles);
       }
     };
 
@@ -99,7 +117,8 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
           type="file"
           ref={fileInputRef}
           accept={accept}
-          onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+          multiple={multiple}
+          onChange={(e) => e.target.files && e.target.files.length > 0 && handleFileSelect(e.target.files)}
           className="hidden"
           disabled={disabled}
         />
@@ -112,14 +131,14 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
           onClick={handleZoneClick}
           className={cn(
             'border-2 border-dashed rounded-xl px-12 py-8 text-center transition-colors duration-200 h-[180px] flex items-center justify-center',
-            !value && !isDragging && 'border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer',
-            value && !isDragging && 'border-primary/30 bg-primary/5 cursor-pointer',
+            !hasFiles && !isDragging && 'border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer',
+            hasFiles && !isDragging && 'border-primary/30 bg-primary/5 cursor-pointer',
             isDragging && 'border-primary bg-primary/10 cursor-pointer',
             disabled && 'opacity-50 cursor-not-allowed hover:border-border hover:bg-transparent'
           )}
         >
           {/* Idle - No file */}
-          {!value && !isDragging && (
+          {!hasFiles && !isDragging && (
             <div className="space-y-4">
               <div className="icon-container mx-auto w-fit">
                 <FileUp className="h-6 w-6" />
@@ -141,15 +160,26 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
             </div>
           )}
 
-          {/* File selected */}
-          {value && !isDragging && (
+          {/* File(s) selected */}
+          {hasFiles && !isDragging && (
             <div className="space-y-4">
               <div className="icon-container mx-auto w-fit">
                 <FileIcon className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-foreground font-medium">{value.name}</p>
-                <p className="text-muted-foreground text-sm mt-1">{formatFileSize(value.size)}</p>
+                {files.length === 1 ? (
+                  <>
+                    <p className="text-foreground font-medium">{files[0].name}</p>
+                    <p className="text-muted-foreground text-sm mt-1">{formatFileSize(files[0].size)}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-foreground font-medium">{files.length} files selected</p>
+                    <p className="text-muted-foreground text-sm mt-1">
+                      {formatFileSize(files.reduce((acc, f) => acc + f.size, 0))} total
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           )}

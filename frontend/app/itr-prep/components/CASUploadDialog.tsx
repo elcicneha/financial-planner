@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Upload, ChevronRight, ExternalLink, Lock, Loader2 } from 'lucide-react';
+import { Upload, ChevronRight, ExternalLink, Lock, Loader2, CheckCircle2, XCircle, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,24 +16,33 @@ import { Label } from '@/components/ui/label';
 import { InputFile, InputFileHandle } from '@/components/ui/input-file';
 
 interface CASUploadDialogProps {
-  onUploadSuccess?: (financialYear: string) => void;
+  onUploadSuccess?: (financialYears: string[]) => void;
+}
+
+interface FileUploadState {
+  file: File;
+  status: 'pending' | 'uploading' | 'password_required' | 'success' | 'error';
+  password: string;
+  error?: string;
+  financialYear?: string;
 }
 
 export function CASUploadDialog({ onUploadSuccess }: CASUploadDialogProps) {
   const [open, setOpen] = useState(false);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
-  const [password, setPassword] = useState('');
-  const [passwordRequired, setPasswordRequired] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [fileStates, setFileStates] = useState<FileUploadState[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const inputFileRef = useRef<InputFileHandle>(null);
 
-  const handleUploadAttempt = async (file: File, pwd?: string) => {
-    setUploading(true);
-    setError(null);
+  const updateFileState = (index: number, updates: Partial<FileUploadState>) => {
+    setFileStates(prev => prev.map((state, i) =>
+      i === index ? { ...state, ...updates } : state
+    ));
+  };
+
+  const handleUploadAttempt = async (index: number, file: File, pwd?: string) => {
+    updateFileState(index, { status: 'uploading', error: undefined });
 
     const formData = new FormData();
     formData.append('file', file);
@@ -50,55 +59,96 @@ export function CASUploadDialog({ onUploadSuccess }: CASUploadDialogProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        // Check if password is required
         if (data.detail?.error === 'password_required') {
-          setPasswordRequired(true);
-          setSelectedFile(file);
-          setError(null);
+          updateFileState(index, { status: 'password_required' });
         } else {
-          throw new Error(data.detail?.message || data.detail || 'Upload failed');
+          updateFileState(index, {
+            status: 'error',
+            error: data.detail?.message || data.detail || 'Upload failed'
+          });
         }
       } else {
-        // Success
-        setUploadSuccess(true);
-        setTimeout(() => {
-          setOpen(false);
-          onUploadSuccess?.(data.financial_year);
-          handleReset();
-        }, 1500);
+        updateFileState(index, {
+          status: 'success',
+          financialYear: data.financial_year
+        });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
-    } finally {
-      setUploading(false);
+      updateFileState(index, {
+        status: 'error',
+        error: err instanceof Error ? err.message : 'Upload failed'
+      });
     }
   };
 
-  const handleFileSelect = async (file: File) => {
-    setSelectedFile(file);
-    setPasswordRequired(false);
-    setPassword('');
-    await handleUploadAttempt(file);
+  const handleFilesSelect = async (files: File | File[] | null) => {
+    if (!files) return;
+
+    const fileArray = Array.isArray(files) ? files : [files];
+    setSelectedFiles(fileArray);
+
+    // Initialize file states
+    const newStates: FileUploadState[] = fileArray.map(file => ({
+      file,
+      status: 'pending',
+      password: '',
+    }));
+    setFileStates(newStates);
+
+    // Start uploading all files
+    for (let i = 0; i < fileArray.length; i++) {
+      // Wait a small delay between uploads to avoid overwhelming the server
+      if (i > 0) await new Promise(r => setTimeout(r, 100));
+      handleUploadAttempt(i, fileArray[i]);
+    }
   };
 
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (index: number, e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile || !password) return;
-    await handleUploadAttempt(selectedFile, password);
+    const fileState = fileStates[index];
+    if (!fileState || !fileState.password) return;
+    await handleUploadAttempt(index, fileState.file, fileState.password);
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setFileStates(prev => prev.filter((_, i) => i !== index));
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleReset = () => {
-    setSelectedFile(null);
-    setPassword('');
-    setPasswordRequired(false);
-    setError(null);
-    setUploadSuccess(false);
-    setUploading(false);
+    setSelectedFiles([]);
+    setFileStates([]);
     inputFileRef.current?.reset();
   };
 
+  const handleClose = () => {
+    // Collect all successful financial years before closing
+    const successfulFYs = fileStates
+      .filter(s => s.status === 'success' && s.financialYear)
+      .map(s => s.financialYear!);
+
+    setOpen(false);
+    // Delay reset to allow dialog close animation
+    setTimeout(handleReset, 200);
+
+    // Notify parent of all successful uploads
+    if (successfulFYs.length > 0) {
+      onUploadSuccess?.(successfulFYs);
+    }
+  };
+
+  const allDone = fileStates.length > 0 && fileStates.every(
+    s => s.status === 'success' || s.status === 'error'
+  );
+
+  const hasPasswordRequired = fileStates.some(s => s.status === 'password_required');
+  const isUploading = fileStates.some(s => s.status === 'uploading');
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) handleClose();
+      else setOpen(true);
+    }}>
       <DialogTrigger asChild>
         <Button variant="default" size="default">
           <Upload className="h-4 w-4 mr-2" />
@@ -112,7 +162,7 @@ export function CASUploadDialog({ onUploadSuccess }: CASUploadDialogProps) {
             Upload Capital Gains Statement
           </DialogTitle>
           <DialogDescription className="text-[15px] leading-relaxed mt-2">
-            Upload your Capital Gains Excel file (.xls or .xlsx) from{' '}
+            Upload your Capital Gains Excel files (.xls or .xlsx) from{' '}
             <a
               href="https://www.camsonline.com/Investors/Statements/Capital-Gain&Capital-Loss-statement"
               target="_blank"
@@ -132,93 +182,123 @@ export function CASUploadDialog({ onUploadSuccess }: CASUploadDialogProps) {
               KFINTECH
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
-            . Financial year will be auto-detected.
+            . You can upload both files at once. Financial year will be auto-detected.
           </DialogDescription>
         </DialogHeader>
 
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          {/* Password Required State */}
-          {passwordRequired && (
-            <div className="space-y-4 mb-6">
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
-                <Lock className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                      Password Protected File
-                    </p>
-                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                      This Excel file is password-protected. Enter the password to decrypt and upload.
-                    </p>
+          {/* File Status List */}
+          {fileStates.length > 0 && (
+            <div className="space-y-3 mb-5">
+              {fileStates.map((fileState, index) => (
+                <div
+                  key={`${fileState.file.name}-${index}`}
+                  className={`p-4 rounded-lg border ${
+                    fileState.status === 'success'
+                      ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
+                      : fileState.status === 'error'
+                      ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+                      : fileState.status === 'password_required'
+                      ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+                      : 'bg-muted/30 border-border'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Status Icon */}
+                    <div className="mt-0.5">
+                      {fileState.status === 'uploading' && (
+                        <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                      )}
+                      {fileState.status === 'pending' && (
+                        <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                      )}
+                      {fileState.status === 'success' && (
+                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      )}
+                      {fileState.status === 'error' && (
+                        <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                      )}
+                      {fileState.status === 'password_required' && (
+                        <Lock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      )}
+                    </div>
+
+                    {/* File Info & Actions */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium truncate">{fileState.file.name}</p>
+                        {(fileState.status === 'error' || fileState.status === 'password_required') && (
+                          <button
+                            onClick={() => handleRemoveFile(index)}
+                            className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-colors"
+                          >
+                            <X className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Status Messages */}
+                      {fileState.status === 'uploading' && (
+                        <p className="text-sm text-muted-foreground mt-1">Processing...</p>
+                      )}
+                      {fileState.status === 'success' && (
+                        <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                          Uploaded successfully{fileState.financialYear && ` (${fileState.financialYear})`}
+                        </p>
+                      )}
+                      {fileState.status === 'error' && (
+                        <div className="mt-1">
+                          <p className="text-sm text-red-700 dark:text-red-300">{fileState.error}</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUploadAttempt(index, fileState.file)}
+                            className="mt-2"
+                          >
+                            Retry
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Password Form */}
+                      {fileState.status === 'password_required' && (
+                        <form onSubmit={(e) => handlePasswordSubmit(index, e)} className="mt-3 space-y-3">
+                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                            This file is password-protected. Enter the password to continue.
+                          </p>
+                          <div className="space-y-2">
+                            <Label htmlFor={`password-${index}`} className="text-sm font-medium">
+                              Password
+                            </Label>
+                            <Input
+                              id={`password-${index}`}
+                              type="password"
+                              value={fileState.password}
+                              onChange={(e) => updateFileState(index, { password: e.target.value })}
+                              placeholder="Enter file password"
+                              className="bg-white dark:bg-slate-950"
+                              autoFocus={index === fileStates.findIndex(s => s.status === 'password_required')}
+                            />
+                          </div>
+                          <Button
+                            type="submit"
+                            disabled={!fileState.password}
+                            size="sm"
+                          >
+                            Upload
+                          </Button>
+                        </form>
+                      )}
+                    </div>
                   </div>
-                  <form onSubmit={handlePasswordSubmit} className="space-y-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-sm font-medium">
-                        Password
-                      </Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Enter file password"
-                        className="bg-white dark:bg-slate-950"
-                        autoFocus
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Your password is only used to decrypt this file locally. It is not stored.
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        type="submit"
-                        disabled={!password || uploading}
-                        size="sm"
-                      >
-                        {uploading ? 'Uploading...' : 'Upload'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleReset}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error Display */}
-          {error && !passwordRequired && (
-            <div className="mb-4 p-4 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
-              <p className="text-sm text-red-900 dark:text-red-100">{error}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleReset}
-                className="mt-3"
-              >
-                Try Again
-              </Button>
-            </div>
-          )}
-
-          {/* Success Display */}
-          {uploadSuccess && (
-            <div className="mb-4 p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
-              <p className="text-sm text-green-900 dark:text-green-100 font-medium">
-                Upload successful! Redirecting...
-              </p>
+              ))}
             </div>
           )}
 
           {/* Collapsible Instructions */}
-          {!passwordRequired && !uploadSuccess && (
+          {fileStates.length === 0 && (
             <div className="space-y-2">
               <button
                 onClick={() => setInstructionsOpen(!instructionsOpen)}
@@ -298,25 +378,36 @@ export function CASUploadDialog({ onUploadSuccess }: CASUploadDialogProps) {
             </div>
           )}
 
-          {/* Upload Area - only show if not in password mode and not success */}
-          {!passwordRequired && !uploadSuccess && (
+          {/* Upload Area - only show if no files selected or all done */}
+          {(fileStates.length === 0 || allDone) && !hasPasswordRequired && (
             <div className="pt-1 space-y-4">
-              <InputFile
-                ref={inputFileRef}
-                accept=".xls,.xlsx"
-                value={selectedFile}
-                onChange={(file) => file && handleFileSelect(file)}
-                disabled={uploading}
-                placeholder="Drag and drop your Excel file here"
-              />
-
-              {/* Loading indicator */}
-              {uploading && (
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Processing Excel file...</span>
+              {allDone && (
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" onClick={handleReset}>
+                    Upload More Files
+                  </Button>
                 </div>
               )}
+              {fileStates.length === 0 && (
+                <InputFile
+                  ref={inputFileRef}
+                  accept=".xls,.xlsx"
+                  multiple
+                  value={selectedFiles}
+                  onChange={handleFilesSelect}
+                  disabled={isUploading}
+                  placeholder="Drag and drop your Excel files here"
+                />
+              )}
+            </div>
+          )}
+
+          {/* Close button when done */}
+          {allDone && !hasPasswordRequired && (
+            <div className="flex justify-end mt-4">
+              <Button onClick={handleClose}>
+                Done
+              </Button>
             </div>
           )}
         </div>

@@ -61,10 +61,13 @@ export default function VariantCAS() {
   const { data, loading, error, refetch } = useCASCapitalGains(selectedFY, refreshKey);
 
   // Handle upload success
-  const handleUploadSuccess = (financialYear: string) => {
+  const handleUploadSuccess = (financialYears: string[]) => {
     // Refresh file list and data
     setRefreshKey((prev) => prev + 1);
-    setSelectedFY(financialYear);
+    // Select the last uploaded financial year
+    if (financialYears.length > 0) {
+      setSelectedFY(financialYears[financialYears.length - 1]);
+    }
   };
 
   // Loading state
