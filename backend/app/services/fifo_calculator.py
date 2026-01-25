@@ -592,6 +592,31 @@ def recalculate_and_cache_fifo() -> List[FIFOGain]:
     return gains
 
 
+def get_last_updated() -> str:
+    """
+    Get the most recent modification date of transaction files.
+
+    Returns:
+        ISO format timestamp of the most recently modified transaction file.
+    """
+    latest_mtime = None
+
+    if OUTPUTS_DIR.exists():
+        for date_dir in OUTPUTS_DIR.iterdir():
+            if not date_dir.is_dir() or date_dir.name == 'fifo_cache':
+                continue
+
+            for json_file in date_dir.glob('transactions_*.json'):
+                mtime = json_file.stat().st_mtime
+                if latest_mtime is None or mtime > latest_mtime:
+                    latest_mtime = mtime
+
+    if latest_mtime is not None:
+        return datetime.fromtimestamp(latest_mtime).isoformat()
+
+    return datetime.now().isoformat()
+
+
 def get_cached_gains() -> List[Dict]:
     """
     Get cached FIFO gains, recalculating if cache is invalid.

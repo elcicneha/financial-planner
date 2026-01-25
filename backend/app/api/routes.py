@@ -38,6 +38,7 @@ from app.models.schemas import (
 from app.services.pdf_extractor import extract_transactions
 from app.services.fifo_calculator import (
     get_cached_gains,
+    get_last_updated as get_fifo_last_updated,
     save_fund_type_override,
     invalidate_fifo_cache,
     recalculate_and_cache_fifo,
@@ -257,7 +258,8 @@ async def get_capital_gains(fy: str = None):
                     total_gains=0.0,
                     total_transactions=0,
                     date_range="N/A"
-                )
+                ),
+                last_updated=get_fifo_last_updated()
             )
 
         try:
@@ -293,7 +295,7 @@ async def get_capital_gains(fy: str = None):
             date_range=date_range
         )
 
-        return FIFOResponse(gains=gains, summary=summary)
+        return FIFOResponse(gains=gains, summary=summary, last_updated=get_fifo_last_updated())
 
     except Exception as e:
         logger.error(f"Failed to calculate capital gains: {e}")
@@ -429,6 +431,7 @@ def _empty_cas_capital_gains() -> CASCapitalGains:
         debt_short_term=empty_category,
         debt_long_term=empty_category,
         has_files=False,
+        last_updated=datetime.now().isoformat(),
     )
 
 

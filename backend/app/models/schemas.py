@@ -72,6 +72,7 @@ class FIFOResponse(BaseModel):
     """Response containing FIFO gains and summary"""
     gains: List[FIFOGainRow]
     summary: FIFOSummary
+    last_updated: str  # ISO format timestamp
 
 
 class CASCategoryData(BaseModel):
@@ -88,6 +89,7 @@ class CASCapitalGains(BaseModel):
     debt_short_term: CASCategoryData
     debt_long_term: CASCategoryData
     has_files: bool = True  # False when no CAS files uploaded yet
+    last_updated: str  # ISO format timestamp
 
 
 class CASUploadResponse(BaseModel):

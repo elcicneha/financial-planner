@@ -153,6 +153,15 @@ export default function VariantCAS() {
       {/* Header with Upload and FY Selector */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">
+            Last updated: {new Date(data.last_updated).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
           <h1 className="text-3xl font-bold tracking-tight">ITR Prep - CAS Statement</h1>
           <p className="text-muted-foreground">
             Capital gains from Capital Account Statement for Income Tax Return filing

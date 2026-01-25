@@ -102,6 +102,15 @@ export default function VariantFIFO() {
     <div className="container mx-auto py-8 space-y-6">
       {/* Header */}
       <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Last updated: {new Date(data.last_updated).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </p>
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">ITR Prep - FIFO Calculations</h1>

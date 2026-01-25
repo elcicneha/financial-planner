@@ -28,6 +28,7 @@ export interface FIFOSummary {
 export interface CapitalGainsData {
   gains: FIFOGainRow[];
   summary: FIFOSummary;
+  last_updated: string;
 }
 
 interface UseCapitalGainsResult {

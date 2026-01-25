@@ -531,12 +531,14 @@ def load_and_parse_cas(
         data = json.load(f)
 
     summary = data.get('summary', {})
+    last_updated = data.get('updated_at', datetime.now().isoformat())
 
     return CASCapitalGains(
         equity_short_term=CASCategoryData(**summary.get('equity_short_term', {})),
         equity_long_term=CASCategoryData(**summary.get('equity_long_term', {})),
         debt_short_term=CASCategoryData(**summary.get('debt_short_term', {})),
-        debt_long_term=CASCategoryData(**summary.get('debt_long_term', {}))
+        debt_long_term=CASCategoryData(**summary.get('debt_long_term', {})),
+        last_updated=last_updated
     )
 
 
