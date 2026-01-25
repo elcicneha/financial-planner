@@ -12,6 +12,10 @@ export interface RetirementInputs {
   returnRateAccumulation: number; // annual % (e.g., 12)
   returnRateSpending: number;     // annual % (e.g., 8)
   expenseIncreaseRate: number;    // annual % (e.g., 5)
+
+  // Calculation method options
+  useEffectiveRate?: boolean;    // Default: false (nominal)
+  investAtMonthEnd?: boolean;    // Default: false (month start)
 }
 
 export interface CalculationResult {
@@ -31,7 +35,22 @@ export const DEFAULT_INPUTS: RetirementInputs = {
   returnRateAccumulation: 12,
   returnRateSpending: 8,
   expenseIncreaseRate: 5,
+  useEffectiveRate: true,
+  investAtMonthEnd: false,
 };
+
+/**
+ * Convert annual rate to monthly rate using effective or nominal method
+ */
+function getMonthlyRate(annualRate: number, useEffective: boolean): number {
+  if (useEffective) {
+    // Effective: (1 + r)^(1/12) - 1
+    return Math.pow(1 + annualRate / 100, 1 / 12) - 1;
+  } else {
+    // Nominal: r / 12
+    return annualRate / 100 / 12;
+  }
+}
 
 /**
  * Calculate retirement projections
@@ -49,11 +68,13 @@ export function calculateRetirement(inputs: RetirementInputs): CalculationResult
     returnRateAccumulation,
     returnRateSpending,
     expenseIncreaseRate,
+    useEffectiveRate,
+    investAtMonthEnd,
   } = inputs;
 
   // Phase 1: Accumulation
   const monthsUntilBreak = startBreakIn * 12;
-  const monthlyRateAccum = returnRateAccumulation / 100 / 12;
+  const monthlyRateAccum = getMonthlyRate(returnRateAccumulation, useEffectiveRate ?? false);
 
   let amountAtBreak: number;
   if (monthsUntilBreak === 0) {
@@ -65,14 +86,24 @@ export function calculateRetirement(inputs: RetirementInputs): CalculationResult
   } else {
     // Future value of lump sum + future value of annuity
     const fvLumpSum = currentSavings * Math.pow(1 + monthlyRateAccum, monthsUntilBreak);
-    const fvAnnuity = monthlySavings * ((Math.pow(1 + monthlyRateAccum, monthsUntilBreak) - 1) / monthlyRateAccum);
+
+    // Calculate annuity based on timing
+    let fvAnnuity: number;
+    if (investAtMonthEnd ?? false) {
+      // Ordinary annuity (payment at end of period)
+      fvAnnuity = monthlySavings * ((Math.pow(1 + monthlyRateAccum, monthsUntilBreak) - 1) / monthlyRateAccum);
+    } else {
+      // Annuity due (payment at beginning of period)
+      fvAnnuity = monthlySavings * ((Math.pow(1 + monthlyRateAccum, monthsUntilBreak) - 1) / monthlyRateAccum) * (1 + monthlyRateAccum);
+    }
+
     amountAtBreak = fvLumpSum + fvAnnuity;
   }
 
   const ageAtBreak = currentAge + startBreakIn;
 
   // Phase 2: Spending
-  const monthlyRateSpend = returnRateSpending / 100 / 12;
+  const monthlyRateSpend = getMonthlyRate(returnRateSpending, useEffectiveRate ?? false);
   const yearlyExpenseMultiplier = 1 + expenseIncreaseRate / 100;
 
   let corpus = amountAtBreak;

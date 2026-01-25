@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ChevronRight, ArrowRight } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { PlaygroundState } from '@/hooks/usePlaygroundState';
+import { Switch } from '@/components/ui/switch';
 
 // Inline editable input component
 function InlineInput({
@@ -232,6 +233,39 @@ export function DesignCurrent({ state }: DesignProps) {
                 className="w-16 px-2 py-1 text-center rounded-lg border border-input bg-background text-sm"
               />
               <span className="text-muted-foreground text-sm">%</span>
+            </div>
+
+            {/* Calculation method options */}
+            <div className="border-t border-border/30 pt-3 mt-3">
+              <div className="flex items-center justify-between text-sm">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium">Use effective rate</label>
+                  <p className="text-xs text-muted-foreground">
+                    {inputs.useEffectiveRate
+                      ? 'Monthly rate from (1+r)^(1/12)-1'
+                      : 'Monthly rate from r/12 (nominal)'}
+                  </p>
+                </div>
+                <Switch
+                  checked={inputs.useEffectiveRate ?? false}
+                  onCheckedChange={updateInput('useEffectiveRate')}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <div className="space-y-0.5">
+                <label className="text-sm font-medium">Invest at month end</label>
+                <p className="text-xs text-muted-foreground">
+                  {inputs.investAtMonthEnd
+                    ? 'Ordinary annuity (payment at period end)'
+                    : 'Annuity due (payment at period start)'}
+                </p>
+              </div>
+              <Switch
+                checked={inputs.investAtMonthEnd ?? false}
+                onCheckedChange={updateInput('investAtMonthEnd')}
+              />
             </div>
           </div>
         )}
