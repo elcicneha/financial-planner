@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { designs, designKeys } from '../designs';
 import { useDevMode } from '@/components/dev/DevModeProvider';
+import { EmptyDefaultsToggle } from '@/components/dev/EmptyDefaultsToggle';
 
 interface DesignSwitcherProps {
   selected: string;
@@ -59,6 +60,9 @@ export function DesignSwitcher({ selected, onChange }: DesignSwitcherProps) {
               </button>
             );
           })}
+        </div>
+        <div className="ml-auto">
+          <EmptyDefaultsToggle />
         </div>
       </div>
     </div>

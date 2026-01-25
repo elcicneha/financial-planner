@@ -39,6 +39,19 @@ export const DEFAULT_INPUTS: RetirementInputs = {
   investAtMonthEnd: false,
 };
 
+export const EMPTY_INPUTS: RetirementInputs = {
+  currentAge: 0,
+  startBreakIn: 0,
+  currentSavings: 0,
+  monthlySavings: 0,
+  monthlyExpense: 0,
+  returnRateAccumulation: 12,
+  returnRateSpending: 8,
+  expenseIncreaseRate: 5,
+  useEffectiveRate: true,
+  investAtMonthEnd: false,
+};
+
 /**
  * Convert annual rate to monthly rate using effective or nominal method
  */

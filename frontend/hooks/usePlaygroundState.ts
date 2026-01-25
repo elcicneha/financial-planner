@@ -1,10 +1,15 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { RetirementInputs, DEFAULT_INPUTS, calculateRetirement } from '@/lib/calculations';
+import { RetirementInputs, DEFAULT_INPUTS, EMPTY_INPUTS, calculateRetirement } from '@/lib/calculations';
 import { getCurrencySymbol } from '@/lib/currency';
+import { useDevMode } from '@/components/dev/DevModeProvider';
+
+const STORAGE_KEY_INPUTS = 'playground-inputs';
 
 export function usePlaygroundState() {
+  const { useEmptyDefaults } = useDevMode();
+  const [mounted, setMounted] = useState(false);
   const [inputs, setInputs] = useState<RetirementInputs>(DEFAULT_INPUTS);
   const [assumptionsOpen, setAssumptionsOpen] = useState(false);
   const [bounce, setBounce] = useState(false);
@@ -21,6 +26,39 @@ export function usePlaygroundState() {
     }
   }, [results.corpusRunsOutAge]);
 
+  // Load from localStorage on mount
+  useEffect(() => {
+    const baseDefaults = useEmptyDefaults ? EMPTY_INPUTS : DEFAULT_INPUTS;
+
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_INPUTS);
+      // Only load stored values if toggle is OFF
+      if (stored && !useEmptyDefaults) {
+        const parsed = JSON.parse(stored);
+        // Merge with defaults to handle schema changes
+        setInputs({ ...baseDefaults, ...parsed });
+      } else {
+        setInputs(baseDefaults);
+      }
+    } catch (error) {
+      console.warn('Failed to load saved inputs:', error);
+      setInputs(baseDefaults);
+    }
+
+    setMounted(true);
+  }, [useEmptyDefaults]);
+
+  // Save to localStorage on change
+  useEffect(() => {
+    if (!mounted) return;
+
+    try {
+      localStorage.setItem(STORAGE_KEY_INPUTS, JSON.stringify(inputs));
+    } catch (error) {
+      console.warn('Failed to save inputs:', error);
+    }
+  }, [inputs, mounted]);
+
   const updateInput = <K extends keyof RetirementInputs>(field: K) => (value: RetirementInputs[K]) => {
     setInputs((prev) => ({ ...prev, [field]: value }));
   };
@@ -28,6 +66,17 @@ export function usePlaygroundState() {
   const currencySymbol = getCurrencySymbol();
 
   const yearsAfterBreak = results.corpusRunsOutAge - results.ageAtBreak;
+
+  // Edge case detection
+  const hasExpenses = inputs.monthlyExpense > 0;
+  const hasSavings = inputs.currentSavings > 0 || inputs.monthlySavings > 0;
+
+  const isCompletelyEmpty = !hasExpenses && !hasSavings;
+  const neverRunsOut = hasExpenses && hasSavings && yearsAfterBreak >= 100;
+  const noExpenses = !hasExpenses && hasSavings;
+  const insufficientSavings = hasExpenses && !hasSavings;
+  const runsOutImmediately = hasExpenses && hasSavings && yearsAfterBreak < (1/12); // Less than 1 month
+  const isNormalCalculation = hasExpenses && hasSavings && yearsAfterBreak >= (1/12) && yearsAfterBreak < 100;
 
   const formatDuration = (years: number) => {
     const fullYears = Math.floor(years);
@@ -55,6 +104,15 @@ export function usePlaygroundState() {
     currencySymbol,
     yearsAfterBreak,
     duration,
+    // Edge case states
+    edgeCase: {
+      isCompletelyEmpty,
+      neverRunsOut,
+      noExpenses,
+      insufficientSavings,
+      runsOutImmediately,
+      isNormalCalculation,
+    },
   };
 }
 

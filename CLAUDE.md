@@ -60,6 +60,20 @@ Entry point: `extract_transactions()` in `__init__.py`
 - Backend entry: `backend/app/main.py`
 - API routes: `backend/app/api/routes.py`
 - Pydantic schemas: `backend/app/models/schemas.py`
-- Frontend page: `frontend/app/page.tsx`
+- PDF extraction entry: `backend/app/services/pdf_extractor/__init__.py` (calls `extract_transactions()`)
+- Frontend home: `frontend/app/page.tsx`
 - Upload component: `frontend/components/FileUpload.tsx`
 - Transaction data hook: `frontend/hooks/useTransactionData.ts`
+- API proxy config: `frontend/next.config.js` (rewrites `/api/*` to `BACKEND_URL`)
+
+### Frontend Structure
+- Pages: `/` (home), `/upload` (upload interface), `/playground` (dev mode)
+- TypeScript with path aliases (`@/` imports configured in `tsconfig.json`)
+- Styling: Tailwind CSS with custom theme in `tailwind.config.js`, supports dark mode
+
+### Environment Variables
+- `BACKEND_URL` (frontend) - Backend API base URL for rewrites, defaults to `http://localhost:8000`
+- `CORS_ORIGINS` (backend) - Comma-separated origins allowed for CORS
+
+### Reference Data
+- `isin_ticker_db.csv` and `isin_ticker_links_db.csv` in backend are used in step 4 (processFundDeets.py) to standardize and validate fund identifiers
