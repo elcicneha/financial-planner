@@ -16,27 +16,54 @@ function formatFileSize(bytes: number): string {
 interface UploadResult {
   success: boolean;
   message: string;
-  file_id: string;
-  csv_path: string;
+  file_id?: string;
+  csv_path?: string;
+  financial_year?: string;
+  [key: string]: any;
 }
 
-interface FileUploadProps {
-  onSuccess?: () => void;
+interface InputFileProps {
+  /** Accepted file extensions (e.g., '.pdf', '.json') */
+  accept?: string;
+  /** Upload endpoint URL */
+  endpoint?: string;
+  /** Custom validation function that returns error message or null */
+  validate?: (file: File) => string | null;
+  /** Callback on successful upload */
+  onSuccess?: (result?: UploadResult) => void;
+  /** Optional custom result renderer */
+  renderResult?: (result: UploadResult) => React.ReactNode;
+  /** Show upload button inline (for use in dialogs) */
+  inline?: boolean;
 }
 
-export default function FileUpload({ onSuccess }: FileUploadProps) {
+export function InputFile({
+  accept = '.pdf',
+  endpoint = '/api/upload',
+  validate,
+  onSuccess,
+  renderResult,
+  inline = false,
+}: InputFileProps) {
   const [state, setState] = useState<UploadState>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const validateFile = (file: File): string | null => {
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      return 'Only PDF files are allowed';
+  const defaultValidate = (file: File): string | null => {
+    const extensions = accept.split(',').map(ext => ext.trim().toLowerCase());
+    const fileName = file.name.toLowerCase();
+    const isValid = extensions.some(ext => fileName.endsWith(ext));
+
+    if (!isValid) {
+      const extList = extensions.join(', ');
+      return `Only ${extList} files are allowed`;
     }
     return null;
   };
+
+  const validateFile = validate || defaultValidate;
 
   const handleFileSelect = (file: File) => {
     const validationError = validateFile(file);
@@ -91,7 +118,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
     formData.append('file', selectedFile);
 
     try {
-      const response = await fetch('/api/upload', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
       });
@@ -101,7 +128,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
       }
       setResult(data);
       setState('success');
-      onSuccess?.();
+      onSuccess?.(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
       setState('error');
@@ -118,24 +145,39 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
     }
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  };
-
   const handleZoneClick = () => {
     if (state !== 'uploading' && state !== 'success') {
       fileInputRef.current?.click();
     }
   };
 
+  const defaultRenderResult = (result: UploadResult) => (
+    <div className="space-y-4">
+      <div className="icon-container-success mx-auto w-fit">
+        <CheckCircle className="h-6 w-6" />
+      </div>
+      <div>
+        <p className="text-success font-medium">Upload successful!</p>
+        {result.file_id && (
+          <p className="text-muted-foreground text-sm mt-2">
+            File ID: <span className="font-mono">{result.file_id}</span>
+          </p>
+        )}
+        {result.csv_path && (
+          <p className="text-muted-foreground text-xs mt-1">
+            CSV created at: <span className="font-mono">{result.csv_path}</span>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <input
         type="file"
         ref={fileInputRef}
-        accept=".pdf"
+        accept={accept}
         onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
         className="hidden"
       />
@@ -163,7 +205,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
               <FileUp className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-foreground font-medium">Drag and drop your PDF here</p>
+              <p className="text-foreground font-medium">Drag and drop your file here</p>
               <p className="text-muted-foreground text-sm mt-1">or click to browse</p>
             </div>
           </div>
@@ -188,7 +230,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
             <div className="icon-container mx-auto w-fit">
               <FileUp className="h-6 w-6" />
             </div>
-            <p className="text-primary font-medium">Drop your PDF here</p>
+            <p className="text-primary font-medium">Drop your file here</p>
           </div>
         )}
 
@@ -207,20 +249,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
 
         {/* Success */}
         {state === 'success' && result && (
-          <div className="space-y-4">
-            <div className="icon-container-success mx-auto w-fit">
-              <CheckCircle className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-success font-medium">Upload successful!</p>
-              <p className="text-muted-foreground text-sm mt-2">
-                File ID: <span className="font-mono">{result.file_id}</span>
-              </p>
-              <p className="text-muted-foreground text-xs mt-1">
-                CSV created at: <span className="font-mono">{result.csv_path}</span>
-              </p>
-            </div>
-          </div>
+          renderResult ? renderResult(result) : defaultRenderResult(result)
         )}
 
         {/* Error */}
@@ -238,25 +267,37 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-3 justify-center">
-        {state === 'idle' && selectedFile && (
-          <>
-            <Button onClick={handleUpload}>
-              <Upload className="h-4 w-4" />
-              Upload PDF
+      {!inline && (
+        <div className="flex gap-3 justify-center">
+          {state === 'idle' && selectedFile && (
+            <>
+              <Button onClick={handleUpload}>
+                <Upload className="h-4 w-4" />
+                Upload
+              </Button>
+              <Button variant="ghost" onClick={handleReset}>
+                <X className="h-4 w-4" />
+                Remove
+              </Button>
+            </>
+          )}
+          {(state === 'success' || state === 'error') && (
+            <Button variant={state === 'success' ? 'outline' : 'default'} onClick={handleReset}>
+              {state === 'success' ? 'Upload Another' : 'Try Again'}
             </Button>
-            <Button variant="ghost" onClick={handleReset}>
-              <X className="h-4 w-4" />
-              Remove
-            </Button>
-          </>
-        )}
-        {(state === 'success' || state === 'error') && (
-          <Button variant={state === 'success' ? 'outline' : 'default'} onClick={handleReset}>
-            {state === 'success' ? 'Upload Another' : 'Try Again'}
-          </Button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
+
+      {/* Inline mode - expose upload action */}
+      {inline && state === 'idle' && selectedFile && (
+        <input type="hidden" data-ready-to-upload="true" />
+      )}
     </div>
   );
+}
+
+// Export function to trigger upload from parent
+export function useInputFileRef() {
+  return useRef<{ upload: () => void; reset: () => void }>(null);
 }

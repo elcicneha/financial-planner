@@ -5,7 +5,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import TransactionTable from '@/components/TransactionTable';
-import FileUpload from '@/components/FileUpload';
+import { InputFile } from '@/components/ui/input-file';
 import { useTransactionData } from '@/hooks/useTransactionData';
 
 interface DataDisplayProps {
@@ -59,7 +59,7 @@ export default function DataDisplay({ refreshKey = 0, onDataStateChange, onUploa
     return (
       <Card>
         <CardContent className="py-8">
-          <FileUpload onSuccess={onUploadSuccess} />
+          <InputFile onSuccess={onUploadSuccess} />
         </CardContent>
       </Card>
     );

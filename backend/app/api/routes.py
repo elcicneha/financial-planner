@@ -16,6 +16,9 @@ from app.models.schemas import (
     FIFOSummary,
     CASCapitalGains,
     CASCategoryData,
+    CASUploadResponse,
+    CASFileInfo,
+    CASFilesResponse,
 )
 from app.services.pdf_extractor import extract_transactions
 from app.services.fifo_calculator import get_cached_gains, save_fund_type_override
@@ -26,12 +29,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DATA_DIR = BASE_DIR / "data"
 UPLOADS_DIR = DATA_DIR / "uploads"
 OUTPUTS_DIR = DATA_DIR / "outputs"
+CAS_DIR = DATA_DIR / "cas"
 
 
 def ensure_directories():
     """Create data directories if they don't exist."""
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    CAS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def sanitize_filename(filename: str) -> str:
@@ -44,6 +49,61 @@ def sanitize_filename(filename: str) -> str:
     if not sanitized.lower().endswith('.pdf'):
         sanitized = sanitized + '.pdf'
     return sanitized
+
+
+def get_latest_cas_file() -> Path | None:
+    """Get the most recent CAS file based on filename (financial year)."""
+    if not CAS_DIR.exists():
+        return None
+
+    cas_files = sorted(CAS_DIR.glob("FY*.json"), reverse=True)
+    return cas_files[0] if cas_files else None
+
+
+def get_cas_file_for_fy(fy: str) -> Path:
+    """Get CAS file path for a specific financial year."""
+    return CAS_DIR / f"FY{fy}.json"
+
+
+def infer_financial_year_from_cas(cas_data: dict) -> str:
+    """
+    Infer financial year from CAS JSON transaction dates.
+
+    Financial year in India runs from April 1 to March 31.
+    Reads a single transaction date to determine the FY.
+
+    Returns FY in format "2025-26"
+    """
+    # Get first transaction date
+    transactions = cas_data.get("TRXN_DETAILS", [])
+
+    if not transactions:
+        raise ValueError("No transaction details found in CAS JSON")
+
+    # Get date from first transaction
+    first_txn = transactions[0]
+    date_str = first_txn.get("Date")
+
+    if not date_str:
+        raise ValueError("No date found in CAS transaction")
+
+    try:
+        # Parse date in format "24-Apr-2025"
+        date_obj = datetime.strptime(date_str, "%d-%b-%Y")
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Could not parse transaction date: {date_str}") from e
+
+    # Determine FY based on the date
+    # FY starts on April 1
+    if date_obj.month >= 4:  # Apr to Dec
+        fy_start_year = date_obj.year
+        fy_end_year = date_obj.year + 1
+    else:  # Jan to Mar
+        fy_start_year = date_obj.year - 1
+        fy_end_year = date_obj.year
+
+    # Format as "2025-26"
+    return f"{fy_start_year}-{str(fy_end_year)[-2:]}"
 
 
 @router.get("/health")
@@ -252,10 +312,101 @@ async def update_fund_type_override(ticker: str, fund_type: str):
         )
 
 
+@router.post("/upload-cas", response_model=CASUploadResponse)
+async def upload_cas_json(file: UploadFile = File(...)):
+    """
+    Upload a CAS (Capital Account Statement) JSON file.
+
+    The financial year is automatically inferred from transaction dates in the JSON.
+    The file will be saved as data/cas/FY{financial_year}.json
+    If a file already exists for that FY, it will be replaced.
+
+    Args:
+        file: JSON file from CAMS/Karvy
+    """
+    if not file.filename.endswith(".json"):
+        raise HTTPException(status_code=400, detail="Only JSON files are allowed")
+
+    ensure_directories()
+
+    # Read and validate JSON
+    contents = await file.read()
+    try:
+        cas_data = json.loads(contents)
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid JSON file: {str(e)}"
+        )
+
+    # Basic validation - check if it looks like a CAS JSON
+    if "OVERALL_SUMMARY_EQUITY" not in cas_data and "OVERALL_SUMMARY_NONEQUITY" not in cas_data:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid CAS JSON format. Missing expected fields."
+        )
+
+    # Infer financial year from transaction dates
+    try:
+        financial_year = infer_financial_year_from_cas(cas_data)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not determine financial year: {str(e)}"
+        )
+
+    # Save to data/cas/FY{financial_year}.json
+    cas_filename = f"FY{financial_year}.json"
+    cas_path = CAS_DIR / cas_filename
+
+    # Save the file (will replace if exists)
+    with open(cas_path, "w") as f:
+        json.dump(cas_data, f, indent=2)
+
+    return CASUploadResponse(
+        success=True,
+        message=f"CAS file uploaded successfully for FY {financial_year}",
+        financial_year=financial_year,
+        file_path=str(cas_path.relative_to(BASE_DIR))
+    )
+
+
+@router.get("/cas-files", response_model=CASFilesResponse)
+async def list_cas_files():
+    """
+    List all uploaded CAS files with metadata.
+
+    Returns a list of financial years with upload information.
+    """
+    files = []
+
+    if CAS_DIR.exists():
+        for cas_file in sorted(CAS_DIR.glob("FY*.json"), reverse=True):
+            # Extract FY from filename (e.g., "FY2024-25.json" -> "2024-25")
+            fy = cas_file.stem.replace("FY", "")
+
+            # Get file stats
+            stat = cas_file.stat()
+
+            files.append(
+                CASFileInfo(
+                    financial_year=fy,
+                    file_path=str(cas_file.relative_to(BASE_DIR)),
+                    upload_date=datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    file_size=stat.st_size
+                )
+            )
+
+    return CASFilesResponse(files=files)
+
+
 @router.get("/capital-gains-cas", response_model=CASCapitalGains)
-async def get_capital_gains_cas():
+async def get_capital_gains_cas(fy: str = None):
     """
     Get CAS (Capital Account Statement) capital gains data.
+
+    Args:
+        fy: Financial year in format "2024-25" (optional, defaults to latest)
 
     Reads the capital gain loss statement JSON file and extracts
     the 4 categories of capital gains:
@@ -268,14 +419,22 @@ async def get_capital_gains_cas():
     and gain/loss for each category.
     """
     try:
-        # Path to the CAS JSON file
-        cas_json_path = BASE_DIR / "backend" / "app" / "services" / "pdf_extractor" / "capital gain loss statement.json"
-
-        if not cas_json_path.exists():
-            raise HTTPException(
-                status_code=404,
-                detail="CAS capital gains JSON file not found"
-            )
+        # Determine which CAS file to use
+        if fy:
+            cas_json_path = get_cas_file_for_fy(fy)
+            if not cas_json_path.exists():
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"CAS file not found for financial year {fy}"
+                )
+        else:
+            # Get latest file
+            cas_json_path = get_latest_cas_file()
+            if not cas_json_path:
+                raise HTTPException(
+                    status_code=404,
+                    detail="No CAS files found. Please upload a CAS JSON file."
+                )
 
         # Read and parse JSON
         with open(cas_json_path, 'r') as f:

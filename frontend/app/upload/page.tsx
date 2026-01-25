@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import FileUpload from '@/components/FileUpload';
+import { InputFile } from '@/components/ui/input-file';
 import DataDisplay from '@/components/DataDisplay';
 
 export default function UploadPage() {
@@ -61,7 +61,7 @@ export default function UploadPage() {
               Upload a mutual fund PDF statement to extract transactions
             </DialogDescription>
           </DialogHeader>
-          <FileUpload onSuccess={handleUploadSuccess} />
+          <InputFile onSuccess={handleUploadSuccess} />
         </DialogContent>
       </Dialog>
     </div>

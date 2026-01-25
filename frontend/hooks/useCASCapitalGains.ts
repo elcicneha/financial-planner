@@ -20,7 +20,7 @@ interface UseCASCapitalGainsResult {
   refetch: () => void;
 }
 
-export function useCASCapitalGains(refreshKey = 0): UseCASCapitalGainsResult {
+export function useCASCapitalGains(financialYear?: string, refreshKey = 0): UseCASCapitalGainsResult {
   const [data, setData] = useState<CASCapitalGainsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,11 @@ export function useCASCapitalGains(refreshKey = 0): UseCASCapitalGainsResult {
     setError(null);
 
     try {
-      const response = await fetch('/api/capital-gains-cas');
+      const url = financialYear
+        ? `/api/capital-gains-cas?fy=${encodeURIComponent(financialYear)}`
+        : '/api/capital-gains-cas';
+
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch CAS capital gains: ${response.statusText}`);
@@ -45,7 +49,7 @@ export function useCASCapitalGains(refreshKey = 0): UseCASCapitalGainsResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [financialYear]);
 
   useEffect(() => {
     fetchCASCapitalGains();

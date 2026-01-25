@@ -61,3 +61,24 @@ class CASCapitalGains(BaseModel):
     equity_long_term: CASCategoryData
     debt_short_term: CASCategoryData
     debt_long_term: CASCategoryData
+
+
+class CASUploadResponse(BaseModel):
+    """Response for CAS JSON upload"""
+    success: bool
+    message: str
+    financial_year: str  # e.g., "2024-25"
+    file_path: str
+
+
+class CASFileInfo(BaseModel):
+    """Information about an uploaded CAS file"""
+    financial_year: str  # e.g., "2024-25"
+    file_path: str
+    upload_date: str  # ISO format
+    file_size: int  # bytes
+
+
+class CASFilesResponse(BaseModel):
+    """List of available CAS files"""
+    files: List[CASFileInfo]
