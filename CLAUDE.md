@@ -87,10 +87,9 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 **Payslips Processing:**
 1. User uploads payslip PDF(s) via `/itr-prep` (Other Information) page
 2. Backend extracts salary data (gross pay, breakdown, pay period, company name) using `payslip_extractor.py`
-3. PDF and extracted data saved persistently to `data/payslips/` directory
-4. Record added to `data/payslips/payslips_data.json` with unique ID
-5. Frontend auto-loads saved payslips on page load via `/api/payslips`
-6. Users can delete individual payslips or clear all via DELETE endpoints
+3. Extracted data saved to `data/payslips/payslips_data.json` with unique ID (PDF not retained)
+4. Frontend auto-loads saved payslips on page load via `/api/payslips`
+5. Users can delete individual payslips or clear all via DELETE endpoints
 
 ### API Endpoints
 
@@ -150,11 +149,10 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 - `CORS_ORIGINS` (backend) - Comma-separated origins allowed for CORS
 
 ### Data Directory Structure
-- `data/uploads/{date}/` - Uploaded PDF files
+- `data/uploads/{date}/` - Uploaded PDF files (temporary, cleaned up after processing)
 - `data/outputs/{date}/` - Generated transaction CSVs
 - `data/cas/` - CAS JSON files (named `FY{year}.json`, e.g., `FY2024-25.json`) - parsed from Excel uploads
-- `data/payslips/` - Stored payslip PDFs (named `{uuid}_{filename}.pdf`) and extracted data
-- `data/payslips/payslips_data.json` - All payslip records with extracted salary data
+- `data/payslips/payslips_data.json` - All payslip records with extracted salary data (PDFs not retained)
 - `data/fifo_cache.json` - Cached FIFO capital gains calculations
 - `data/fund_type_overrides.json` - Manual fund type classifications
 

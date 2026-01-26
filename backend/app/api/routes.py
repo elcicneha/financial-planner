@@ -517,16 +517,14 @@ def save_payslips_data(data: dict) -> None:
 
 
 def save_payslip_record(
-    pdf_content: bytes,
     filename: str,
     payslip_data: PayslipData
 ) -> PayslipRecord:
     """
-    Save a payslip PDF and its extracted data, return the record.
+    Save extracted payslip data, return the record.
 
     Args:
-        pdf_content: PDF file bytes
-        filename: Original filename
+        filename: Original filename (for reference only)
         payslip_data: Extracted payslip data
 
     Returns:
@@ -534,11 +532,6 @@ def save_payslip_record(
     """
     # Generate unique ID
     record_id = str(uuid.uuid4())
-
-    # Save PDF file
-    pdf_path = PAYSLIPS_DIR / f"{record_id}_{filename}"
-    with open(pdf_path, "wb") as f:
-        f.write(pdf_content)
 
     # Create record
     record = PayslipRecord(
@@ -626,7 +619,6 @@ async def upload_payslips(files: List[UploadFile] = File(...)):
                     # Save payslip record to persistent storage
                     await asyncio.to_thread(
                         save_payslip_record,
-                        contents,
                         filename,
                         payslip_data
                     )
@@ -689,7 +681,7 @@ async def delete_payslip(payslip_id: str):
     """
     Delete a specific payslip by ID.
 
-    Removes both the PDF file and the data record.
+    Removes the data record.
     """
     data = load_payslips_data()
     payslips = data.get("payslips", [])
@@ -705,14 +697,6 @@ async def delete_payslip(payslip_id: str):
     if not payslip_to_delete:
         raise HTTPException(status_code=404, detail="Payslip not found")
 
-    # Delete the PDF file
-    pdf_files = list(PAYSLIPS_DIR.glob(f"{payslip_id}_*"))
-    for pdf_file in pdf_files:
-        try:
-            pdf_file.unlink()
-        except Exception as e:
-            logger.warning(f"Failed to delete PDF file {pdf_file}: {e}")
-
     # Save updated data
     save_payslips_data(data)
 
@@ -724,16 +708,8 @@ async def delete_all_payslips():
     """
     Delete all payslips.
 
-    Removes all PDF files and clears the data file.
+    Clears all payslip data records.
     """
-    # Delete all PDF files
-    if PAYSLIPS_DIR.exists():
-        for pdf_file in PAYSLIPS_DIR.glob("*.pdf"):
-            try:
-                pdf_file.unlink()
-            except Exception as e:
-                logger.warning(f"Failed to delete PDF file {pdf_file}: {e}")
-
     # Clear data
     save_payslips_data({"payslips": []})
 
