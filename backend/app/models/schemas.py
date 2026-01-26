@@ -153,6 +153,7 @@ class PayslipData(BaseModel):
     breakdown: PayslipBreakdown | None = None
     pay_period: PayslipPayPeriod | None = None
     company_name: str | None = None
+    tds: float | None = None  # Tax Deducted at Source
 
 
 class PayslipFileResult(BaseModel):

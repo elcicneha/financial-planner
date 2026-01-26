@@ -40,6 +40,7 @@ interface PayslipData {
   breakdown: PayslipBreakdown | null;
   pay_period: PayslipPayPeriod | null;
   company_name: string | null;
+  tds: number | null;
 }
 
 interface PayslipRecord {
@@ -51,6 +52,7 @@ interface PayslipRecord {
     breakdown: PayslipBreakdown | null;
     pay_period: PayslipPayPeriod | null;
     company_name: string | null;
+    tds: number | null;
   };
 }
 
@@ -62,6 +64,7 @@ interface PayslipFileResult {
     breakdown: PayslipBreakdown | null;
     pay_period: PayslipPayPeriod | null;
     company_name: string | null;
+    tds: number | null;
   };
   error?: string;
 }
@@ -136,6 +139,7 @@ export default function VariantOtherInfo({ selectedFY, fyLoading }: VariantProps
           breakdown: record.payslip_data.breakdown,
           pay_period: record.payslip_data.pay_period,
           company_name: record.payslip_data.company_name,
+          tds: record.payslip_data.tds,
         }));
 
         setPayslips(transformedPayslips);
@@ -213,6 +217,11 @@ export default function VariantOtherInfo({ selectedFY, fyLoading }: VariantProps
     [filteredPayslips]
   );
 
+  const totalTDS = useMemo(
+    () => filteredPayslips.reduce((sum, p) => sum + (p.tds || 0), 0),
+    [filteredPayslips]
+  );
+
   return (
     <div className="container mx-auto py-6 space-y-8 max-w-5xl">
       <div>
@@ -259,6 +268,7 @@ export default function VariantOtherInfo({ selectedFY, fyLoading }: VariantProps
                     <TableRow>
                       <TableHead className="w-[100px]">Period</TableHead>
                       <TableHead className="text-right">Gross Pay</TableHead>
+                      <TableHead className="text-right">TDS</TableHead>
                       {breakdownKeys.map(key => (
                         <TableHead key={key} className="text-right">
                           {formatComponentName(key)}
@@ -276,6 +286,11 @@ export default function VariantOtherInfo({ selectedFY, fyLoading }: VariantProps
                         <TableCell className="text-right font-mono">
                           {payslip.gross_pay !== null
                             ? formatCurrency(payslip.gross_pay)
+                            : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {payslip.tds !== null
+                            ? formatCurrency(payslip.tds)
                             : '-'}
                         </TableCell>
                         {breakdownKeys.map(key => (
@@ -318,6 +333,9 @@ export default function VariantOtherInfo({ selectedFY, fyLoading }: VariantProps
                         <TableCell>Total</TableCell>
                         <TableCell className="text-right font-mono">
                           {formatCurrency(totalGrossPay)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {totalTDS > 0 ? formatCurrency(totalTDS) : '-'}
                         </TableCell>
                         {breakdownKeys.map(key => {
                           const total = filteredPayslips.reduce(

@@ -618,6 +618,7 @@ async def upload_payslips(files: List[UploadFile] = File(...)):
     - Salary breakdown (basic, allowances, etc.)
     - Pay period (month/year)
     - Company name
+    - TDS (Tax Deducted at Source)
     """
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
@@ -677,6 +678,7 @@ async def upload_payslips(files: List[UploadFile] = File(...)):
                         breakdown=breakdown,
                         pay_period=pay_period,
                         company_name=result.get('company_name'),
+                        tds=result.get('tds'),
                     )
 
                     # Check if gross pay was extracted (required for valid payslip)

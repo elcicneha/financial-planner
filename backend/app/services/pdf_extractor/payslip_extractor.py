@@ -268,6 +268,81 @@ def extract_gross_pay_from_text(text: str) -> float | None:
     return most_common_value
 
 
+def extract_tds_from_text(text: str) -> float | None:
+    """
+    Extracts the TDS (Tax Deducted at Source) value from payslip text content.
+
+    Logic:
+    1. Find all instances of "TDS", "Tax Deducted at Source", or "Income Tax"
+    2. For each instance, extract the number from same line or next line
+    3. If all numbers match, return that value
+    4. If numbers differ, return the most common value
+
+    Args:
+        text: The text content of the payslip.
+
+    Returns:
+        The TDS amount as a float, or None if not found.
+    """
+    lines = text.strip().split('\n')
+    found_values = []
+
+    # Patterns to look for
+    tds_patterns = [
+        'tax deducted at source',
+        'tds',
+        'income tax',
+        'tax deduction',
+        'it deducted',  # Some payslips use "IT" for Income Tax
+    ]
+
+    for i, line in enumerate(lines):
+        line_lower = line.lower()
+
+        # Check if line contains any TDS-related pattern
+        if any(pattern in line_lower for pattern in tds_patterns):
+            # Skip if it's just a header or label without value
+            if 'description' in line_lower or 'component' in line_lower:
+                continue
+
+            # Try to find number in this line
+            number = extract_number_from_line(line)
+            if number is not None:
+                found_values.append(number)
+                continue
+
+            # Check subsequent lines
+            for j in range(i + 1, len(lines)):
+                next_line = lines[j].strip()
+
+                # Skip empty lines
+                if not next_line:
+                    continue
+
+                # If line starts with a letter (word), stop - number won't be here
+                if next_line[0].isalpha():
+                    break
+
+                # Line starts with symbol or digit - extract number
+                number = extract_number_from_line(next_line)
+                if number is not None:
+                    found_values.append(number)
+
+                break
+
+    if not found_values:
+        return None
+
+    # All values match - return with confidence
+    if len(set(found_values)) == 1:
+        return found_values[0]
+
+    # Return most common value
+    counter = Counter(found_values)
+    most_common_value, _ = counter.most_common(1)[0]
+    return most_common_value
+
+
 def extract_salary_breakdown_from_text(text: str) -> dict | None:
     """
     Extracts salary breakdown from payslip text content.
@@ -390,6 +465,7 @@ def extract_payslip_data(pdf_path: str) -> dict | None:
         - 'breakdown': dict with 'monthly'/'annual' keys or None
         - 'pay_period': dict with 'month', 'year', 'period_key' or None
         - 'company_name': string or None
+        - 'tds': float or None (Tax Deducted at Source)
 
         Returns None if extraction completely fails.
     """
@@ -406,6 +482,7 @@ def extract_payslip_data(pdf_path: str) -> dict | None:
             'breakdown': extract_salary_breakdown_from_text(text),
             'pay_period': extract_pay_period_from_text(text),
             'company_name': extract_company_name_from_text(text),
+            'tds': extract_tds_from_text(text),
         }
     finally:
         if txt_path and os.path.exists(txt_path):

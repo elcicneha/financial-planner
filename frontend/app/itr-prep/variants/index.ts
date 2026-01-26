@@ -20,4 +20,4 @@ export const variants: Record<string, VariantEntry> = {
 };
 
 export const variantKeys = Object.keys(variants);
-export const defaultVariant = 'cas';
+export const defaultVariant = 'other';

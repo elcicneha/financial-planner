@@ -33,6 +33,7 @@ calculate and display short-term gains, long-term gains, and total tax liability
 - [x] CAS Excel upload with auto financial year detection
 - [x] ITR Prep page with CAS/FIFO variant views
 - [x] Fund type override, caching, sortable tables, copy values
+- [x] Extract data from payslips - gross pay, tds, monthly and annual breakdown
 - [ ] Manual data entry for other ITR values (salary, interest, dividends, deductions)
 - [ ] Unified ITR Dashboard with ALL values needed for filing
 

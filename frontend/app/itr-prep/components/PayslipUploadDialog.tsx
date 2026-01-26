@@ -14,6 +14,7 @@ interface PayslipData {
     period_key: string;
   } | null;
   company_name: string | null;
+  tds: number | null;
 }
 
 interface PayslipFileResult {
