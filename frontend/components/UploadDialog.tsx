@@ -830,6 +830,38 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
 }
 
 // =============================================================================
+// Footer Component - Shows Done button for partial success or errors
+// =============================================================================
+
+function UploadDialogFooter({ className }: { className?: string }) {
+  const { fileStates, allDone, hasPasswordRequired, hasErrors, handleClose } = useUploadDialogContext();
+
+  // Show footer when: all done, has errors, and not waiting for passwords
+  const showFooter = allDone && hasErrors && !hasPasswordRequired;
+
+  if (!showFooter) return null;
+
+  const successCount = fileStates.filter(s => s.status === 'success').length;
+
+  return (
+    <div className={className ?? "px-6 py-4 border-t border-border/40 flex items-center justify-between bg-muted/20"}>
+      <p className="text-sm text-muted-foreground">
+        {successCount > 0 ? (
+          <span>
+            <span className="font-medium">{successCount}</span> file{successCount !== 1 ? 's' : ''} uploaded successfully
+          </span>
+        ) : (
+          <span>Upload incomplete</span>
+        )}
+      </p>
+      <Button onClick={handleClose} variant="default">
+        Done
+      </Button>
+    </div>
+  );
+}
+
+// =============================================================================
 // Export
 // =============================================================================
 
@@ -841,6 +873,7 @@ export const UploadDialog = Object.assign(UploadDialogRoot, {
   Title: UploadDialogTitle,
   Description: UploadDialogDescription,
   Body: UploadDialogBody,
+  Footer: UploadDialogFooter,
 });
 
 // =============================================================================
@@ -857,6 +890,7 @@ export const UploadDialog = Object.assign(UploadDialogRoot, {
 //       <UploadDialog.Description>Upload your files here</UploadDialog.Description>
 //     </UploadDialog.Header>
 //     <UploadDialog.Body placeholder="Drag and drop files here" />
+//     <UploadDialog.Footer />
 //   </UploadDialog.Content>
 // </UploadDialog>
 //

@@ -63,6 +63,7 @@ export function PayslipUploadDialog({ onUploadSuccess }: PayslipUploadDialogProp
         </UploadDialog.Header>
 
         <UploadDialog.Body placeholder="Drag and drop your payslip PDFs here" />
+        <UploadDialog.Footer />
       </UploadDialog.Content>
     </UploadDialog>
   );

@@ -87,6 +87,7 @@ export default function DataDisplay({ refreshKey = 0, onDataStateChange, onUploa
                   </UploadDialog.Description>
                 </UploadDialog.Header>
                 <UploadDialog.Body placeholder="Drag and drop your PDF here" />
+                <UploadDialog.Footer />
               </UploadDialog.Content>
             </UploadDialog>
           </div>

@@ -145,6 +145,7 @@ export function CASUploadDialog({ onUploadSuccess }: CASUploadDialogProps) {
         <UploadDialog.Body placeholder="Drag and drop your Excel files here">
           <CASInstructions />
         </UploadDialog.Body>
+        <UploadDialog.Footer />
       </UploadDialog.Content>
     </UploadDialog>
   );
