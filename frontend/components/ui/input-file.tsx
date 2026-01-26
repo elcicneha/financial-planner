@@ -29,6 +29,8 @@ export interface InputFileProps {
 
 export interface InputFileHandle {
   reset: () => void;
+  focus: () => void;
+  click: () => void;
 }
 
 export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
@@ -46,6 +48,7 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
   ) => {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const dropZoneRef = useRef<HTMLButtonElement>(null);
 
     // Helper to check if we have files
     const hasFiles = multiple
@@ -62,6 +65,12 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
           fileInputRef.current.value = '';
         }
         onChange?.(null);
+      },
+      focus: () => {
+        dropZoneRef.current?.focus();
+      },
+      click: () => {
+        fileInputRef.current?.click();
       },
     }));
 
@@ -123,14 +132,18 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
           disabled={disabled}
         />
 
-        <div
+        <button
+          ref={dropZoneRef}
+          type="button"
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
           onClick={handleZoneClick}
+          disabled={disabled}
           className={cn(
-            'border-2 border-dashed rounded-xl px-12 py-8 text-center transition-colors duration-200 h-[180px] flex items-center justify-center',
+            'w-full border-2 border-dashed rounded-xl px-12 py-8 text-center transition-colors duration-200 h-[180px] flex items-center justify-center',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             !hasFiles && !isDragging && 'border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer',
             hasFiles && !isDragging && 'border-primary/30 bg-primary/5 cursor-pointer',
             isDragging && 'border-primary bg-primary/10 cursor-pointer',
@@ -183,7 +196,7 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
               </div>
             </div>
           )}
-        </div>
+        </button>
       </div>
     );
   }

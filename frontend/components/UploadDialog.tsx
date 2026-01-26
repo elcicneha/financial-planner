@@ -541,8 +541,17 @@ interface UploadDialogContentProps {
 }
 
 function UploadDialogContent({ children, className }: UploadDialogContentProps) {
+  const { inputFileRef } = useUploadDialogContext();
+
   return (
-    <DialogContent className={className ?? "sm:max-w-[560px] max-h-[85vh] flex flex-col gap-0 p-0"}>
+    <DialogContent
+      className={className ?? "sm:max-w-[560px] max-h-[85vh] flex flex-col gap-0 p-0"}
+      onOpenAutoFocus={(e) => {
+        e.preventDefault();
+        // Focus the input file when dialog opens
+        inputFileRef.current?.focus();
+      }}
+    >
       {children}
     </DialogContent>
   );
