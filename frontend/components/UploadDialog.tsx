@@ -4,6 +4,7 @@ import * as React from 'react';
 import { createContext, useContext, useState, useRef, useCallback } from 'react';
 import { Loader2, CheckCircle2, XCircle, Lock, X, Upload, Archive, AlertTriangle } from 'lucide-react';
 import JSZip from 'jszip';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -131,6 +132,7 @@ function UploadDialogRoot({
   const [fileStates, setFileStates] = useState<FileUploadState[]>([]);
   const [zipState, setZipState] = useState<ZipExtractionState | null>(null);
   const inputFileRef = useRef<InputFileHandle>(null!);
+  const toastShownRef = useRef(false);
 
   const updateFileState = useCallback((index: number, updates: Partial<FileUploadState>) => {
     setFileStates(prev => prev.map((state, i) =>
@@ -405,6 +407,7 @@ function UploadDialogRoot({
     setFileStates([]);
     setZipState(null);
     inputFileRef.current?.reset();
+    toastShownRef.current = false;
   }, []);
 
   const handleClose = useCallback(() => {
@@ -421,6 +424,45 @@ function UploadDialogRoot({
 
     setTimeout(handleReset, 200);
   }, [fileStates, onSuccess, handleReset]);
+
+  // Auto-close on successful upload (unless password required or has errors)
+  React.useEffect(() => {
+    if (fileStates.length === 0) return;
+
+    const hasPasswordRequired = fileStates.some(s => s.status === 'password_required');
+    const hasErrors = fileStates.some(s => s.status === 'error');
+    const allDone = fileStates.every(s =>
+      s.status === 'success' || s.status === 'error' || s.status === 'password_required' || s.status === 'skipped'
+    );
+
+    // Auto-close if all succeeded (no password prompts, no errors)
+    if (allDone && !hasPasswordRequired && !hasErrors && !toastShownRef.current) {
+      const successCount = fileStates.filter(s => s.status === 'success').length;
+      const skippedCount = fileStates.filter(s => s.status === 'skipped').length;
+
+      // Show toast notification
+      const parts: string[] = [];
+      if (successCount > 0) {
+        parts.push(`${successCount} file${successCount !== 1 ? 's' : ''} processed`);
+      }
+      if (skippedCount > 0) {
+        parts.push(`${skippedCount} skipped`);
+      }
+
+      if (parts.length > 0) {
+        toast.success('Upload complete', {
+          description: parts.join(', '),
+        });
+        toastShownRef.current = true;
+      }
+
+      // Small delay to let user see success state before closing
+      const timer = setTimeout(() => {
+        handleClose();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [fileStates, handleClose]);
 
   // Computed state
   const isUploading = fileStates.some(s => s.status === 'uploading' || s.status === 'pending');
@@ -551,14 +593,11 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
     isUploading,
     isIdle,
     allDone,
-    hasPasswordRequired,
     zipState,
     handleFilesSelect,
     handlePasswordSubmit,
     updateFileState,
     handleRemoveFile,
-    handleReset,
-    handleClose,
     handleCancelZip,
     inputFileRef,
   } = useUploadDialogContext();
@@ -760,35 +799,17 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
       {/* Idle Content (children) - shows when no files selected */}
       {isIdle && children}
 
-      {/* Upload Area */}
-      {(isIdle || (allDone && !hasPasswordRequired)) && (
-        <div className="pt-1 space-y-4">
-          {allDone && !hasPasswordRequired && (
-            <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={handleReset}>
-                Upload More Files
-              </Button>
-            </div>
-          )}
-          {isIdle && (
-            <InputFile
-              ref={inputFileRef}
-              accept={multiple ? `${accept},.zip` : accept}
-              multiple={multiple}
-              onChange={handleFilesSelect}
-              disabled={isUploading}
-              placeholder={placeholder}
-            />
-          )}
-        </div>
-      )}
-
-      {/* Done button */}
-      {allDone && !hasPasswordRequired && (
-        <div className="flex justify-end mt-4">
-          <Button onClick={handleClose}>
-            Done{counts.success > 0 && ` (${counts.success} uploaded)`}
-          </Button>
+      {/* Upload Area - only show when idle */}
+      {isIdle && (
+        <div className="pt-1">
+          <InputFile
+            ref={inputFileRef}
+            accept={multiple ? `${accept},.zip` : accept}
+            multiple={multiple}
+            onChange={handleFilesSelect}
+            disabled={isUploading}
+            placeholder={placeholder}
+          />
         </div>
       )}
     </div>

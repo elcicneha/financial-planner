@@ -18,7 +18,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pencil, Check, X } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
 import type { FIFOGainRow } from '@/hooks/useCapitalGains';
 
@@ -38,7 +38,6 @@ function formatNumber(value: number, decimals: number = 3): string {
 }
 
 export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableProps) {
-  const { toast } = useToast();
   const [isEditMode, setIsEditMode] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -132,16 +131,13 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
       setIsEditMode(false);
       setPendingChanges({});
 
-      toast({
-        title: 'Fund types updated',
+      toast.success('Fund types updated', {
         description: `Successfully updated ${pendingCount} fund type${pendingCount !== 1 ? 's' : ''}`,
       });
     } catch (error) {
       console.error('Error updating fund types:', error);
-      toast({
-        title: 'Update failed',
+      toast.error('Update failed', {
         description: error instanceof Error ? error.message : 'Unknown error occurred',
-        variant: 'destructive',
       });
     } finally {
       setIsSaving(false);
