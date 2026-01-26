@@ -84,6 +84,14 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 3. Calculates FIFO gains and caches in `data/fifo_cache.json`
 4. Cache invalidates when transactions or overrides change
 
+**Payslips Processing:**
+1. User uploads payslip PDF(s) via `/itr-prep` (Other Information) page
+2. Backend extracts salary data (gross pay, breakdown, pay period, company name) using `payslip_extractor.py`
+3. PDF and extracted data saved persistently to `data/payslips/` directory
+4. Record added to `data/payslips/payslips_data.json` with unique ID
+5. Frontend auto-loads saved payslips on page load via `/api/payslips`
+6. Users can delete individual payslips or clear all via DELETE endpoints
+
 ### API Endpoints
 
 **PDF Processing:**
@@ -101,6 +109,12 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 - `GET /api/cas-files` - List all uploaded CAS files
 - `GET /api/capital-gains-cas?fy={FY}` - Get CAS capital gains data (4 categories: equity/debt × short/long term)
 
+**ITR Prep - Payslips:**
+- `POST /api/upload-payslips` - Upload payslip PDF files and extract salary data (batch upload supported)
+- `GET /api/payslips` - Retrieve all saved payslips with extracted data
+- `DELETE /api/payslips/{payslip_id}` - Delete a specific payslip by ID
+- `DELETE /api/payslips` - Delete all payslips
+
 **Misc:**
 - `GET /api/health` - Health check
 
@@ -111,6 +125,7 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 - API routes: `backend/app/api/routes.py`
 - Pydantic schemas: `backend/app/models/schemas.py`
 - PDF extraction: `backend/app/services/pdf_extractor/__init__.py` (calls `extract_transactions()`)
+- Payslip extractor: `backend/app/services/pdf_extractor/payslip_extractor.py` (extracts salary data from payslip PDFs)
 - FIFO calculator: `backend/app/services/fifo_calculator.py` (caching, fund type overrides)
 - CAS parser: `backend/app/services/cas_parser.py` (Excel parsing for CAMS/KFINTECH formats)
 
@@ -118,8 +133,8 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 - Home: `frontend/app/page.tsx`
 - Upload page: `frontend/app/upload/page.tsx`
 - ITR prep page: `frontend/app/itr-prep/page.tsx`
-- ITR variants: `frontend/app/itr-prep/variants/` (VariantCAS.tsx, VariantFIFO.tsx)
-- Components: `frontend/components/` (VariantSwitcher, CapitalGainsTable, etc.)
+- ITR variants: `frontend/app/itr-prep/variants/` (VariantCAS.tsx, VariantFIFO.tsx, VariantOtherInfo.tsx)
+- Components: `frontend/components/` (VariantSwitcher, CapitalGainsTable, PayslipUploadDialog, etc.)
 - Dev mode context: `frontend/components/dev/DevModeProvider.tsx`
 - Transaction data hook: `frontend/hooks/useTransactionData.ts`
 - API proxy config: `frontend/next.config.js` (rewrites `/api/*` to `BACKEND_URL`)
@@ -138,6 +153,8 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 - `data/uploads/{date}/` - Uploaded PDF files
 - `data/outputs/{date}/` - Generated transaction CSVs
 - `data/cas/` - CAS JSON files (named `FY{year}.json`, e.g., `FY2024-25.json`) - parsed from Excel uploads
+- `data/payslips/` - Stored payslip PDFs (named `{uuid}_{filename}.pdf`) and extracted data
+- `data/payslips/payslips_data.json` - All payslip records with extracted salary data
 - `data/fifo_cache.json` - Cached FIFO capital gains calculations
 - `data/fund_type_overrides.json` - Manual fund type classifications
 

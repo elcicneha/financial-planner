@@ -166,3 +166,16 @@ class PayslipFileResult(BaseModel):
 class PayslipUploadResponse(BaseModel):
     """Response for payslip upload (batch)"""
     results: list[PayslipFileResult]
+
+
+class PayslipRecord(BaseModel):
+    """A persisted payslip record with metadata"""
+    id: str  # Unique identifier (UUID)
+    filename: str  # Original filename
+    upload_date: str  # ISO timestamp
+    payslip_data: PayslipData  # Extracted data
+
+
+class PayslipsListResponse(BaseModel):
+    """Response for listing all saved payslips"""
+    payslips: list[PayslipRecord]

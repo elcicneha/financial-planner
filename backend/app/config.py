@@ -15,6 +15,10 @@ DATA_DIR = BASE_DIR / "data"
 UPLOADS_DIR = DATA_DIR / "uploads"
 OUTPUTS_DIR = DATA_DIR / "outputs"
 CAS_DIR = DATA_DIR / "cas"
+PAYSLIPS_DIR = DATA_DIR / "payslips"
+
+# Payslips data
+PAYSLIPS_DATA_FILE = PAYSLIPS_DIR / "payslips_data.json"
 
 # FIFO cache
 FIFO_CACHE_DIR = DATA_DIR / "fifo_cache"
@@ -43,4 +47,5 @@ def ensure_directories() -> None:
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
     CAS_DIR.mkdir(parents=True, exist_ok=True)
+    PAYSLIPS_DIR.mkdir(parents=True, exist_ok=True)
     FIFO_CACHE_DIR.mkdir(parents=True, exist_ok=True)

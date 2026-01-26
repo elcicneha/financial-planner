@@ -22,6 +22,8 @@ from app.config import (
     UPLOADS_DIR,
     OUTPUTS_DIR,
     CAS_DIR,
+    PAYSLIPS_DIR,
+    PAYSLIPS_DATA_FILE,
     FILE_ID_LENGTH,
     ensure_directories,
 )
@@ -42,6 +44,8 @@ from app.models.schemas import (
     PayslipBreakdown,
     PayslipPayPeriod,
     PayslipUploadResponse,
+    PayslipRecord,
+    PayslipsListResponse,
 )
 from app.services.pdf_extractor import extract_transactions
 from app.services.pdf_extractor.payslip_extractor import extract_payslip_data
@@ -498,6 +502,60 @@ async def get_capital_gains_cas(fy: str = None):
         )
 
 
+def load_payslips_data() -> dict:
+    """Load existing payslips data from JSON file."""
+    if PAYSLIPS_DATA_FILE.exists():
+        with open(PAYSLIPS_DATA_FILE, 'r') as f:
+            return json.load(f)
+    return {"payslips": []}
+
+
+def save_payslips_data(data: dict) -> None:
+    """Save payslips data to JSON file."""
+    with open(PAYSLIPS_DATA_FILE, 'w') as f:
+        json.dump(data, f, indent=2)
+
+
+def save_payslip_record(
+    pdf_content: bytes,
+    filename: str,
+    payslip_data: PayslipData
+) -> PayslipRecord:
+    """
+    Save a payslip PDF and its extracted data, return the record.
+
+    Args:
+        pdf_content: PDF file bytes
+        filename: Original filename
+        payslip_data: Extracted payslip data
+
+    Returns:
+        PayslipRecord with generated ID and metadata
+    """
+    # Generate unique ID
+    record_id = str(uuid.uuid4())
+
+    # Save PDF file
+    pdf_path = PAYSLIPS_DIR / f"{record_id}_{filename}"
+    with open(pdf_path, "wb") as f:
+        f.write(pdf_content)
+
+    # Create record
+    record = PayslipRecord(
+        id=record_id,
+        filename=filename,
+        upload_date=datetime.now().isoformat(),
+        payslip_data=payslip_data
+    )
+
+    # Load existing data, add new record, save
+    data = load_payslips_data()
+    data["payslips"].append(record.model_dump())
+    save_payslips_data(data)
+
+    return record
+
+
 @router.post("/upload-payslips", response_model=PayslipUploadResponse)
 async def upload_payslips(files: List[UploadFile] = File(...)):
     """
@@ -558,15 +616,25 @@ async def upload_payslips(files: List[UploadFile] = File(...)):
                             period_key=result['pay_period']['period_key'],
                         )
 
+                    payslip_data = PayslipData(
+                        gross_pay=result.get('gross_pay'),
+                        breakdown=breakdown,
+                        pay_period=pay_period,
+                        company_name=result.get('company_name'),
+                    )
+
+                    # Save payslip record to persistent storage
+                    await asyncio.to_thread(
+                        save_payslip_record,
+                        contents,
+                        filename,
+                        payslip_data
+                    )
+
                     results.append(PayslipFileResult(
                         filename=filename,
                         success=True,
-                        payslip=PayslipData(
-                            gross_pay=result.get('gross_pay'),
-                            breakdown=breakdown,
-                            pay_period=pay_period,
-                            company_name=result.get('company_name'),
-                        )
+                        payslip=payslip_data
                     ))
                 else:
                     results.append(PayslipFileResult(
@@ -592,3 +660,81 @@ async def upload_payslips(files: List[UploadFile] = File(...)):
                 logger.warning(f"Failed to cleanup temp file {temp_path}: {e}")
 
     return PayslipUploadResponse(results=results)
+
+
+@router.get("/payslips", response_model=PayslipsListResponse)
+async def get_payslips():
+    """
+    Retrieve all saved payslips with their extracted data.
+
+    Returns list of payslip records sorted by pay period (newest first).
+    """
+    data = load_payslips_data()
+    payslips = [PayslipRecord(**p) for p in data.get("payslips", [])]
+
+    # Sort by pay period (newest first)
+    payslips.sort(
+        key=lambda p: (
+            p.payslip_data.pay_period.year if p.payslip_data.pay_period else 0,
+            p.payslip_data.pay_period.month if p.payslip_data.pay_period else 0
+        ),
+        reverse=True
+    )
+
+    return PayslipsListResponse(payslips=payslips)
+
+
+@router.delete("/payslips/{payslip_id}")
+async def delete_payslip(payslip_id: str):
+    """
+    Delete a specific payslip by ID.
+
+    Removes both the PDF file and the data record.
+    """
+    data = load_payslips_data()
+    payslips = data.get("payslips", [])
+
+    # Find the payslip to delete
+    payslip_to_delete = None
+    for i, p in enumerate(payslips):
+        if p["id"] == payslip_id:
+            payslip_to_delete = p
+            payslips.pop(i)
+            break
+
+    if not payslip_to_delete:
+        raise HTTPException(status_code=404, detail="Payslip not found")
+
+    # Delete the PDF file
+    pdf_files = list(PAYSLIPS_DIR.glob(f"{payslip_id}_*"))
+    for pdf_file in pdf_files:
+        try:
+            pdf_file.unlink()
+        except Exception as e:
+            logger.warning(f"Failed to delete PDF file {pdf_file}: {e}")
+
+    # Save updated data
+    save_payslips_data(data)
+
+    return {"message": "Payslip deleted successfully", "id": payslip_id}
+
+
+@router.delete("/payslips")
+async def delete_all_payslips():
+    """
+    Delete all payslips.
+
+    Removes all PDF files and clears the data file.
+    """
+    # Delete all PDF files
+    if PAYSLIPS_DIR.exists():
+        for pdf_file in PAYSLIPS_DIR.glob("*.pdf"):
+            try:
+                pdf_file.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to delete PDF file {pdf_file}: {e}")
+
+    # Clear data
+    save_payslips_data({"payslips": []})
+
+    return {"message": "All payslips deleted successfully"}

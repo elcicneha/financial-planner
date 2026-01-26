@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, FileText, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,11 +27,24 @@ interface PayslipBreakdown {
 }
 
 interface PayslipData {
+  id?: string; // Optional ID for saved payslips
   filename: string;
   gross_pay: number | null;
   breakdown: PayslipBreakdown | null;
   pay_period: PayslipPayPeriod | null;
   company_name: string | null;
+}
+
+interface PayslipRecord {
+  id: string;
+  filename: string;
+  upload_date: string;
+  payslip_data: {
+    gross_pay: number | null;
+    breakdown: PayslipBreakdown | null;
+    pay_period: PayslipPayPeriod | null;
+    company_name: string | null;
+  };
 }
 
 interface PayslipFileResult {
@@ -77,29 +90,77 @@ function getAllBreakdownKeys(payslips: PayslipData[]): string[] {
 
 export default function VariantOtherInfo() {
   const [payslips, setPayslips] = useState<PayslipData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleUploadSuccess = (results: PayslipFileResult[]) => {
-    // Transform successful results to PayslipData format
-    const newPayslips: PayslipData[] = results
-      .filter(r => r.success && r.payslip)
-      .map(r => ({
-        filename: r.filename,
-        gross_pay: r.payslip!.gross_pay,
-        breakdown: r.payslip!.breakdown,
-        pay_period: r.payslip!.pay_period,
-        company_name: r.payslip!.company_name,
-      }));
+  // Load saved payslips on mount
+  useEffect(() => {
+    fetchPayslips();
+  }, []);
 
-    // Append new payslips to existing ones
-    setPayslips(prev => [...prev, ...newPayslips]);
+  const fetchPayslips = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/payslips');
+      if (response.ok) {
+        const data: { payslips: PayslipRecord[] } = await response.json();
+
+        // Transform PayslipRecord[] to PayslipData[]
+        const transformedPayslips: PayslipData[] = data.payslips.map(record => ({
+          id: record.id,
+          filename: record.filename,
+          gross_pay: record.payslip_data.gross_pay,
+          breakdown: record.payslip_data.breakdown,
+          pay_period: record.payslip_data.pay_period,
+          company_name: record.payslip_data.company_name,
+        }));
+
+        setPayslips(transformedPayslips);
+      }
+    } catch (error) {
+      console.error('Failed to fetch payslips:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleRemovePayslip = (index: number) => {
-    setPayslips(prev => prev.filter((_, i) => i !== index));
+  const handleUploadSuccess = async (results: PayslipFileResult[]) => {
+    // After successful upload, refetch all payslips to get the latest data
+    await fetchPayslips();
   };
 
-  const handleClearAll = () => {
-    setPayslips([]);
+  const handleRemovePayslip = async (payslip: PayslipData) => {
+    if (!payslip.id) return;
+
+    try {
+      const response = await fetch(`/api/payslips/${payslip.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove from UI
+        setPayslips(prev => prev.filter(p => p.id !== payslip.id));
+      } else {
+        console.error('Failed to delete payslip');
+      }
+    } catch (error) {
+      console.error('Failed to delete payslip:', error);
+    }
+  };
+
+  const handleClearAll = async () => {
+    try {
+      const response = await fetch('/api/payslips', {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setPayslips([]);
+      } else {
+        console.error('Failed to clear payslips');
+      }
+    } catch (error) {
+      console.error('Failed to clear payslips:', error);
+    }
   };
 
   // Sort payslips by pay period
@@ -190,13 +251,13 @@ export default function VariantOtherInfo() {
                           </TableCell>
                         ))}
                         <TableCell>
-                          <button
-                            onClick={() => handleRemovePayslip(payslips.indexOf(payslip))}
-                            className="p-1 hover:bg-muted rounded transition-colors"
-                            title="Remove"
+                          <Button
+                            size={"icon"}
+                            variant={"destructiveGhost"}
+                            onClick={() => handleRemovePayslip(payslip)}
                           >
                             <X className="h-4 w-4 text-muted-foreground" />
-                          </button>
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
