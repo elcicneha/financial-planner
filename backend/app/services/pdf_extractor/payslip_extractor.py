@@ -1,7 +1,25 @@
 import re
 import os
 from collections import Counter
+from datetime import datetime
 from .pdfToTxt import pdf_to_txt
+
+
+# Month name mappings for parsing
+MONTH_NAMES = {
+    'january': 1, 'jan': 1,
+    'february': 2, 'feb': 2,
+    'march': 3, 'mar': 3,
+    'april': 4, 'apr': 4,
+    'may': 5,
+    'june': 6, 'jun': 6,
+    'july': 7, 'jul': 7,
+    'august': 8, 'aug': 8,
+    'september': 9, 'sep': 9, 'sept': 9,
+    'october': 10, 'oct': 10,
+    'november': 11, 'nov': 11,
+    'december': 12, 'dec': 12,
+}
 
 
 def extract_number_from_line(line: str) -> float | None:
@@ -42,6 +60,153 @@ def extract_component_name(line: str) -> str | None:
         if name_part:
             return normalize_component_name(name_part)
     return None
+
+
+def extract_pay_period_from_text(text: str) -> dict | None:
+    """
+    Extracts the pay period (month and year) from payslip text.
+
+    Handles various formats:
+    - "Pay Period: January 2024"
+    - "Month: Jan-24" or "Month: Jan 24"
+    - "For the month of January 2024"
+    - "Salary Slip for January 2024"
+    - "Pay Date: 31-Jan-2024" (extracts month/year)
+    - "01/2024" or "01-2024" (MM/YYYY format)
+    - "January'24" or "Jan'24"
+
+    Returns:
+        Dictionary with 'month' (1-12), 'year' (YYYY), and 'period_key' (YYYY-MM string),
+        or None if not found.
+    """
+    lines = text.strip().split('\n')
+    text_lower = text.lower()
+
+    # Patterns to try (in order of specificity)
+    patterns = [
+        # "January 2024" or "Jan 2024" or "Jan-2024" or "Jan'24"
+        r'\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)[,\s\-\']+(\d{4}|\d{2})\b',
+        # "01/2024" or "01-2024" (month/year only)
+        r'\b(0?[1-9]|1[0-2])[\-/](\d{4})\b',
+        # Date formats like "31-Jan-2024" or "31/01/2024" - extract month/year
+        r'\b\d{1,2}[\-/](january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)[\-/](\d{4}|\d{2})\b',
+        r'\b\d{1,2}[\-/](0?[1-9]|1[0-2])[\-/](\d{4})\b',
+    ]
+
+    for pattern in patterns:
+        matches = re.findall(pattern, text_lower)
+        if matches:
+            for match in matches:
+                month_val, year_val = None, None
+
+                if len(match) == 2:
+                    first, second = match
+
+                    # Check if first is month name or number
+                    if first in MONTH_NAMES:
+                        month_val = MONTH_NAMES[first]
+                        year_str = second
+                    elif first.isdigit():
+                        month_val = int(first)
+                        year_str = second
+                    else:
+                        continue
+
+                    # Parse year (handle 2-digit years)
+                    if year_str.isdigit():
+                        year_val = int(year_str)
+                        if year_val < 100:
+                            year_val = 2000 + year_val if year_val < 50 else 1900 + year_val
+
+                if month_val and year_val and 1 <= month_val <= 12 and 1990 <= year_val <= 2100:
+                    return {
+                        'month': month_val,
+                        'year': year_val,
+                        'period_key': f"{year_val}-{month_val:02d}"
+                    }
+
+    return None
+
+
+def _has_company_suffix(text: str) -> bool:
+    """Check if text contains common Indian company/business suffixes."""
+    text_lower = text.lower()
+    suffixes = [
+        # Private Limited Company
+        r'\b(?:private|pvt\.?)\s+(?:limited|ltd\.?)\b',
+        # Public Limited Company
+        r'\b(?:limited|ltd\.?)\b',
+        # Limited Liability Partnership
+        r'\bllp\b',
+        r'\bl\.l\.p\.?\b',
+        # One Person Company
+        r'\bopc\b',
+        # Nidhi Company
+        r'\bnidhi\s+(?:limited|ltd\.?)\b',
+        # Producer Company
+        r'\bproducer\s+(?:company|co\.?)\b',
+        # Corporation (PSUs, govt companies)
+        r'\bcorporation\b',
+        # Partnership patterns
+        r'\b&\s*(?:co\.?|company)\b',
+        r'\b&\s*partners\b',
+        r'\b&\s*associates\b',
+        r'\b&\s*sons?\b',
+        r'\b(?:bros\.?|brothers)\b',
+        # Cooperative
+        r'\b(?:co-?operative|coop)\b',
+        # Society / Trust / Foundation (non-company but can be employers)
+        r'\bsociety\b',
+        r'\btrust\b',
+        r'\bfoundation\b',
+        # HUF
+        r'\bhuf\b',
+        r'\bhindu\s+undivided\s+family\b',
+        # Common MNC patterns in India
+        r'\b\(india\)\b',
+        r'\bindia\s+(?:private|pvt\.?)\b',
+    ]
+    return any(re.search(pattern, text_lower) for pattern in suffixes)
+
+
+def extract_company_name_from_text(text: str) -> str | None:
+    """
+    Extracts the company name from payslip text.
+
+    Logic:
+    1. Check first non-empty line - if it has a company suffix (Ltd, Pvt, Inc, etc.),
+       return it with high confidence
+    2. If first line doesn't have suffix, scan more lines to find one that does
+    3. If no line has a suffix, fall back to first non-empty line (low confidence)
+
+    Returns:
+        Company name string, or None if not found.
+    """
+    lines = text.strip().split('\n')
+
+    # Get first non-empty line
+    first_line = None
+    for line in lines:
+        line_stripped = line.strip()
+        if line_stripped:
+            first_line = line_stripped
+            break
+
+    if not first_line:
+        return None
+
+    # High confidence: first line has company suffix
+    if _has_company_suffix(first_line):
+        return first_line
+
+    # Low confidence on first line - search for a line with company suffix
+    for line in lines[:20]:
+        line_stripped = line.strip()
+        if line_stripped and _has_company_suffix(line_stripped):
+            return line_stripped
+
+    # Fallback: return first line anyway (low confidence)
+    return first_line
 
 
 def extract_gross_pay_from_text(text: str) -> float | None:
@@ -220,7 +385,13 @@ def extract_payslip_data(pdf_path: str) -> dict | None:
         pdf_path: Path to the payslip PDF file.
 
     Returns:
-        Dictionary with 'gross_pay' and 'breakdown' keys, or None if extraction fails.
+        Dictionary with extracted data:
+        - 'gross_pay': float or None
+        - 'breakdown': dict with 'monthly'/'annual' keys or None
+        - 'pay_period': dict with 'month', 'year', 'period_key' or None
+        - 'company_name': string or None
+
+        Returns None if extraction completely fails.
     """
     txt_path = pdf_to_txt(pdf_path)
     if not txt_path:
@@ -232,7 +403,9 @@ def extract_payslip_data(pdf_path: str) -> dict | None:
 
         return {
             'gross_pay': extract_gross_pay_from_text(text),
-            'breakdown': extract_salary_breakdown_from_text(text)
+            'breakdown': extract_salary_breakdown_from_text(text),
+            'pay_period': extract_pay_period_from_text(text),
+            'company_name': extract_company_name_from_text(text),
         }
     finally:
         if txt_path and os.path.exists(txt_path):
