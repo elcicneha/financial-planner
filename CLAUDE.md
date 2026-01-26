@@ -16,10 +16,10 @@ uvicorn app.main:app --reload  # Runs on http://localhost:8000
 ### Frontend (Next.js)
 ```bash
 cd frontend
-npm install
-npm run dev    # Runs on http://localhost:3000
-npm run build  # Production build
-npm run lint   # ESLint
+pnpm install
+pnpm run dev    # Runs on http://localhost:3000
+pnpm run build  # Production build
+pnpm run lint   # ESLint
 ```
 
 ## Architecture
