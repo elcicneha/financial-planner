@@ -28,18 +28,13 @@ calculate and display short-term gains, long-term gains, and total tax liability
 **Why first:** Your #1 pain point. ITR filing requires this annually. Quick win with existing PDF data.
 
 **Key Features:**
-- [x] PDF extraction for mutual fund transactions (already working)
-- [ ] Tax calculation engine:
-  - Calculate holding period (LTCG: >1 year)
-  - Compute short-term gains (taxable at slab rate)
-  - Compute long-term gains (15% flat or 20% with indexation)
-  - Sum totals
-- [ ] Simple tax dashboard:
-  - Show ST gains, LT gains, total tax liability
-  - Per folio breakdown (optional: add manual tagging)
-  - Export ITR-ready CSV
-
-**Scope:** ~1-2 weeks. Mostly backend logic + basic UI.
+- [x] PDF extraction for mutual fund transactions
+- [x] FIFO capital gains calculation (4 categories: Equity/Debt × ST/LT)
+- [x] CAS Excel upload with auto financial year detection
+- [x] ITR Prep page with CAS/FIFO variant views
+- [x] Fund type override, caching, sortable tables, copy values
+- [ ] Manual data entry for other ITR values (salary, interest, dividends, deductions)
+- [ ] Unified ITR Dashboard with ALL values needed for filing
 
 
 ## ✌️ Phase 2: EXPENSE TRACKING

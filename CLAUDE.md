@@ -7,9 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Backend (FastAPI)
 ```bash
 cd backend
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 uvicorn app.main:app --reload  # Runs on http://localhost:8000
 ```
 
@@ -47,9 +47,9 @@ Entry point: `extract_transactions()` in `__init__.py`
 The `/itr-prep` page provides capital gains calculations for Income Tax Return preparation using a variant switching UI pattern.
 
 **Variants:**
-- **CAS** (default): Displays capital gains from uploaded CAS JSON files
+- **CAS** (default): Displays capital gains from CAS Excel uploads (CAMS/KFINTECH formats)
   - Shows 4 categories: Equity/Debt × Short-term/Long-term
-  - Data extracted from OVERALL_SUMMARY_EQUITY and OVERALL_SUMMARY_NONEQUITY
+  - Supports password-protected Excel files
   - Supports multiple financial years (FY2024-25, etc.)
 - **FIFO**: Transaction-level capital gains using First-In-First-Out method
   - Calculates gains from all transaction CSVs in `data/outputs/`
@@ -72,10 +72,11 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 5. User downloads CSV via `/api/download/{file_id}`
 
 **CAS Processing:**
-1. User uploads CAS JSON via `/itr-prep` page (CAS variant)
-2. Backend infers financial year from transaction dates
-3. File saved to `data/cas/FY{year}.json` (replaces if exists)
-4. Capital gains extracted from OVERALL_SUMMARY_EQUITY/NONEQUITY sections
+1. User uploads CAS Excel file (.xls from CAMS or .xlsx from KFINTECH) via `/itr-prep` page
+2. Backend detects format (CAMS vs KFINTECH) and decrypts if password-protected
+3. Financial year inferred from redemption dates in transactions
+4. Parsed data merged with existing data (deduplicates transactions) and saved to `data/cas/FY{year}.json`
+5. Capital gains extracted from summary sheets (OVERALL_SUMMARY_EQUITY/NONEQUITY for CAMS)
 
 **FIFO Calculations:**
 1. Backend reads all CSVs from `data/outputs/`
@@ -96,7 +97,7 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 - `PUT /api/fund-type-override` - Manually override fund type (equity/debt) for a ticker
 
 **ITR Prep - CAS (Capital Account Statement):**
-- `POST /api/upload-cas` - Upload CAS JSON file (auto-detects financial year from transactions)
+- `POST /api/upload-cas` - Upload CAS Excel file (.xls/.xlsx, supports password-protected files)
 - `GET /api/cas-files` - List all uploaded CAS files
 - `GET /api/capital-gains-cas?fy={FY}` - Get CAS capital gains data (4 categories: equity/debt × short/long term)
 
@@ -111,6 +112,7 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 - Pydantic schemas: `backend/app/models/schemas.py`
 - PDF extraction: `backend/app/services/pdf_extractor/__init__.py` (calls `extract_transactions()`)
 - FIFO calculator: `backend/app/services/fifo_calculator.py` (caching, fund type overrides)
+- CAS parser: `backend/app/services/cas_parser.py` (Excel parsing for CAMS/KFINTECH formats)
 
 **Frontend:**
 - Home: `frontend/app/page.tsx`
@@ -135,7 +137,7 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 ### Data Directory Structure
 - `data/uploads/{date}/` - Uploaded PDF files
 - `data/outputs/{date}/` - Generated transaction CSVs
-- `data/cas/` - CAS JSON files (named `FY{year}.json`, e.g., `FY2024-25.json`)
+- `data/cas/` - CAS JSON files (named `FY{year}.json`, e.g., `FY2024-25.json`) - parsed from Excel uploads
 - `data/fifo_cache.json` - Cached FIFO capital gains calculations
 - `data/fund_type_overrides.json` - Manual fund type classifications
 
