@@ -293,8 +293,10 @@ def _parse_transactions(excel_file: pd.ExcelFile, cas_format: str) -> List[Dict[
                 col_indices['units'] = col_idx
             elif 'redunits' in val_lower:
                 col_indices['units'] = col_idx
-            elif 'amount' in val_lower and 10 <= col_idx <= 13:
-                col_indices['sale_consideration'] = col_idx
+            # For CAMS, we need to calculate sale_consideration = units * price
+            # Don't use the 'Amount' column as it shows TOTAL redemption amount
+            elif val_lower == 'price' and 10 <= col_idx <= 13:
+                col_indices['redemption_price'] = col_idx
             elif 'unit cost' in val_lower:
                 col_indices['acquisition_cost_per_unit'] = col_idx
         else:  # KFINTECH
@@ -302,7 +304,9 @@ def _parse_transactions(excel_file: pd.ExcelFile, cas_format: str) -> List[Dict[
                 col_indices['units'] = col_idx
             elif 'amount' in val_lower and col_idx >= 16 and col_idx <= 18:
                 col_indices['sale_consideration'] = col_idx
-            elif 'original purchase cost' in val_lower or ('cost' in val_lower and 'amount' in val_lower):
+            # For KFINTECH, "Original Purchase Cost" is the per-unit cost (column 8)
+            # "Original Cost Amount" is the total cost (column 9) - don't use this
+            elif 'original purchase cost' in val_lower and 'amount' not in val_lower:
                 col_indices['acquisition_cost_per_unit'] = col_idx
 
         # Gain/Loss columns
@@ -331,7 +335,7 @@ def _parse_transactions(excel_file: pd.ExcelFile, cas_format: str) -> List[Dict[
             if field in ['buy_date', 'sell_date']:
                 date_val = _parse_date(val)
                 txn[field] = date_val.strftime('%Y-%m-%d') if date_val else ''
-            elif field in ['units', 'sale_consideration', 'acquisition_cost_per_unit']:
+            elif field in ['units', 'sale_consideration', 'acquisition_cost_per_unit', 'redemption_price']:
                 txn[field] = _parse_number(val)
             elif field == 'asset_type':
                 # For CAMS, extract and normalize asset type
@@ -342,6 +346,12 @@ def _parse_transactions(excel_file: pd.ExcelFile, cas_format: str) -> List[Dict[
                 txn['asset_type'] = asset_val
             else:
                 txn[field] = str(val).strip() if pd.notna(val) else ''
+
+        # For CAMS format, calculate sale_consideration from units * redemption_price
+        if cas_format == "CAMS" and 'units' in txn and 'redemption_price' in txn:
+            txn['sale_consideration'] = txn['units'] * txn['redemption_price']
+            # Remove redemption_price from final output
+            del txn['redemption_price']
 
         # Determine term and gain_loss from short/long term columns
         short_term_gain = _parse_number(row.iloc[short_term_col]) if short_term_col and short_term_col < len(row) else 0.0
