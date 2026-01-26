@@ -34,12 +34,11 @@ ISIN_TICKER_LINKS_DB = PDF_EXTRACTOR_DIR / "isin_ticker_links_db.json"
 # Constants
 FILE_ID_LENGTH = 8  # Length of UUID prefix used for file IDs
 
-# Tax thresholds (in days)
-EQUITY_LTCG_THRESHOLD_DAYS = 365   # 1 year for equity funds
-DEBT_LTCG_THRESHOLD_DAYS = 1095   # 3 years for debt funds
-
 # Fund classification
 EQUITY_PERCENTAGE_THRESHOLD = 65.0  # Minimum equity % to classify as equity fund
+
+# NOTE: Tax rules (holding period thresholds) have been moved to app/tax_rules.py
+#       for easier maintenance. Tax laws change frequently, so they're kept separate.
 
 
 def ensure_directories() -> None:

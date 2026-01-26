@@ -20,10 +20,9 @@ from app.config import (
     FIFO_METADATA_FILE,
     FUND_TYPE_OVERRIDES_FILE,
     ISIN_TICKER_LINKS_DB,
-    EQUITY_LTCG_THRESHOLD_DAYS,
-    DEBT_LTCG_THRESHOLD_DAYS,
     EQUITY_PERCENTAGE_THRESHOLD,
 )
+from app.tax_rules import get_debt_fund_term, get_equity_fund_term
 from app.utils import get_financial_year
 
 logger = logging.getLogger(__name__)
@@ -524,13 +523,15 @@ def calculate_fifo_gains(transactions: List[Transaction]) -> List[FIFOGain]:
                     # Determine fund type
                     fund_type = manual_overrides.get(tx.ticker) or fund_type_mapping.get(tx.ticker, 'unknown')
 
-                    # Apply threshold based on fund type
+                    # Determine term (short-term vs long-term) using tax rules
                     if fund_type == 'equity':
-                        threshold_days = EQUITY_LTCG_THRESHOLD_DAYS
+                        term = get_equity_fund_term(holding_days)
+                    elif fund_type == 'debt':
+                        term = get_debt_fund_term(buy_date=lot.date, sell_date=tx.date)
                     else:
-                        threshold_days = DEBT_LTCG_THRESHOLD_DAYS
+                        # For unknown fund types, treat as debt (more conservative approach)
+                        term = get_debt_fund_term(buy_date=lot.date, sell_date=tx.date)
 
-                    term = 'Long-term' if holding_days >= threshold_days else 'Short-term'
                     financial_year = get_financial_year(tx.date)
 
                     fifo_gain = FIFOGain(

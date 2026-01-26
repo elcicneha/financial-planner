@@ -126,6 +126,7 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 - PDF extraction: `backend/app/services/pdf_extractor/__init__.py` (calls `extract_transactions()`)
 - Payslip extractor: `backend/app/services/pdf_extractor/payslip_extractor.py` (extracts salary data from payslip PDFs)
 - FIFO calculator: `backend/app/services/fifo_calculator.py` (caching, fund type overrides)
+- **Tax rules: `backend/app/tax_rules.py` (capital gains tax rules - easy to modify when tax laws change)**
 - CAS parser: `backend/app/services/cas_parser.py` (Excel parsing for CAMS/KFINTECH formats)
 
 **Frontend:**
@@ -158,3 +159,21 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 
 ### Reference Data
 - `isin_ticker_db.csv` and `isin_ticker_links_db.csv` in backend are used in step 4 (processFundDeets.py) to standardize and validate fund identifiers
+
+### Tax Rules Configuration
+
+Capital gains tax rules are maintained in `backend/app/tax_rules.py` for easy modification when tax laws change.
+
+**Equity Mutual Funds:**
+- Holding period > 1 year (365 days) = Long-term Capital Gains (LTCG)
+- Holding period ≤ 1 year = Short-term Capital Gains (STCG)
+
+**Debt Mutual Funds:**
+- For investments made **on or after April 1, 2023**: ALL gains are STCG (regardless of holding period)
+- For investments made **before April 1, 2023**:
+  - Holding period > 24 months (730 days) = LTCG
+  - Holding period ≤ 24 months = STCG
+
+**Testing:**
+- Run `python3 backend/test_tax_rules.py` to verify tax rules implementation
+- FIFO cache is automatically invalidated when rules change
