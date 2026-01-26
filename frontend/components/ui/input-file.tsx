@@ -143,7 +143,7 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
           disabled={disabled}
           className={cn(
             'w-full border-2 border-dashed rounded-xl px-12 py-8 text-center transition-colors duration-200 h-[180px] flex items-center justify-center',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'focus-ring',
             !hasFiles && !isDragging && 'border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer',
             hasFiles && !isDragging && 'border-primary/30 bg-primary/5 cursor-pointer',
             isDragging && 'border-primary bg-primary/10 cursor-pointer',

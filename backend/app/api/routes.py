@@ -249,18 +249,26 @@ async def get_available_financial_years():
 
 
 @router.get("/capital-gains", response_model=FIFOResponse)
-async def get_capital_gains(fy: str = None):
+async def get_capital_gains(fy: str = None, force_recalculate: bool = False):
     """
     Get FIFO capital gains calculations.
 
     Args:
         fy: Optional financial year filter in format "2024-25"
+        force_recalculate: If True, invalidates cache and forces full recalculation
 
     Checks if cached results are valid, recalculates if needed,
     and returns all realized capital gains with summary statistics.
     """
     try:
-        gains_data = await asyncio.to_thread(get_cached_gains)
+        # Force recalculation if requested
+        if force_recalculate:
+            logger.info("Force recalculation requested, invalidating cache...")
+            await asyncio.to_thread(invalidate_fifo_cache)
+            fresh_gains = await asyncio.to_thread(recalculate_and_cache_fifo)
+            gains_data = [g.to_dict() for g in fresh_gains]
+        else:
+            gains_data = await asyncio.to_thread(get_cached_gains)
 
         if not gains_data:
             return FIFOResponse(

@@ -236,8 +236,9 @@ function UploadDialogRoot({
 
     // Send all files in one batch request
     const formData = new FormData();
+    const fieldName = multiple ? 'files' : 'file';
     normalizedFiles.forEach(({ file }) => {
-      formData.append('files', file);
+      formData.append(fieldName, file);
     });
 
     try {
@@ -250,13 +251,34 @@ function UploadDialogRoot({
 
       if (!response.ok) {
         // Entire request failed
-        const errorMsg = data.detail?.message || data.detail || 'Upload failed';
+        let errorMsg = 'Upload failed';
+        if (data.detail) {
+          if (typeof data.detail === 'string') {
+            errorMsg = data.detail;
+          } else if (Array.isArray(data.detail)) {
+            // FastAPI validation errors: array of {type, loc, msg, input}
+            errorMsg = data.detail.map((err: { msg?: string }) => err.msg).filter(Boolean).join(', ') || 'Validation error';
+          } else if (typeof data.detail === 'object' && data.detail.message) {
+            errorMsg = data.detail.message;
+          } else if (typeof data.detail === 'object' && data.detail.msg) {
+            // Single validation error object
+            errorMsg = data.detail.msg;
+          }
+        }
         setFileStates(prev => prev.map(s => ({ ...s, status: 'error', error: errorMsg })));
         return;
       }
 
-      // Parse batch results and update each file's state
-      const results: BatchResult[] = data.results || [];
+      // Parse results - handle both batch and single file responses
+      const results: BatchResult[] = data.results || [
+        {
+          filename: normalizedFiles[0]?.file.name || 'unknown',
+          success: data.success !== false,
+          financial_year: data.financial_year,
+          password_required: data.password_required,
+          error: data.error,
+        }
+      ];
 
       setFileStates(prev => prev.map((state) => {
         const result = results.find(r => r.filename === state.file.name);
@@ -373,9 +395,23 @@ function UploadDialogRoot({
       const data = await response.json();
 
       if (!response.ok) {
+        let errorMsg = 'Upload failed';
+        if (data.detail) {
+          if (typeof data.detail === 'string') {
+            errorMsg = data.detail;
+          } else if (Array.isArray(data.detail)) {
+            // FastAPI validation errors: array of {type, loc, msg, input}
+            errorMsg = data.detail.map((err: { msg?: string }) => err.msg).filter(Boolean).join(', ') || 'Validation error';
+          } else if (typeof data.detail === 'object' && data.detail.message) {
+            errorMsg = data.detail.message;
+          } else if (typeof data.detail === 'object' && data.detail.msg) {
+            // Single validation error object
+            errorMsg = data.detail.msg;
+          }
+        }
         updateFileState(index, {
           status: 'error',
-          error: data.detail?.message || data.detail || 'Upload failed'
+          error: errorMsg
         });
         return;
       }

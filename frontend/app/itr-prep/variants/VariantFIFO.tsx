@@ -4,15 +4,16 @@ import { useState, useMemo } from 'react';
 import { useCapitalGains, FIFOGainRow } from '@/hooks/useCapitalGains';
 import CapitalGainsTable from '@/components/CapitalGainsTable';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, AlertCircle, TrendingUp, ChevronDown } from 'lucide-react';
+import { Loader2, AlertCircle, TrendingUp, ChevronDown, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CategoryCard, CategoryData } from '../components/CategoryCard';
 import { CopyButton } from '@/components/ui/copy-button';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/currency';
 import { VariantProps } from './index';
+import { useDevMode } from '@/components/dev/DevModeProvider';
 
-// Aggregate FIFO gains into 4 categories
+// Aggregate FIFO gains into 4 categories (excluding unknown)
 function aggregateGainsByCategory(gains: FIFOGainRow[]): {
   equity_short_term: CategoryData;
   equity_long_term: CategoryData;
@@ -27,18 +28,26 @@ function aggregateGainsByCategory(gains: FIFOGainRow[]): {
   };
 
   for (const gain of gains) {
-    const isEquity = gain.fund_type === 'equity';
+    const fundType = gain.fund_type;
     const isLongTerm = gain.term === 'Long-term';
 
+    // Skip unknown funds - they should be shown in a warning
+    if (fundType === 'unknown') {
+      continue;
+    }
+
     let category: CategoryData;
-    if (isEquity && !isLongTerm) {
+    if (fundType === 'equity' && !isLongTerm) {
       category = categories.equity_short_term;
-    } else if (isEquity && isLongTerm) {
+    } else if (fundType === 'equity' && isLongTerm) {
       category = categories.equity_long_term;
-    } else if (!isEquity && !isLongTerm) {
+    } else if (fundType === 'debt' && !isLongTerm) {
       category = categories.debt_short_term;
-    } else {
+    } else if (fundType === 'debt' && isLongTerm) {
       category = categories.debt_long_term;
+    } else {
+      // Shouldn't reach here, but just in case
+      continue;
     }
 
     category.sale_consideration += gain.sale_consideration;
@@ -51,16 +60,40 @@ function aggregateGainsByCategory(gains: FIFOGainRow[]): {
 
 export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { isDevMode } = useDevMode();
 
   // Only fetch when FYs are loaded AND selectedFY is set
   const enabled = !fyLoading && selectedFY !== '';
-  const { data, loading, error, refetch } = useCapitalGains(0, selectedFY || undefined, enabled);
+  const { data, loading, error, refetch, forceRefetch } = useCapitalGains(0, selectedFY || undefined, enabled);
+
+  const handleRecalculate = async () => {
+    setIsRefreshing(true);
+    try {
+      forceRefetch();
+    } finally {
+      // Add slight delay to ensure the refresh completes
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
 
   // Aggregate gains into 4 categories
   const categories = useMemo(
     () => aggregateGainsByCategory(data?.gains ?? []),
     [data?.gains]
   );
+
+  // Find unknown funds that need classification
+  const unknownFunds = useMemo(() => {
+    const gains = data?.gains ?? [];
+    const unknownTickers = new Set<string>();
+    gains.forEach(gain => {
+      if (gain.fund_type === 'unknown') {
+        unknownTickers.add(gain.ticker);
+      }
+    });
+    return Array.from(unknownTickers);
+  }, [data?.gains]);
 
   // Calculate total gains
   const totalGains =
@@ -152,11 +185,65 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
               })}
             </p>
           </div>
+          {isDevMode && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleRecalculate}
+                  disabled={isRefreshing}
+                  className="h-9 w-9"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Recalculate FIFO gains</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
+
+        {/* Unknown Funds Warning */}
+        {unknownFunds.length > 0 && (
+          <Card className="border-yellow-200 dark:border-yellow-900 bg-yellow-50 dark:bg-yellow-950/30">
+            <CardHeader className="pb-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-base text-yellow-900 dark:text-yellow-100">
+                    Unknown Fund Classification
+                  </CardTitle>
+                  <CardDescription className="text-yellow-700 dark:text-yellow-300 mt-1">
+                    The following {unknownFunds.length} fund{unknownFunds.length > 1 ? 's' : ''} could not be automatically classified as equity or debt due to missing market cap data. These funds are excluded from the totals below.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex flex-wrap gap-2">
+                {unknownFunds.map((ticker) => (
+                  <code key={ticker} className="px-2 py-1 text-xs rounded bg-yellow-100 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-100 border border-yellow-300 dark:border-yellow-700">
+                    {ticker}
+                  </code>
+                ))}
+              </div>
+              <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-3">
+                Tip: You can manually override the fund type in the Source Data table below.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Total Gains - Compact */}
         <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-muted/50 border">
-          <span className="text-sm font-medium text-muted-foreground">Total Capital Gains</span>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-muted-foreground">Total Capital Gains</span>
+            {unknownFunds.length > 0 && (
+              <span className="text-xs text-muted-foreground/70">Excludes {unknownFunds.length} unknown fund{unknownFunds.length > 1 ? 's' : ''}</span>
+            )}
+          </div>
           <div className="flex items-center gap-1">
             <span className={`font-mono text-lg font-semibold tabular-nums ${totalGains >= 0
               ? 'text-emerald-600 dark:text-emerald-400'

@@ -157,6 +157,11 @@
   .text-warning {
     color: hsl(var(--warning));
   }
+
+  /* Standardized focus ring */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2;
+  }
 }
 
 /* Animations */

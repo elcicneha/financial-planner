@@ -228,7 +228,7 @@ def _parse_transactions(excel_file: pd.ExcelFile, cas_format: str) -> List[Dict[
 
     Returns:
         List of transaction dictionaries with keys:
-        - fund_name, folio, buy_date, sell_date, units, buy_nav, sell_nav,
+        - fund_name, folio, buy_date, sell_date, units, buy_nav,
         - sale_consideration, acquisition_cost, gain_loss, asset_type, term
     """
     # Determine sheet name based on format
@@ -259,31 +259,57 @@ def _parse_transactions(excel_file: pd.ExcelFile, cas_format: str) -> List[Dict[
     # Parse column indices from header
     header = df.iloc[header_row_idx]
     col_indices = {}
+    short_term_col = None
+    long_term_col = None
+
     for col_idx, val in enumerate(header):
         if pd.isna(val):
             continue
         val_lower = str(val).lower().strip()
-        if 'scheme' in val_lower or 'fund' in val_lower:
+
+        # Basic fields
+        if ('scheme' in val_lower and 'name' in val_lower) or (cas_format == "KFINTECH" and col_idx == 3):
             col_indices['fund_name'] = col_idx
         elif 'folio' in val_lower:
             col_indices['folio'] = col_idx
-        elif 'unit' in val_lower and 'redeem' in val_lower:
-            col_indices['units'] = col_idx
-        elif 'purchase' in val_lower and 'date' in val_lower:
-            col_indices['buy_date'] = col_idx
-        elif 'redemp' in val_lower and 'date' in val_lower:
-            col_indices['sell_date'] = col_idx
-        elif 'purchase' in val_lower and 'nav' in val_lower:
-            col_indices['buy_nav'] = col_idx
-        elif 'redemp' in val_lower and 'nav' in val_lower:
-            col_indices['sell_nav'] = col_idx
-        elif 'full value' in val_lower or 'sale' in val_lower and 'consider' in val_lower:
-            col_indices['sale_consideration'] = col_idx
-        elif 'cost' in val_lower and 'acq' in val_lower:
-            col_indices['acquisition_cost'] = col_idx
-        elif 'gain' in val_lower or 'loss' in val_lower:
-            if 'gain_loss' not in col_indices:
-                col_indices['gain_loss'] = col_idx
+        elif 'asset' in val_lower and 'class' in val_lower:
+            col_indices['asset_type'] = col_idx
+
+        # Date fields - different for CAMS and KFINTECH
+        if cas_format == "CAMS":
+            if val_lower in ['date', 'date '] and 8 <= col_idx <= 10:
+                col_indices['sell_date'] = col_idx
+            elif 'date_1' in val_lower or (val_lower == 'date' and col_idx >= 14):
+                col_indices['buy_date'] = col_idx
+        else:  # KFINTECH
+            if val_lower == 'date' and col_idx >= 14:
+                col_indices['sell_date'] = col_idx
+            elif val_lower == 'date' and col_idx <= 6:
+                col_indices['buy_date'] = col_idx
+
+        # Units and amounts
+        if cas_format == "CAMS":
+            if 'units' in val_lower and 10 <= col_idx <= 12:
+                col_indices['units'] = col_idx
+            elif 'redunits' in val_lower:
+                col_indices['units'] = col_idx
+            elif 'amount' in val_lower and 10 <= col_idx <= 13:
+                col_indices['sale_consideration'] = col_idx
+            elif 'unit cost' in val_lower:
+                col_indices['acquisition_cost_per_unit'] = col_idx
+        else:  # KFINTECH
+            if 'units' in val_lower and col_idx >= 15 and col_idx <= 17:
+                col_indices['units'] = col_idx
+            elif 'amount' in val_lower and col_idx >= 16 and col_idx <= 18:
+                col_indices['sale_consideration'] = col_idx
+            elif 'original purchase cost' in val_lower or ('cost' in val_lower and 'amount' in val_lower):
+                col_indices['acquisition_cost_per_unit'] = col_idx
+
+        # Gain/Loss columns
+        if 'short term' in val_lower:
+            short_term_col = col_idx
+        elif 'long term without index' in val_lower:
+            long_term_col = col_idx
 
     # Parse data rows
     for idx in range(header_row_idx + 1, len(df)):
@@ -297,24 +323,53 @@ def _parse_transactions(excel_file: pd.ExcelFile, cas_format: str) -> List[Dict[
             continue
 
         txn = {}
+
+        # Parse basic fields
         for field, col_idx in col_indices.items():
             val = row.iloc[col_idx] if col_idx < len(row) else None
+
             if field in ['buy_date', 'sell_date']:
                 date_val = _parse_date(val)
                 txn[field] = date_val.strftime('%Y-%m-%d') if date_val else ''
-            elif field in ['units', 'buy_nav', 'sell_nav', 'sale_consideration', 'acquisition_cost', 'gain_loss']:
+            elif field in ['units', 'sale_consideration', 'acquisition_cost_per_unit']:
                 txn[field] = _parse_number(val)
+            elif field == 'asset_type':
+                # For CAMS, extract and normalize asset type
+                asset_val = str(val).strip().upper() if pd.notna(val) else 'UNKNOWN'
+                # Map CASH to DEBT
+                if asset_val == 'CASH':
+                    asset_val = 'DEBT'
+                txn['asset_type'] = asset_val
             else:
                 txn[field] = str(val).strip() if pd.notna(val) else ''
+
+        # Determine term and gain_loss from short/long term columns
+        short_term_gain = _parse_number(row.iloc[short_term_col]) if short_term_col and short_term_col < len(row) else 0.0
+        long_term_gain = _parse_number(row.iloc[long_term_col]) if long_term_col and long_term_col < len(row) else 0.0
+
+        # Only include transactions with actual gains/losses
+        if short_term_gain == 0.0 and long_term_gain == 0.0:
+            continue
+
+        # Set term and gain_loss based on which is non-zero
+        if short_term_gain != 0.0:
+            txn['term'] = 'short'
+            txn['gain_loss'] = short_term_gain
+        else:
+            txn['term'] = 'long'
+            txn['gain_loss'] = long_term_gain
+
+        # Calculate acquisition cost if we have units and cost per unit
+        if 'acquisition_cost_per_unit' in txn and 'units' in txn:
+            txn['acquisition_cost'] = txn['acquisition_cost_per_unit'] * txn['units']
+
+        # For KFINTECH, need to determine asset type from summary sheets later
+        if cas_format == "KFINTECH":
+            txn['asset_type'] = 'UNKNOWN'
 
         # Skip if missing critical fields
         if not txn.get('sell_date') or not txn.get('fund_name'):
             continue
-
-        # Determine asset type from sheet context (equity vs debt)
-        # This will be set later based on which summary sheet the fund appears in
-        txn['asset_type'] = 'unknown'
-        txn['term'] = 'unknown'
 
         transactions.append(txn)
 
@@ -430,11 +485,94 @@ def parse_cas_data(excel_file: pd.ExcelFile, cas_format: str) -> Dict[str, Any]:
     # Parse transactions (for deduplication)
     transactions = _parse_transactions(excel_file, cas_format)
 
+    # For KFINTECH, determine asset types from summary sheets
+    transactions = _determine_asset_types_from_summaries(transactions, excel_file, cas_format)
+
     return {
         'transactions': transactions,
         'summary': summary,
         'updated_at': datetime.now().isoformat()
     }
+
+
+def _determine_asset_types_from_summaries(
+    transactions: List[Dict[str, Any]],
+    excel_file: pd.ExcelFile,
+    cas_format: str
+) -> List[Dict[str, Any]]:
+    """
+    For KFINTECH transactions, determine asset type by checking Scheme_Level_Summary sheet.
+
+    Args:
+        transactions: List of transactions with UNKNOWN asset_type
+        excel_file: Opened pandas ExcelFile object
+        cas_format: "CAMS" or "KFINTECH"
+
+    Returns:
+        Updated transactions list with asset_type filled in
+    """
+    if cas_format != "KFINTECH":
+        return transactions
+
+    # Extract fund names from Scheme_Level_Summary sheet
+    equity_funds = set()
+    debt_funds = set()
+
+    if "Scheme_Level_Summary" in excel_file.sheet_names:
+        df = pd.read_excel(excel_file, sheet_name="Scheme_Level_Summary", header=None)
+
+        current_section = None
+        for idx, row in df.iterrows():
+            first_col = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else ''
+
+            # Detect section headers
+            if 'capital gain' in first_col.lower() and 'equity' in first_col.lower():
+                current_section = 'EQUITY'
+                continue
+            elif 'capital gain' in first_col.lower() and ('non' in first_col.lower() or 'debt' in first_col.lower()):
+                current_section = 'DEBT'
+                continue
+
+            # Extract fund names from data rows
+            if current_section and first_col and len(first_col) > 15:
+                # Skip header and summary rows
+                if any(keyword in first_col.lower() for keyword in
+                       ['scheme name', 'total', 'grand', 'count']):
+                    continue
+
+                # Add to appropriate set
+                if current_section == 'EQUITY':
+                    equity_funds.add(first_col.lower())
+                elif current_section == 'DEBT':
+                    debt_funds.add(first_col.lower())
+
+    # Match transactions against fund lists using partial matching
+    for txn in transactions:
+        if txn.get('asset_type') == 'UNKNOWN':
+            fund_name = txn.get('fund_name', '').strip().lower()
+
+            # Try exact or partial match
+            matched = False
+            for ef in equity_funds:
+                # Remove ISIN codes and extra spaces for matching
+                ef_clean = ef.split('inf')[0].strip() if 'inf' in ef else ef
+                fund_clean = fund_name.split('inf')[0].strip() if 'inf' in fund_name else fund_name
+
+                if ef_clean in fund_clean or fund_clean in ef_clean:
+                    txn['asset_type'] = 'EQUITY'
+                    matched = True
+                    break
+
+            if not matched:
+                for df_name in debt_funds:
+                    df_clean = df_name.split('inf')[0].strip() if 'inf' in df_name else df_name
+                    fund_clean = fund_name.split('inf')[0].strip() if 'inf' in fund_name else fund_name
+
+                    if df_clean in fund_clean or fund_clean in df_clean:
+                        txn['asset_type'] = 'DEBT'
+                        break
+
+    return transactions
 
 
 def _transaction_key(txn: Dict[str, Any]) -> str:
@@ -445,12 +583,48 @@ def _transaction_key(txn: Dict[str, Any]) -> str:
     return f"{txn.get('fund_name', '')}|{txn.get('folio', '')}|{txn.get('sell_date', '')}|{txn.get('units', 0)}"
 
 
+def _recalculate_summary_from_transactions(transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Recalculate summary values from deduplicated transactions.
+
+    Args:
+        transactions: List of transaction dictionaries with asset_type, term, and gain_loss
+
+    Returns:
+        Summary dictionary with 4 categories (equity/debt × short/long term)
+    """
+    summary = {
+        'equity_short_term': {'sale_consideration': 0.0, 'acquisition_cost': 0.0, 'gain_loss': 0.0},
+        'equity_long_term': {'sale_consideration': 0.0, 'acquisition_cost': 0.0, 'gain_loss': 0.0},
+        'debt_short_term': {'sale_consideration': 0.0, 'acquisition_cost': 0.0, 'gain_loss': 0.0},
+        'debt_long_term': {'sale_consideration': 0.0, 'acquisition_cost': 0.0, 'gain_loss': 0.0},
+    }
+
+    for txn in transactions:
+        asset_type = txn.get('asset_type', 'UNKNOWN').upper()
+        term = txn.get('term', 'unknown').lower()
+
+        # Skip if we can't categorize
+        if asset_type not in ['EQUITY', 'DEBT'] or term not in ['short', 'long']:
+            continue
+
+        # Determine category key
+        category_key = f"{asset_type.lower()}_{term}_term"
+
+        # Add values to appropriate category
+        summary[category_key]['sale_consideration'] += txn.get('sale_consideration', 0.0)
+        summary[category_key]['acquisition_cost'] += txn.get('acquisition_cost', 0.0)
+        summary[category_key]['gain_loss'] += txn.get('gain_loss', 0.0)
+
+    return summary
+
+
 def _merge_cas_data(existing: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:
     """
     Merge new CAS data into existing data, removing duplicates.
 
     Transactions are deduplicated by key (fund+folio+date+units).
-    Summary values are combined (summed) from both sources.
+    Summary values are recalculated from deduplicated transactions.
     """
     # Merge transactions with deduplication
     existing_txns = {_transaction_key(t): t for t in existing.get('transactions', [])}
@@ -460,17 +634,8 @@ def _merge_cas_data(existing: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, 
 
     merged_transactions = list(existing_txns.values())
 
-    # Combine summary values
-    merged_summary = {}
-    for category in ['equity_short_term', 'equity_long_term', 'debt_short_term', 'debt_long_term']:
-        existing_cat = existing.get('summary', {}).get(category, {})
-        new_cat = new.get('summary', {}).get(category, {})
-
-        merged_summary[category] = {
-            'sale_consideration': existing_cat.get('sale_consideration', 0.0) + new_cat.get('sale_consideration', 0.0),
-            'acquisition_cost': existing_cat.get('acquisition_cost', 0.0) + new_cat.get('acquisition_cost', 0.0),
-            'gain_loss': existing_cat.get('gain_loss', 0.0) + new_cat.get('gain_loss', 0.0),
-        }
+    # Recalculate summary from deduplicated transactions
+    merged_summary = _recalculate_summary_from_transactions(merged_transactions)
 
     return {
         'transactions': merged_transactions,
@@ -635,9 +800,11 @@ def validate_and_save_cas_excel(
         logger.info(f"Merging with existing data for FY {financial_year}")
         merged_data = _merge_cas_data(existing_data, new_data)
     else:
+        # Even for first upload, recalculate summary from transactions to ensure consistency
+        recalculated_summary = _recalculate_summary_from_transactions(new_data['transactions'])
         merged_data = {
             'transactions': new_data['transactions'],
-            'summary': new_data['summary'],
+            'summary': recalculated_summary,
             'updated_at': datetime.now().isoformat()
         }
 

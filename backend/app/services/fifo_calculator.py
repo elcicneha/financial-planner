@@ -81,8 +81,9 @@ def classify_fund_type(ticker: str, large_cap: str, mid_cap: str, small_cap: str
 
     Classification rules (Indian tax law):
     - Ticker contains "ARBI" → equity (arbitrage funds get equity taxation)
+    - No cap data available (all empty strings) → unknown
     - Equity% >= 65% → equity
-    - Otherwise → debt
+    - Equity% < 65% (including explicit 0%) → debt
 
     Args:
         ticker: Fund ticker symbol
@@ -92,11 +93,19 @@ def classify_fund_type(ticker: str, large_cap: str, mid_cap: str, small_cap: str
         other_cap: Other cap percentage
 
     Returns:
-        'equity' or 'debt'
+        'equity', 'debt', or 'unknown'
     """
     if 'arbi' in ticker.lower():
         return 'equity'
 
+    # Check if all cap percentages are empty/missing (no data available)
+    all_empty = all(not str(cap).strip() or str(cap).strip() == ''
+                   for cap in [large_cap, mid_cap, small_cap, other_cap])
+
+    if all_empty:
+        return 'unknown'
+
+    # Calculate equity percentage
     equity_pct = (
         parse_percentage(large_cap) +
         parse_percentage(mid_cap) +
@@ -104,6 +113,8 @@ def classify_fund_type(ticker: str, large_cap: str, mid_cap: str, small_cap: str
         parse_percentage(other_cap)
     )
 
+    # Classify based on equity percentage threshold
+    # Note: If equity_pct is 0 (e.g., "0%", "0%", "0%", "0%"), it's a debt fund (liquid/debt fund)
     return 'equity' if equity_pct >= EQUITY_PERCENTAGE_THRESHOLD else 'debt'
 
 

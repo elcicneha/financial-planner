@@ -80,11 +80,10 @@ export default function ITRPrepPage() {
   return (
     <>
       {/* Flex container for Variant Switcher and FY Selector */}
-      <div className={`flex items-center  gap-6 ${isDevMode ? 'pb-2' : ''}`}>
-        <div className="w-full">
+      <div className={`flex items-center gap-6 ${isDevMode ? 'pb-2' : ''}`}>
+        <div className='w-full'>
           <VariantSwitcher selected={selectedVariant} onChange={setSelectedVariant} variants={variants} />
         </div>
-
         {/* Global FY Selector */}
         <div className="flex items-center gap-3">
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
@@ -110,7 +109,7 @@ export default function ITRPrepPage() {
             </SelectContent>
           </Select>
         </div>
-      </div>
+      </div >
       {/* <div className="mb-6 flex items-center gap-4">
 
           <label htmlFor="fy-select" className="text-sm font-medium">

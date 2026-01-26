@@ -36,6 +36,7 @@ interface UseCapitalGainsResult {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  forceRefetch: () => void;
 }
 
 export function useCapitalGains(refreshKey = 0, fy?: string, enabled = true): UseCapitalGainsResult {
@@ -43,12 +44,16 @@ export function useCapitalGains(refreshKey = 0, fy?: string, enabled = true): Us
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCapitalGains = useCallback(async () => {
+  const fetchCapitalGains = useCallback(async (forceRecalculate = false) => {
     setLoading(true);
     setError(null);
 
     try {
-      const url = fy ? `/api/capital-gains?fy=${encodeURIComponent(fy)}` : '/api/capital-gains';
+      const params = new URLSearchParams();
+      if (fy) params.set('fy', fy);
+      if (forceRecalculate) params.set('force_recalculate', 'true');
+
+      const url = params.toString() ? `/api/capital-gains?${params.toString()}` : '/api/capital-gains';
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -73,8 +78,12 @@ export function useCapitalGains(refreshKey = 0, fy?: string, enabled = true): Us
   }, [fetchCapitalGains, refreshKey, enabled]);
 
   const refetch = useCallback(() => {
-    fetchCapitalGains();
+    fetchCapitalGains(false);
   }, [fetchCapitalGains]);
 
-  return { data, loading, error, refetch };
+  const forceRefetch = useCallback(() => {
+    fetchCapitalGains(true);
+  }, [fetchCapitalGains]);
+
+  return { data, loading, error, refetch, forceRefetch };
 }

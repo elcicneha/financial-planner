@@ -205,17 +205,17 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
             <TableRow>
               <TableHead {...getSortProps('sell_date')}>Sell Date</TableHead>
               <TableHead {...getSortProps('ticker')}>Ticker</TableHead>
-              <TableHead {...getSortProps('folio')}>Folio</TableHead>
+              <TableHead {...getSortProps('fund_type')}>Fund Type</TableHead>
+              <TableHead {...getSortProps('term')}>Term</TableHead>
+              <TableHead className="text-right" {...getSortProps('gain')}>Gain/Loss</TableHead>
+              <TableHead {...getSortProps('buy_date')}>Buy Date</TableHead>
               <TableHead className="text-right" {...getSortProps('units')}>Units</TableHead>
               <TableHead className="text-right" {...getSortProps('sell_nav')}>Sell NAV</TableHead>
               <TableHead className="text-right" {...getSortProps('sale_consideration')}>Sale Consideration</TableHead>
-              <TableHead {...getSortProps('buy_date')}>Buy Date</TableHead>
               <TableHead className="text-right" {...getSortProps('buy_nav')}>Buy NAV</TableHead>
               <TableHead className="text-right" {...getSortProps('acquisition_cost')}>Acquisition Cost</TableHead>
-              <TableHead className="text-right" {...getSortProps('gain')}>Gain/Loss</TableHead>
               <TableHead className="text-right" {...getSortProps('holding_days')}>Days Held</TableHead>
-              <TableHead {...getSortProps('fund_type')}>Fund Type</TableHead>
-              <TableHead {...getSortProps('term')}>Term</TableHead>
+              <TableHead {...getSortProps('folio')}>Folio</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -223,33 +223,6 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
               <TableRow key={index}>
                 <TableCell className="font-mono text-sm">{gain.sell_date}</TableCell>
                 <TableCell className="font-medium">{gain.ticker}</TableCell>
-                <TableCell className="text-muted-foreground">{gain.folio}</TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  {formatNumber(gain.units)}
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  {formatNumber(gain.sell_nav, 4)}
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  {formatCurrency(gain.sale_consideration)}
-                </TableCell>
-                <TableCell className="font-mono text-sm">{gain.buy_date}</TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  {formatNumber(gain.buy_nav, 4)}
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  {formatCurrency(gain.acquisition_cost)}
-                </TableCell>
-                <TableCell
-                  className={`text-right font-mono text-sm font-medium ${
-                    gain.gain >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {formatCurrency(gain.gain)}
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm">{gain.holding_days}</TableCell>
                 <TableCell>
                   {isEditMode ? (
                     <Select
@@ -301,6 +274,33 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
                     {gain.term}
                   </span>
                 </TableCell>
+                <TableCell
+                  className={`text-right font-mono text-sm font-medium ${
+                    gain.gain >= 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}
+                >
+                  {formatCurrency(gain.gain)}
+                </TableCell>
+                <TableCell className="font-mono text-sm">{gain.buy_date}</TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatNumber(gain.units)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatNumber(gain.sell_nav, 4)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatCurrency(gain.sale_consideration)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatNumber(gain.buy_nav, 4)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatCurrency(gain.acquisition_cost)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">{gain.holding_days}</TableCell>
+                <TableCell className="text-muted-foreground">{gain.folio}</TableCell>
               </TableRow>
             ))}
           </TableBody>
