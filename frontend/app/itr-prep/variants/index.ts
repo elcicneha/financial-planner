@@ -3,9 +3,14 @@ import VariantCAS from './VariantCAS';
 import VariantOtherInfo from './VariantOtherInfo';
 import { ComponentType } from 'react';
 
+export interface VariantProps {
+  selectedFY: string;
+  fyLoading: boolean;
+}
+
 export interface VariantEntry {
   name: string;
-  component: ComponentType;
+  component: ComponentType<VariantProps>;
 }
 
 export const variants: Record<string, VariantEntry> = {

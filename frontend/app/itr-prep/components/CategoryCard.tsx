@@ -28,8 +28,8 @@ export function DataRow({ label, value, isGain }: {
 
   const colorClass = isGain
     ? value >= 0
-      ? 'text-emerald-600 dark:text-emerald-400'
-      : 'text-red-500 dark:text-red-400'
+      ? 'text-success'
+      : 'text-destructive'
     : '';
 
   return (

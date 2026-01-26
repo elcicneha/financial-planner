@@ -32,7 +32,7 @@ export function VariantSwitcher<T extends string>({
   return (
     <div className="top-0 left-0 right-0 border-b border-border">
 
-      <Tabs value={selected} onValueChange={(value) => onChange(value as T)} className={className}>
+      <Tabs className='w-full' value={selected} onValueChange={(value) => onChange(value as T)} className={className}>
         <TabsList variant="line">
           {variantKeys.map((key) => {
             const variant = variants[key];

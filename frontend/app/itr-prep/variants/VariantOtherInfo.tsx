@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Upload, FileText, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/currency';
 import { PayslipUploadDialog } from '../components/PayslipUploadDialog';
+import { VariantProps } from './index';
 
 interface PayslipPayPeriod {
   month: number;
@@ -94,7 +95,23 @@ function getAllBreakdownKeys(payslips: PayslipData[]): string[] {
   return Array.from(keys).sort();
 }
 
-export default function VariantOtherInfo() {
+// Convert pay period to financial year format (e.g., "2024-25")
+function getFinancialYear(payPeriod: PayslipPayPeriod | null): string | null {
+  if (!payPeriod) return null;
+
+  const { month, year } = payPeriod;
+
+  // FY starts in April (month 4)
+  if (month >= 4) {
+    // April onwards: FY is current year to next year
+    return `${year}-${String(year + 1).slice(-2)}`;
+  } else {
+    // Jan-Mar: FY is previous year to current year
+    return `${year - 1}-${String(year).slice(-2)}`;
+  }
+}
+
+export default function VariantOtherInfo({ selectedFY, fyLoading }: VariantProps) {
   const [payslips, setPayslips] = useState<PayslipData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -165,21 +182,36 @@ export default function VariantOtherInfo() {
     }
   };
 
-  // Sort payslips by pay period
-  const sortedPayslips = [...payslips].sort((a, b) => {
-    if (!a.pay_period && !b.pay_period) return 0;
-    if (!a.pay_period) return 1;
-    if (!b.pay_period) return -1;
-    const aKey = a.pay_period.period_key;
-    const bKey = b.pay_period.period_key;
-    return aKey.localeCompare(bKey);
-  });
+  // Filter payslips by selected FY
+  const filteredPayslips = useMemo(() => {
+    if (!selectedFY) return payslips;
 
-  // Get all breakdown columns
-  const breakdownKeys = getAllBreakdownKeys(payslips);
+    return payslips.filter(payslip => {
+      const fy = getFinancialYear(payslip.pay_period);
+      return fy === selectedFY;
+    });
+  }, [payslips, selectedFY]);
 
-  // Calculate totals
-  const totalGrossPay = payslips.reduce((sum, p) => sum + (p.gross_pay || 0), 0);
+  // Sort filtered payslips by pay period
+  const sortedPayslips = useMemo(() => {
+    return [...filteredPayslips].sort((a, b) => {
+      if (!a.pay_period && !b.pay_period) return 0;
+      if (!a.pay_period) return 1;
+      if (!b.pay_period) return -1;
+      const aKey = a.pay_period.period_key;
+      const bKey = b.pay_period.period_key;
+      return aKey.localeCompare(bKey);
+    });
+  }, [filteredPayslips]);
+
+  // Get all breakdown columns from filtered payslips
+  const breakdownKeys = useMemo(() => getAllBreakdownKeys(filteredPayslips), [filteredPayslips]);
+
+  // Calculate totals from filtered payslips
+  const totalGrossPay = useMemo(
+    () => filteredPayslips.reduce((sum, p) => sum + (p.gross_pay || 0), 0),
+    [filteredPayslips]
+  );
 
   return (
     <div className="container mx-auto py-6 space-y-8 max-w-5xl">
@@ -202,14 +234,22 @@ export default function VariantOtherInfo() {
 
         <Card>
           <CardContent className="p-0">
-            {payslips.length === 0 ? (
+            {isLoading || fyLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <p className="text-sm text-muted-foreground">Loading payslips...</p>
+              </div>
+            ) : filteredPayslips.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
                 <p className="text-sm text-muted-foreground">
-                  No payslips uploaded yet
+                  {payslips.length === 0
+                    ? 'No payslips uploaded yet'
+                    : `No payslips found for ${selectedFY}`}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Upload your payslip PDFs to extract salary information
+                  {payslips.length === 0
+                    ? 'Upload your payslip PDFs to extract salary information'
+                    : `Upload payslip PDFs for ${selectedFY} to see salary information`}
                 </p>
               </div>
             ) : (
@@ -273,14 +313,14 @@ export default function VariantOtherInfo() {
                       </TableRow>
                     ))}
                     {/* Totals row */}
-                    {payslips.length > 1 && (
+                    {filteredPayslips.length > 1 && (
                       <TableRow className="bg-muted/50 font-medium">
                         <TableCell>Total</TableCell>
                         <TableCell className="text-right font-mono">
                           {formatCurrency(totalGrossPay)}
                         </TableCell>
                         {breakdownKeys.map(key => {
-                          const total = payslips.reduce(
+                          const total = filteredPayslips.reduce(
                             (sum, p) => sum + (p.breakdown?.monthly?.[key] || 0),
                             0
                           );

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useCASCapitalGains } from '@/hooks/useCASCapitalGains';
-import { useCASFiles } from '@/hooks/useCASFiles';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, AlertCircle, FileText, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,13 +11,6 @@ import { CopyButton } from '@/components/ui/copy-button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { CategoryCard } from '../components/CategoryCard';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Table,
   TableBody,
   TableCell,
@@ -26,14 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { VariantProps } from './index';
 
-export default function VariantCAS() {
-  const [selectedFY, setSelectedFY] = useState<string | undefined>(undefined);
+export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isSourceOpen, setIsSourceOpen] = useState(false);
-
-  // Fetch available CAS files
-  const { files: casFiles } = useCASFiles(refreshKey);
 
   // Fetch capital gains for selected FY
   const { data, loading, error, refetch } = useCASCapitalGains(selectedFY, refreshKey);
@@ -42,14 +31,10 @@ export default function VariantCAS() {
   const handleUploadSuccess = (financialYears: string[]) => {
     // Refresh file list and data
     setRefreshKey((prev) => prev + 1);
-    // Select the last uploaded financial year
-    if (financialYears.length > 0) {
-      setSelectedFY(financialYears[financialYears.length - 1]);
-    }
   };
 
   // Loading state
-  if (loading) {
+  if (loading || fyLoading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -88,7 +73,7 @@ export default function VariantCAS() {
     );
   }
 
-  // Empty state - no CAS files uploaded yet
+  // Empty state - no CAS files uploaded yet or no data for selected FY
   if (!data || !data.has_files) {
     return (
       <div className="container mx-auto py-8">
@@ -100,10 +85,14 @@ export default function VariantCAS() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>No CAS Data Available</CardTitle>
+                <CardTitle>
+                  {selectedFY ? `No CAS Data for ${selectedFY}` : 'No CAS Data Available'}
+                </CardTitle>
               </div>
               <CardDescription>
-                Upload a CAS Excel file to get started
+                {selectedFY
+                  ? `Upload a CAS Excel file for ${selectedFY} to view capital gains`
+                  : 'Upload a CAS Excel file to get started'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -129,7 +118,7 @@ export default function VariantCAS() {
   return (
     <TooltipProvider>
       <div className="container mx-auto py-6 space-y-5 max-w-4xl">
-        {/* Header with Upload and FY Selector */}
+        {/* Header with Upload Button */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Capital Gains - CAS</h1>
@@ -141,23 +130,7 @@ export default function VariantCAS() {
               })}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {casFiles.length > 0 && (
-              <Select value={selectedFY || casFiles[0].financial_year} onValueChange={setSelectedFY}>
-                <SelectTrigger className="w-[130px] h-9">
-                  <SelectValue placeholder="Select FY" />
-                </SelectTrigger>
-                <SelectContent>
-                  {casFiles.map((file) => (
-                    <SelectItem key={file.financial_year} value={file.financial_year}>
-                      FY {file.financial_year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <CASUploadDialog onUploadSuccess={handleUploadSuccess} />
-          </div>
+          <CASUploadDialog onUploadSuccess={handleUploadSuccess} />
         </div>
 
         {/* Total Gains - Compact */}

@@ -1,17 +1,16 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useCapitalGains, FIFOGainRow } from '@/hooks/useCapitalGains';
-import { useAvailableFinancialYears } from '@/hooks/useAvailableFinancialYears';
 import CapitalGainsTable from '@/components/CapitalGainsTable';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, AlertCircle, TrendingUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CategoryCard, CategoryData } from '../components/CategoryCard';
 import { CopyButton } from '@/components/ui/copy-button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/currency';
+import { VariantProps } from './index';
 
 // Aggregate FIFO gains into 4 categories
 function aggregateGainsByCategory(gains: FIFOGainRow[]): {
@@ -50,29 +49,14 @@ function aggregateGainsByCategory(gains: FIFOGainRow[]): {
   return categories;
 }
 
-const FY_STORAGE_KEY = 'itr-prep-fifo-fy';
-
-export default function VariantFIFO() {
-  // Load selected FY from localStorage
-  const [selectedFY, setSelectedFY] = useState<string>('');
+export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const { financialYears, loading: fyLoading } = useAvailableFinancialYears();
 
-  // Initialize selectedFY from localStorage or default to first available FY
-  useEffect(() => {
-    const stored = localStorage.getItem(FY_STORAGE_KEY);
-    if (stored && financialYears.includes(stored)) {
-      setSelectedFY(stored);
-    } else if (financialYears.length > 0) {
-      setSelectedFY(financialYears[0]);
-    }
-  }, [financialYears]);
-
-  // Only fetch when FYs are loaded AND (selectedFY is set OR no FYs available)
-  const enabled = !fyLoading && (selectedFY !== '' || financialYears.length === 0);
+  // Only fetch when FYs are loaded AND selectedFY is set
+  const enabled = !fyLoading && selectedFY !== '';
   const { data, loading, error, refetch } = useCapitalGains(0, selectedFY || undefined, enabled);
 
-  // Aggregate gains into 4 categories (must be called before any early returns)
+  // Aggregate gains into 4 categories
   const categories = useMemo(
     () => aggregateGainsByCategory(data?.gains ?? []),
     [data?.gains]
@@ -85,13 +69,8 @@ export default function VariantFIFO() {
     categories.debt_short_term.gain_loss +
     categories.debt_long_term.gain_loss;
 
-  const handleFYChange = (fy: string) => {
-    setSelectedFY(fy);
-    localStorage.setItem(FY_STORAGE_KEY, fy);
-  };
-
   // Loading state
-  if (loading) {
+  if (loading || fyLoading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -135,16 +114,21 @@ export default function VariantFIFO() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>No Capital Gains Data</CardTitle>
+              <CardTitle>
+                {selectedFY ? `No Capital Gains Data for ${selectedFY}` : 'No Capital Gains Data'}
+              </CardTitle>
             </div>
             <CardDescription>
-              Upload transaction PDFs to see capital gains calculations
+              {selectedFY
+                ? `No transactions found for ${selectedFY}`
+                : 'Upload transaction PDFs to see capital gains calculations'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Once you upload your mutual fund statement PDFs, we'll automatically calculate your
-              capital gains for ITR preparation.
+              {selectedFY
+                ? `Upload mutual fund statement PDFs with transactions for ${selectedFY} to see capital gains calculations.`
+                : 'Once you upload your mutual fund statement PDFs, we will automatically calculate your capital gains for ITR preparation.'}
             </p>
           </CardContent>
         </Card>
@@ -156,7 +140,7 @@ export default function VariantFIFO() {
   return (
     <TooltipProvider>
       <div className="container mx-auto py-6 space-y-5 max-w-4xl">
-        {/* Header with FY Selector */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">My Calculations</h1>
@@ -167,22 +151,6 @@ export default function VariantFIFO() {
                 year: 'numeric',
               })}
             </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {financialYears.length > 0 && (
-              <Select value={selectedFY} onValueChange={handleFYChange}>
-                <SelectTrigger className="w-[130px] h-9">
-                  <SelectValue placeholder="Select FY" />
-                </SelectTrigger>
-                <SelectContent>
-                  {financialYears.map((fy) => (
-                    <SelectItem key={fy} value={fy}>
-                      FY {fy}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
           </div>
         </div>
 
@@ -252,9 +220,8 @@ export default function VariantFIFO() {
                 </CardDescription>
               </div>
               <ChevronDown
-                className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
-                  isDetailsOpen ? 'rotate-180' : ''
-                }`}
+                className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${isDetailsOpen ? 'rotate-180' : ''
+                  }`}
               />
             </CardHeader>
           </button>
