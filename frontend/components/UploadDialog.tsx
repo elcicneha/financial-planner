@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { createContext, useContext, useState, useRef, useCallback } from 'react';
-import { Loader2, CheckCircle2, XCircle, Lock, X, Upload, Archive, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Lock, X, Upload, Archive, AlertTriangle, ChevronRight } from 'lucide-react';
 import JSZip from 'jszip';
 import { toast } from 'sonner';
 import {
@@ -17,6 +17,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { InputFile, InputFileHandle } from '@/components/ui/input-file';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
 
 // =============================================================================
 // Types
@@ -587,6 +593,115 @@ function UploadDialogDescription({ children, className }: { children: React.Reac
 }
 
 // =============================================================================
+// Status Group Component - Collapsible group of files with same status
+// =============================================================================
+
+interface StatusGroupProps {
+  status: 'success' | 'error' | 'skipped';
+  count: number;
+  icon: React.ElementType;
+  label: string;
+  files: FileUploadState[];
+  formatSuccessMessage?: (response: unknown) => string;
+  onRemoveFile?: (index: number) => void;
+  allFileStates?: FileUploadState[];
+}
+
+function StatusGroup({
+  status,
+  count,
+  icon: Icon,
+  label,
+  files,
+  formatSuccessMessage,
+  onRemoveFile,
+  allFileStates = []
+}: StatusGroupProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const statusStyles = {
+    success: {
+      container: 'bg-success-muted border-success/30',
+      icon: 'text-success',
+      badge: 'bg-success text-success-foreground',
+    },
+    error: {
+      container: 'bg-destructive-muted border-destructive/30',
+      icon: 'text-destructive',
+      badge: 'bg-destructive text-destructive-foreground',
+    },
+    skipped: {
+      container: 'bg-warning-muted border-warning/30',
+      icon: 'text-warning',
+      badge: 'bg-warning text-warning-foreground',
+    },
+  };
+
+  const styles = statusStyles[status];
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <div className={`rounded-lg border transition-all animate-in fade-in slide-in-from-top-2 duration-300 ${styles.container}`}>
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            className="w-full p-4 h-auto flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 justify-start"
+          >
+            <Icon className={`h-5 w-5 ${styles.icon} flex-shrink-0`} />
+            <div className="flex-1 text-left min-w-0">
+              <div className="flex items-center gap-2">
+                <Badge className={`${styles.badge} text-xs`}>
+                  {String(count)}
+                </Badge>
+                <span className="text-sm text-muted-foreground truncate">{label}</span>
+              </div>
+            </div>
+            <ChevronRight
+              className={`h-4 w-4 text-muted-foreground transition-transform duration-200 flex-shrink-0 ${
+                isOpen ? 'rotate-90' : ''
+              }`}
+            />
+          </Button>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          <div className="px-4 pb-3 space-y-2 border-t border-current/10">
+            {files.map((file, idx) => {
+              const originalIndex = allFileStates.findIndex(f => f === file);
+              return (
+                <div
+                  key={`${file.file.name}-${idx}`}
+                  className="pt-3 flex items-start gap-2.5 group"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{file.file.name}</p>
+                    {status === 'success' && file.response && formatSuccessMessage ? (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatSuccessMessage(file.response)}
+                      </p>
+                    ) : null}
+                  </div>
+                  {status === 'error' && onRemoveFile && originalIndex !== -1 && (
+                    <Button
+                      variant="ghost"
+                      size="iconSm"
+                      onClick={() => onRemoveFile(originalIndex)}
+                      className="opacity-0 group-hover:opacity-100 h-7 w-7"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
+// =============================================================================
 // Body Component - Handles all upload UI
 // =============================================================================
 
@@ -594,6 +709,19 @@ interface UploadDialogBodyProps {
   children?: React.ReactNode; // Idle content (shows before input when no files)
   placeholder?: string;
   className?: string;
+}
+
+// Helper to group files by error message
+function groupFilesByError(files: FileUploadState[]) {
+  const groups = new Map<string, FileUploadState[]>();
+  files.forEach(file => {
+    const errorKey = file.error || 'Unknown error';
+    if (!groups.has(errorKey)) {
+      groups.set(errorKey, []);
+    }
+    groups.get(errorKey)!.push(file);
+  });
+  return Array.from(groups.entries()).map(([error, files]) => ({ error, files }));
 }
 
 function UploadDialogBody({ children, placeholder = 'Drag and drop your files here', className }: UploadDialogBodyProps) {
@@ -615,22 +743,37 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
     inputFileRef,
   } = useUploadDialogContext();
 
+  // Group files by status
+  const groupedFiles = React.useMemo(() => {
+    const uploading = fileStates.filter(s => s.status === 'uploading' || s.status === 'pending');
+    const success = fileStates.filter(s => s.status === 'success');
+    const errors = fileStates.filter(s => s.status === 'error');
+    const skipped = fileStates.filter(s => s.status === 'skipped');
+    const passwordRequired = fileStates.filter(s => s.status === 'password_required');
+
+    // Group errors by error message
+    const errorGroups = groupFilesByError(errors);
+    const skippedGroups = groupFilesByError(skipped);
+
+    return { uploading, success, errorGroups, skippedGroups, passwordRequired };
+  }, [fileStates]);
+
   // Compute file counts for summary
   const counts = React.useMemo(() => {
     const total = fileStates.length;
-    const success = fileStates.filter(s => s.status === 'success').length;
-    const failed = fileStates.filter(s => s.status === 'error').length;
-    const skipped = fileStates.filter(s => s.status === 'skipped').length;
-    const pending = fileStates.filter(s => s.status === 'uploading' || s.status === 'pending').length;
-    const passwordRequired = fileStates.filter(s => s.status === 'password_required').length;
+    const success = groupedFiles.success.length;
+    const failed = groupedFiles.errorGroups.reduce((sum, g) => sum + g.files.length, 0);
+    const skipped = groupedFiles.skippedGroups.reduce((sum, g) => sum + g.files.length, 0);
+    const pending = groupedFiles.uploading.length;
+    const passwordRequired = groupedFiles.passwordRequired.length;
     return { total, success, failed, skipped, pending, passwordRequired };
-  }, [fileStates]);
+  }, [groupedFiles]);
 
   return (
     <div className={className ?? "flex-1 overflow-y-auto px-6 py-5"}>
       {/* File Status List */}
       {fileStates.length > 0 && (
-        <div className="space-y-3 mb-5">
+        <div className="space-y-3 mb-5 transition-all duration-200">
           {/* Summary header */}
           {fileStates.length > 1 && (
             <div className="flex items-center justify-between text-sm text-muted-foreground pb-2 border-b border-border/50">
@@ -640,13 +783,13 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
               {allDone && (
                 <div className="flex items-center gap-3 text-xs">
                   {counts.success > 0 && (
-                    <span className="text-green-600 dark:text-green-400">{counts.success} uploaded</span>
+                    <span className="text-success">{counts.success} uploaded</span>
                   )}
                   {counts.skipped > 0 && (
-                    <span className="text-amber-600 dark:text-amber-400">{counts.skipped} skipped</span>
+                    <span className="text-warning">{counts.skipped} skipped</span>
                   )}
                   {counts.failed > 0 && (
-                    <span className="text-red-600 dark:text-red-400">{counts.failed} failed</span>
+                    <span className="text-destructive">{counts.failed} failed</span>
                   )}
                 </div>
               )}
@@ -655,108 +798,116 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
               )}
             </div>
           )}
-          {fileStates.map((fileState, index) => (
-            <div
-              key={`${fileState.file.name}-${index}`}
-              className={`p-4 rounded-lg border transition-all ${
-                fileState.status === 'success'
-                  ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
-                  : fileState.status === 'error'
-                  ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
-                  : fileState.status === 'skipped'
-                  ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/60 dark:border-amber-800/40 opacity-75'
-                  : fileState.status === 'password_required'
-                  ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
-                  : 'bg-muted/30 border-border'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                {/* Status Icon */}
-                <div className="mt-0.5">
-                  {(fileState.status === 'uploading' || fileState.status === 'pending') && (
-                    <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
-                  )}
-                  {fileState.status === 'success' && (
-                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  )}
-                  {fileState.status === 'error' && (
-                    <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                  )}
-                  {fileState.status === 'skipped' && (
-                    <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400" />
-                  )}
-                  {fileState.status === 'password_required' && (
-                    <Lock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  )}
-                </div>
 
-                {/* File Info & Actions */}
+          {/* Uploading Files - Show as group to prevent flash */}
+          {groupedFiles.uploading.length > 0 && (
+            <div className="p-4 rounded-lg border bg-muted/30 border-border transition-all animate-in fade-in duration-200">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 text-muted-foreground animate-spin flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={`text-sm font-medium truncate ${fileState.status === 'skipped' ? 'text-muted-foreground' : ''}`}>
-                      {fileState.file.name}
-                    </p>
-                    {(fileState.status === 'error' || fileState.status === 'password_required') && (
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-muted-foreground text-background text-xs">
+                      {String(groupedFiles.uploading.length)}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">Processing...</span>
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    {groupedFiles.uploading.map((fileState, index) => (
+                      <p key={`uploading-${index}`} className="text-xs text-muted-foreground truncate">
+                        {fileState.file.name}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Success Group - Collapsible */}
+          {groupedFiles.success.length > 0 && (
+            <StatusGroup
+              status="success"
+              count={groupedFiles.success.length}
+              icon={CheckCircle2}
+              label="Uploaded successfully"
+              files={groupedFiles.success}
+              formatSuccessMessage={formatSuccessMessage}
+            />
+          )}
+
+          {/* Error Groups - Collapsible by error type */}
+          {groupedFiles.errorGroups.map((group, groupIndex) => (
+            <StatusGroup
+              key={`error-${groupIndex}`}
+              status="error"
+              count={group.files.length}
+              icon={XCircle}
+              label={group.error}
+              files={group.files}
+              onRemoveFile={handleRemoveFile}
+              allFileStates={fileStates}
+            />
+          ))}
+
+          {/* Skipped Groups - Collapsible by reason */}
+          {groupedFiles.skippedGroups.map((group, groupIndex) => (
+            <StatusGroup
+              key={`skipped-${groupIndex}`}
+              status="skipped"
+              count={group.files.length}
+              icon={AlertTriangle}
+              label={group.error}
+              files={group.files}
+            />
+          ))}
+
+          {/* Password Required Files - Show individually with form */}
+          {groupedFiles.passwordRequired.map((fileState) => {
+            const originalIndex = fileStates.findIndex(f => f === fileState);
+            return (
+              <div
+                key={`password-${fileState.file.name}`}
+                className="p-4 rounded-lg border bg-accent/30 border-accent-foreground/20 transition-all animate-in fade-in slide-in-from-top-2 duration-300"
+              >
+                <div className="flex items-start gap-3">
+                  <Lock className="h-5 w-5 text-accent-foreground mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium truncate">{fileState.file.name}</p>
                       <button
-                        onClick={() => handleRemoveFile(index)}
+                        onClick={() => handleRemoveFile(originalIndex)}
                         className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-colors"
                       >
                         <X className="h-4 w-4 text-muted-foreground" />
                       </button>
-                    )}
-                  </div>
-
-                  {/* Status Messages */}
-                  {(fileState.status === 'uploading' || fileState.status === 'pending') && (
-                    <p className="text-sm text-muted-foreground mt-1">Processing...</p>
-                  )}
-                  {fileState.status === 'success' && (
-                    <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                      {formatSuccessMessage
-                        ? formatSuccessMessage(fileState.response)
-                        : 'Uploaded successfully'}
-                    </p>
-                  )}
-                  {fileState.status === 'error' && (
-                    <div className="mt-1">
-                      <p className="text-sm text-red-700 dark:text-red-300">{fileState.error}</p>
                     </div>
-                  )}
-                  {fileState.status === 'skipped' && (
-                    <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-                      {fileState.error || 'Skipped'} — not uploaded
-                    </p>
-                  )}
-
-                  {/* Password Form */}
-                  {fileState.status === 'password_required' && (
-                    <form onSubmit={(e) => handlePasswordSubmit(index, e)} className="mt-3 space-y-3">
-                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                    <form onSubmit={(e) => handlePasswordSubmit(originalIndex, e)} className="mt-3 space-y-3">
+                      <p className="text-sm text-accent-foreground">
                         This file is password-protected. Enter the password to continue.
                       </p>
                       <div className="space-y-2">
-                        <Label htmlFor={`password-${index}`} className="text-sm font-medium">
+                        <Label htmlFor={`password-${originalIndex}`} className="text-sm font-medium">
                           Password
                         </Label>
                         <Input
-                          id={`password-${index}`}
+                          id={`password-${originalIndex}`}
                           type="password"
                           value={fileState.password}
-                          onChange={(e) => updateFileState(index, { password: e.target.value })}
+                          onChange={(e) => updateFileState(originalIndex, { password: e.target.value })}
                           placeholder="Enter file password"
-                          className="bg-white dark:bg-slate-950"
-                          autoFocus={index === fileStates.findIndex(s => s.status === 'password_required')}
+                          className="bg-background"
+                          autoFocus={originalIndex === fileStates.findIndex(s => s.status === 'password_required')}
                         />
                       </div>
                       <Button type="submit" disabled={!fileState.password} size="sm">
                         Upload
                       </Button>
                     </form>
-                  )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
