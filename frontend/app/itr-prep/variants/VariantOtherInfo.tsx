@@ -252,11 +252,12 @@ export default function VariantOtherInfo() {
                         ))}
                         <TableCell>
                           <Button
+                            className='text-muted-foreground'
                             size={"icon"}
                             variant={"destructiveGhost"}
                             onClick={() => handleRemovePayslip(payslip)}
                           >
-                            <X className="h-4 w-4 text-muted-foreground" />
+                            <X className="size-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
