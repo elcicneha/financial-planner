@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { createContext, useContext, useState, useRef, useCallback } from 'react';
-import { Loader2, CheckCircle2, XCircle, Lock, X, Upload, Archive, FileText } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Lock, X, Upload, Archive, AlertTriangle } from 'lucide-react';
 import JSZip from 'jszip';
 import {
   Dialog,
@@ -23,7 +23,7 @@ import { InputFile, InputFileHandle } from '@/components/ui/input-file';
 
 interface FileUploadState {
   file: File;
-  status: 'pending' | 'uploading' | 'password_required' | 'success' | 'error';
+  status: 'pending' | 'uploading' | 'password_required' | 'success' | 'error' | 'skipped';
   password: string;
   error?: string;
   response?: unknown;
@@ -33,14 +33,15 @@ interface FileUploadState {
 interface ExtractedFile {
   file: File;
   sourceZip: string;
+  rejected?: boolean;
+  rejectionReason?: string;
 }
 
 interface ZipExtractionState {
-  zipFile: File;
-  status: 'extracting' | 'password_required' | 'extracted' | 'error';
-  password: string;
+  zipFiles: File[];
+  status: 'extracting' | 'extracted' | 'error';
   extractedFiles: ExtractedFile[];
-  error?: string;
+  errors: { zipName: string; error: string }[];
 }
 
 interface BatchResult {
@@ -73,8 +74,6 @@ interface UploadDialogContextValue {
   handleRemoveFile: (index: number) => void;
   handleReset: () => void;
   handleClose: () => void;
-  handleRemoveExtractedFile: (index: number) => void;
-  handleUploadExtractedFiles: () => Promise<void>;
   handleCancelZip: () => void;
 
   // Refs
@@ -156,15 +155,18 @@ function UploadDialogRoot({
 
         const filename = relativePath.split('/').pop() || relativePath;
 
-        // Filter by accept pattern (but always accept if no specific pattern)
-        if (accept !== '.*' && accept !== '*' && !matchesAccept(filename, accept)) {
-          return;
-        }
+        // Check if file matches accept pattern
+        const isAccepted = accept === '.*' || accept === '*' || matchesAccept(filename, accept);
 
         promises.push(
           zipEntry.async('blob').then(blob => {
             const file = new File([blob], filename, { type: blob.type });
-            extractedFiles.push({ file, sourceZip: zipFile.name });
+            extractedFiles.push({
+              file,
+              sourceZip: zipFile.name,
+              rejected: !isAccepted,
+              rejectionReason: !isAccepted ? 'Unsupported format' : undefined,
+            });
           }).catch(() => {
             // Individual file extraction failed (might be encrypted)
           })
@@ -174,7 +176,7 @@ function UploadDialogRoot({
       await Promise.all(promises);
 
       if (extractedFiles.length === 0) {
-        return { files: [], error: 'No compatible files found in zip (or zip may be password-protected)' };
+        return { files: [], error: 'No files found in zip (or zip may be password-protected)' };
       }
 
       return { files: extractedFiles };
@@ -193,19 +195,39 @@ function UploadDialogRoot({
   };
 
   // Upload files to the endpoint
-  const uploadFiles = useCallback(async (filesToUpload: File[], sourceZip?: string) => {
-    // Initialize all files as uploading
-    const newStates: FileUploadState[] = filesToUpload.map(file => ({
+  const uploadFiles = useCallback(async (filesToUpload: (File | ExtractedFile)[], rejectedFiles: ExtractedFile[] = []) => {
+    // Normalize to ExtractedFile format (filter out rejected if mixed)
+    const normalizedFiles = filesToUpload
+      .map(f => 'sourceZip' in f ? f : { file: f, sourceZip: undefined, rejected: false, rejectionReason: undefined })
+      .filter(f => !f.rejected);
+
+    // Initialize all files as uploading, plus rejected files as 'skipped'
+    const uploadStates: FileUploadState[] = normalizedFiles.map(({ file, sourceZip }) => ({
       file,
       status: 'uploading' as const,
       password: '',
       sourceZip,
     }));
-    setFileStates(newStates);
+
+    // Add rejected files with 'skipped' status (we'll show them but not upload)
+    const skippedStates: FileUploadState[] = rejectedFiles.map(({ file, sourceZip, rejectionReason }) => ({
+      file,
+      status: 'skipped' as const,
+      password: '',
+      sourceZip,
+      error: rejectionReason || 'Unsupported format',
+    }));
+
+    setFileStates([...uploadStates, ...skippedStates]);
+
+    // If no files to actually upload, we're done
+    if (normalizedFiles.length === 0) {
+      return;
+    }
 
     // Send all files in one batch request
     const formData = new FormData();
-    filesToUpload.forEach(file => {
+    normalizedFiles.forEach(({ file }) => {
       formData.append('files', file);
     });
 
@@ -255,44 +277,69 @@ function UploadDialogRoot({
     const fileArray = Array.isArray(files) ? files : [files];
 
     // Check for zip files
-    const zipFiles = fileArray.filter(isZipFile);
+    const zipFilesSelected = fileArray.filter(isZipFile);
     const regularFiles = fileArray.filter(f => !isZipFile(f));
 
-    // If there's a zip file, extract it first
-    if (zipFiles.length > 0) {
-      const zipFile = zipFiles[0]; // Handle one zip at a time
+    // Collect all files to upload
+    let allFilesToUpload: (File | ExtractedFile)[] = [...regularFiles];
+    let allRejectedFiles: ExtractedFile[] = [];
+
+    // If there are zip files, extract them all first
+    if (zipFilesSelected.length > 0) {
       setZipState({
-        zipFile,
+        zipFiles: zipFilesSelected,
         status: 'extracting',
-        password: '',
         extractedFiles: [],
+        errors: [],
       });
 
-      const result = await extractZipFiles(zipFile);
-
-      if (result.error) {
-        setZipState({
+      // Extract all zips in parallel
+      const results = await Promise.all(
+        zipFilesSelected.map(async (zipFile) => ({
           zipFile,
+          result: await extractZipFiles(zipFile),
+        }))
+      );
+
+      // Combine results
+      const errors: { zipName: string; error: string }[] = [];
+
+      for (const { zipFile, result } of results) {
+        if (result.error) {
+          errors.push({ zipName: zipFile.name, error: result.error });
+        } else {
+          // Separate accepted and rejected files
+          const accepted = result.files.filter(f => !f.rejected);
+          const rejected = result.files.filter(f => f.rejected);
+          allFilesToUpload.push(...accepted);
+          allRejectedFiles.push(...rejected);
+        }
+      }
+
+      // If all zips failed with no files at all
+      if (allFilesToUpload.length === 0 && allRejectedFiles.length === 0 && errors.length > 0) {
+        setZipState({
+          zipFiles: zipFilesSelected,
           status: 'error',
-          password: '',
           extractedFiles: [],
-          error: result.error,
+          errors,
         });
         return;
       }
 
-      setZipState({
-        zipFile,
-        status: 'extracted',
-        password: '',
-        extractedFiles: result.files,
-      });
-      return;
+      // Clear zip state - we're done extracting
+      setZipState(null);
+
+      // If there were some zip-level errors but we have files, store errors for display
+      if (errors.length > 0) {
+        // We could show these errors inline, but for now we proceed with what we have
+        console.warn('Some zips failed to extract:', errors);
+      }
     }
 
-    // Regular files: upload directly
-    if (regularFiles.length > 0) {
-      await uploadFiles(regularFiles);
+    // Auto-upload all collected files (regular + extracted from zips)
+    if (allFilesToUpload.length > 0 || allRejectedFiles.length > 0) {
+      await uploadFiles(allFilesToUpload, allRejectedFiles);
     }
   }, [extractZipFiles, uploadFiles]);
 
@@ -349,29 +396,7 @@ function UploadDialogRoot({
     setFileStates(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  // Remove an extracted file from the zip preview
-  const handleRemoveExtractedFile = useCallback((index: number) => {
-    setZipState(prev => {
-      if (!prev) return null;
-      const newFiles = prev.extractedFiles.filter((_, i) => i !== index);
-      if (newFiles.length === 0) {
-        return null; // Clear zip state if no files left
-      }
-      return { ...prev, extractedFiles: newFiles };
-    });
-  }, []);
-
-  // Upload the extracted files from the zip
-  const handleUploadExtractedFiles = useCallback(async () => {
-    if (!zipState || zipState.extractedFiles.length === 0) return;
-
-    const files = zipState.extractedFiles.map(ef => ef.file);
-    const sourceZip = zipState.zipFile.name;
-    setZipState(null); // Clear zip state
-    await uploadFiles(files, sourceZip);
-  }, [zipState, uploadFiles]);
-
-  // Cancel zip extraction
+  // Cancel/dismiss zip extraction error
   const handleCancelZip = useCallback(() => {
     setZipState(null);
   }, []);
@@ -400,7 +425,7 @@ function UploadDialogRoot({
   // Computed state
   const isUploading = fileStates.some(s => s.status === 'uploading' || s.status === 'pending');
   const allDone = fileStates.length > 0 && fileStates.every(s =>
-    s.status === 'success' || s.status === 'error' || s.status === 'password_required'
+    s.status === 'success' || s.status === 'error' || s.status === 'password_required' || s.status === 'skipped'
   );
   const hasPasswordRequired = fileStates.some(s => s.status === 'password_required');
   const isIdle = fileStates.length === 0 && zipState === null;
@@ -422,8 +447,6 @@ function UploadDialogRoot({
     handleRemoveFile,
     handleReset,
     handleClose,
-    handleRemoveExtractedFile,
-    handleUploadExtractedFiles,
     handleCancelZip,
     inputFileRef,
   };
@@ -519,12 +542,6 @@ interface UploadDialogBodyProps {
   className?: string;
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
 function UploadDialogBody({ children, placeholder = 'Drag and drop your files here', className }: UploadDialogBodyProps) {
   const {
     accept,
@@ -542,25 +559,60 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
     handleRemoveFile,
     handleReset,
     handleClose,
-    handleRemoveExtractedFile,
-    handleUploadExtractedFiles,
     handleCancelZip,
     inputFileRef,
   } = useUploadDialogContext();
+
+  // Compute file counts for summary
+  const counts = React.useMemo(() => {
+    const total = fileStates.length;
+    const success = fileStates.filter(s => s.status === 'success').length;
+    const failed = fileStates.filter(s => s.status === 'error').length;
+    const skipped = fileStates.filter(s => s.status === 'skipped').length;
+    const pending = fileStates.filter(s => s.status === 'uploading' || s.status === 'pending').length;
+    const passwordRequired = fileStates.filter(s => s.status === 'password_required').length;
+    return { total, success, failed, skipped, pending, passwordRequired };
+  }, [fileStates]);
 
   return (
     <div className={className ?? "flex-1 overflow-y-auto px-6 py-5"}>
       {/* File Status List */}
       {fileStates.length > 0 && (
         <div className="space-y-3 mb-5">
+          {/* Summary header */}
+          {fileStates.length > 1 && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground pb-2 border-b border-border/50">
+              <span className="font-medium">
+                {counts.total} file{counts.total !== 1 ? 's' : ''}
+              </span>
+              {allDone && (
+                <div className="flex items-center gap-3 text-xs">
+                  {counts.success > 0 && (
+                    <span className="text-green-600 dark:text-green-400">{counts.success} uploaded</span>
+                  )}
+                  {counts.skipped > 0 && (
+                    <span className="text-amber-600 dark:text-amber-400">{counts.skipped} skipped</span>
+                  )}
+                  {counts.failed > 0 && (
+                    <span className="text-red-600 dark:text-red-400">{counts.failed} failed</span>
+                  )}
+                </div>
+              )}
+              {!allDone && counts.pending > 0 && (
+                <span className="text-xs">Processing {counts.pending}...</span>
+              )}
+            </div>
+          )}
           {fileStates.map((fileState, index) => (
             <div
               key={`${fileState.file.name}-${index}`}
-              className={`p-4 rounded-lg border ${
+              className={`p-4 rounded-lg border transition-all ${
                 fileState.status === 'success'
                   ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
                   : fileState.status === 'error'
                   ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+                  : fileState.status === 'skipped'
+                  ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/60 dark:border-amber-800/40 opacity-75'
                   : fileState.status === 'password_required'
                   ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
                   : 'bg-muted/30 border-border'
@@ -578,6 +630,9 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
                   {fileState.status === 'error' && (
                     <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
                   )}
+                  {fileState.status === 'skipped' && (
+                    <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400" />
+                  )}
                   {fileState.status === 'password_required' && (
                     <Lock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   )}
@@ -586,7 +641,9 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
                 {/* File Info & Actions */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium truncate">{fileState.file.name}</p>
+                    <p className={`text-sm font-medium truncate ${fileState.status === 'skipped' ? 'text-muted-foreground' : ''}`}>
+                      {fileState.file.name}
+                    </p>
                     {(fileState.status === 'error' || fileState.status === 'password_required') && (
                       <button
                         onClick={() => handleRemoveFile(index)}
@@ -612,6 +669,11 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
                     <div className="mt-1">
                       <p className="text-sm text-red-700 dark:text-red-300">{fileState.error}</p>
                     </div>
+                  )}
+                  {fileState.status === 'skipped' && (
+                    <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+                      {fileState.error || 'Skipped'} — not uploaded
+                    </p>
                   )}
 
                   {/* Password Form */}
@@ -646,17 +708,24 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
         </div>
       )}
 
-      {/* Zip Extraction State */}
+      {/* Zip Extraction State - only shows during extraction or on error */}
       {zipState && (
         <div className="space-y-4 mb-5">
           {/* Extracting */}
           {zipState.status === 'extracting' && (
             <div className="p-4 rounded-lg border bg-muted/30 border-border">
               <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
-                <div>
-                  <p className="text-sm font-medium">{zipState.zipFile.name}</p>
-                  <p className="text-sm text-muted-foreground">Extracting files...</p>
+                <Archive className="h-5 w-5 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {zipState.zipFiles.length === 1
+                      ? zipState.zipFiles[0].name
+                      : `${zipState.zipFiles.length} zip files`}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+                    <p className="text-sm text-muted-foreground">Extracting files...</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -668,65 +737,19 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
               <div className="flex items-start gap-3">
                 <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium">{zipState.zipFile.name}</p>
-                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">{zipState.error}</p>
+                  <p className="text-sm font-medium">
+                    {zipState.zipFiles.length === 1
+                      ? zipState.zipFiles[0].name
+                      : `${zipState.zipFiles.length} zip files`}
+                  </p>
+                  <div className="text-sm text-red-700 dark:text-red-300 mt-1">
+                    {zipState.errors.map((err, i) => (
+                      <p key={i}>{zipState.errors.length > 1 ? `${err.zipName}: ` : ''}{err.error}</p>
+                    ))}
+                  </div>
                   <Button variant="outline" size="sm" className="mt-3" onClick={handleCancelZip}>
                     Dismiss
                   </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Extracted Files Preview */}
-          {zipState.status === 'extracted' && (
-            <div className="p-4 rounded-lg border bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
-              <div className="flex items-start gap-3">
-                <Archive className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium truncate">{zipState.zipFile.name}</p>
-                    <button
-                      onClick={handleCancelZip}
-                      className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-colors"
-                    >
-                      <X className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  </div>
-                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                    {zipState.extractedFiles.length} file{zipState.extractedFiles.length !== 1 ? 's' : ''} found
-                  </p>
-
-                  {/* List of extracted files */}
-                  <div className="mt-3 space-y-2">
-                    {zipState.extractedFiles.map((ef, index) => (
-                      <div key={`${ef.file.name}-${index}`} className="flex items-center justify-between gap-2 py-1.5 px-2 bg-white/50 dark:bg-slate-900/50 rounded">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <span className="text-sm truncate">{ef.file.name}</span>
-                          <span className="text-xs text-muted-foreground flex-shrink-0">
-                            {formatFileSize(ef.file.size)}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveExtractedFile(index)}
-                          className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-colors flex-shrink-0"
-                        >
-                          <X className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Upload button */}
-                  <div className="mt-4 flex gap-2">
-                    <Button size="sm" onClick={handleUploadExtractedFiles}>
-                      Upload {zipState.extractedFiles.length} File{zipState.extractedFiles.length !== 1 ? 's' : ''}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleCancelZip}>
-                      Cancel
-                    </Button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -764,7 +787,7 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
       {allDone && !hasPasswordRequired && (
         <div className="flex justify-end mt-4">
           <Button onClick={handleClose}>
-            Done
+            Done{counts.success > 0 && ` (${counts.success} uploaded)`}
           </Button>
         </div>
       )}
