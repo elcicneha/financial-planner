@@ -516,6 +516,57 @@ def save_payslips_data(data: dict) -> None:
         json.dump(data, f, indent=2)
 
 
+def is_payslip_data_empty(payslip_data: PayslipData) -> bool:
+    """
+    Check if payslip data is invalid (missing gross pay).
+
+    Gross pay is required for a valid payslip. If it's missing,
+    the PDF is likely not a payslip.
+
+    Args:
+        payslip_data: Extracted payslip data
+
+    Returns:
+        True if no gross_pay found, False otherwise
+    """
+    return payslip_data.gross_pay is None
+
+
+def is_duplicate_payslip(payslip_data: PayslipData, existing_payslips: list) -> bool:
+    """
+    Check if payslip is a duplicate based on:
+    - Same month/year (pay_period)
+    - Same company_name
+    - Same gross_pay
+
+    Args:
+        payslip_data: New payslip data to check
+        existing_payslips: List of existing payslip records
+
+    Returns:
+        True if duplicate found, False otherwise
+    """
+    # Can't detect duplicates without these key fields
+    if not payslip_data.pay_period or payslip_data.company_name is None or payslip_data.gross_pay is None:
+        return False
+
+    for record in existing_payslips:
+        existing = record.get("payslip_data", {})
+        existing_period = existing.get("pay_period")
+        existing_company = existing.get("company_name")
+        existing_gross = existing.get("gross_pay")
+
+        if existing_period and existing_company is not None and existing_gross is not None:
+            # Check if all three match
+            if (existing_period.get("month") == payslip_data.pay_period.month and
+                existing_period.get("year") == payslip_data.pay_period.year and
+                existing_company == payslip_data.company_name and
+                existing_gross == payslip_data.gross_pay):
+                return True
+
+    return False
+
+
 def save_payslip_record(
     filename: str,
     payslip_data: PayslipData
@@ -568,6 +619,10 @@ async def upload_payslips(files: List[UploadFile] = File(...)):
     results: List[PayslipFileResult] = []
     temp_files = []
 
+    # Load existing payslips once for duplicate checking
+    existing_data = load_payslips_data()
+    existing_payslips = existing_data.get("payslips", [])
+
     try:
         for file in files:
             filename = file.filename or "unknown"
@@ -616,12 +671,43 @@ async def upload_payslips(files: List[UploadFile] = File(...)):
                         company_name=result.get('company_name'),
                     )
 
+                    # Check if gross pay was extracted (required for valid payslip)
+                    if is_payslip_data_empty(payslip_data):
+                        results.append(PayslipFileResult(
+                            filename=filename,
+                            success=False,
+                            error="Couldn't find any data. You might have to add manually, or try uploading another PDF."
+                        ))
+                        continue
+
+                    # Check for duplicates
+                    if is_duplicate_payslip(payslip_data, existing_payslips):
+                        results.append(PayslipFileResult(
+                            filename=filename,
+                            success=False,
+                            error=f"Duplicate payslip (same month, company, and amount)"
+                        ))
+                        continue
+
                     # Save payslip record to persistent storage
                     await asyncio.to_thread(
                         save_payslip_record,
                         filename,
                         payslip_data
                     )
+
+                    # Add to existing list for subsequent duplicate checks in this batch
+                    existing_payslips.append({
+                        "payslip_data": {
+                            "gross_pay": payslip_data.gross_pay,
+                            "pay_period": {
+                                "month": pay_period.month,
+                                "year": pay_period.year,
+                                "period_key": pay_period.period_key,
+                            } if pay_period else None,
+                            "company_name": payslip_data.company_name,
+                        }
+                    })
 
                     results.append(PayslipFileResult(
                         filename=filename,
@@ -632,7 +718,7 @@ async def upload_payslips(files: List[UploadFile] = File(...)):
                     results.append(PayslipFileResult(
                         filename=filename,
                         success=False,
-                        error="Could not extract data from payslip"
+                        error=f"No data found in {filename}"
                     ))
             except Exception as e:
                 logger.error(f"Failed to process payslip {filename}: {e}")

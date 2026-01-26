@@ -66,6 +66,7 @@ interface UploadDialogContextValue {
   isIdle: boolean;
   allDone: boolean;
   hasPasswordRequired: boolean;
+  hasErrors: boolean;
   zipState: ZipExtractionState | null;
 
   // Actions
@@ -470,6 +471,7 @@ function UploadDialogRoot({
     s.status === 'success' || s.status === 'error' || s.status === 'password_required' || s.status === 'skipped'
   );
   const hasPasswordRequired = fileStates.some(s => s.status === 'password_required');
+  const hasErrors = fileStates.some(s => s.status === 'error');
   const isIdle = fileStates.length === 0 && zipState === null;
 
   const contextValue: UploadDialogContextValue = {
@@ -482,6 +484,7 @@ function UploadDialogRoot({
     isIdle,
     allDone,
     hasPasswordRequired,
+    hasErrors,
     zipState,
     handleFilesSelect,
     handlePasswordSubmit,
@@ -593,6 +596,7 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
     isUploading,
     isIdle,
     allDone,
+    hasErrors,
     zipState,
     handleFilesSelect,
     handlePasswordSubmit,
@@ -799,8 +803,8 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
       {/* Idle Content (children) - shows when no files selected */}
       {isIdle && children}
 
-      {/* Upload Area - only show when idle */}
-      {isIdle && (
+      {/* Upload Area - show when idle or when there are errors (so users can retry with another file) */}
+      {(isIdle || hasErrors) && (
         <div className="pt-1">
           <InputFile
             ref={inputFileRef}
