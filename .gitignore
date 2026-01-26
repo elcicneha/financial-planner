@@ -11,14 +11,8 @@ frontend/.next/
 frontend/out/
 
 # Data files (keep directories, ignore contents)
-data/uploads/*
-data/outputs/*
-data/cas/*
-data/fifo_cache/*
-!data/uploads/.gitkeep
-!data/outputs/.gitkeep
-!data/cas/.gitkeep
-!data/fifo_cache/.gitkeep
+data/*
+!data/*/.gitkeep
 
 # Environment files
 .env

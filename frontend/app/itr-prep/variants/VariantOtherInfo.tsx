@@ -12,6 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/currency';
 import { PayslipUploadDialog } from '../components/PayslipUploadDialog';
 
@@ -91,6 +97,7 @@ function getAllBreakdownKeys(payslips: PayslipData[]): string[] {
 export default function VariantOtherInfo() {
   const [payslips, setPayslips] = useState<PayslipData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Load saved payslips on mount
   useEffect(() => {
@@ -128,38 +135,33 @@ export default function VariantOtherInfo() {
     await fetchPayslips();
   };
 
-  const handleRemovePayslip = async (payslip: PayslipData) => {
+  const handleDeleteClick = (payslip: PayslipData) => {
     if (!payslip.id) return;
 
+    // If already in confirm mode, execute delete
+    if (confirmDeleteId === payslip.id) {
+      handleConfirmDelete(payslip.id);
+    } else {
+      // Enter confirm mode
+      setConfirmDeleteId(payslip.id);
+    }
+  };
+
+  const handleConfirmDelete = async (payslipId: string) => {
     try {
-      const response = await fetch(`/api/payslips/${payslip.id}`, {
+      const response = await fetch(`/api/payslips/${payslipId}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
         // Remove from UI
-        setPayslips(prev => prev.filter(p => p.id !== payslip.id));
+        setPayslips(prev => prev.filter(p => p.id !== payslipId));
+        setConfirmDeleteId(null);
       } else {
         console.error('Failed to delete payslip');
       }
     } catch (error) {
       console.error('Failed to delete payslip:', error);
-    }
-  };
-
-  const handleClearAll = async () => {
-    try {
-      const response = await fetch('/api/payslips', {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        setPayslips([]);
-      } else {
-        console.error('Failed to clear payslips');
-      }
-    } catch (error) {
-      console.error('Failed to clear payslips:', error);
     }
   };
 
@@ -195,14 +197,7 @@ export default function VariantOtherInfo() {
             <h2 className="text-lg font-semibold">Income</h2>
             <p className="text-sm text-muted-foreground">Upload your payslip PDFs</p>
           </div>
-          <div className="flex items-center gap-2">
-            {payslips.length > 0 && (
-              <Button variant="outline" size="sm" onClick={handleClearAll}>
-                Clear All
-              </Button>
-            )}
-            <PayslipUploadDialog onUploadSuccess={handleUploadSuccess} />
-          </div>
+          <PayslipUploadDialog onUploadSuccess={handleUploadSuccess} />
         </div>
 
         <Card>
@@ -229,7 +224,7 @@ export default function VariantOtherInfo() {
                           {formatComponentName(key)}
                         </TableHead>
                       ))}
-                      <TableHead className="w-[50px]"></TableHead>
+                      <TableHead className="w-[40px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -251,14 +246,29 @@ export default function VariantOtherInfo() {
                           </TableCell>
                         ))}
                         <TableCell>
-                          <Button
-                            className='text-muted-foreground'
-                            size={"icon"}
-                            variant={"destructiveGhost"}
-                            onClick={() => handleRemovePayslip(payslip)}
-                          >
-                            <X className="size-4" />
-                          </Button>
+                          <TooltipProvider>
+                            <Tooltip open={confirmDeleteId === payslip.id}>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  className={confirmDeleteId === payslip.id ? '' : 'text-muted-foreground'}
+                                  size="iconSm"
+                                  variant={confirmDeleteId === payslip.id ? "destructive" : "destructiveGhost"}
+                                  onClick={() => handleDeleteClick(payslip)}
+                                  onBlur={() => {
+                                    // Cancel confirm mode when button loses focus
+                                    if (confirmDeleteId === payslip.id) {
+                                      setConfirmDeleteId(null);
+                                    }
+                                  }}
+                                >
+                                  <X className="size-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Press again to delete</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </TableCell>
                       </TableRow>
                     ))}
