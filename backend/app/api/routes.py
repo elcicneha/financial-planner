@@ -12,6 +12,8 @@ import shutil
 import uuid
 from datetime import datetime
 
+from typing import List
+
 from fastapi import APIRouter, File, HTTPException, UploadFile, Body, Form
 from fastapi.responses import FileResponse
 
@@ -31,11 +33,18 @@ from app.models.schemas import (
     FIFOSummary,
     CASCapitalGains,
     CASUploadResponse,
+    CASFileResult,
     CASFileInfo,
     CASFilesResponse,
     FundTypeOverrideRequest,
+    PayslipData,
+    PayslipFileResult,
+    PayslipBreakdown,
+    PayslipPayPeriod,
+    PayslipUploadResponse,
 )
 from app.services.pdf_extractor import extract_transactions
+from app.services.pdf_extractor.payslip_extractor import extract_payslip_data
 from app.services.fifo_calculator import (
     get_cached_gains,
     get_last_updated as get_fifo_last_updated,
@@ -335,62 +344,81 @@ async def update_fund_type_override(request: FundTypeOverrideRequest = Body(...)
 
 
 @router.post("/upload-cas", response_model=CASUploadResponse)
-async def upload_cas_excel(file: UploadFile = File(...), password: str = Form(None)):
+async def upload_cas_excel(
+    file: UploadFile = File(None),
+    files: List[UploadFile] = File(None),
+    password: str = Form(None)
+):
     """
-    Upload a CAS (Capital Account Statement) Excel file (CAMS .xls or KFINTECH .xlsx).
+    Upload CAS (Capital Account Statement) Excel files (CAMS .xls or KFINTECH .xlsx).
 
-    The file format is auto-detected (CAMS or KFINTECH).
-    The financial year is automatically inferred from transaction dates.
-    If a file already exists for that FY, it will be replaced.
-
-    For password-protected files:
-    - First upload without password to get password requirement error
-    - Then re-upload with password field provided
+    Supports batch upload of multiple files. Returns results for each file.
+    Password-protected files are marked as password_required in the response.
+    Re-upload individual files with password to complete processing.
     """
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
+    # Combine single file and multiple files into one list
+    all_files: List[UploadFile] = []
+    if file and file.filename:
+        all_files.append(file)
+    if files:
+        all_files.extend([f for f in files if f.filename])
 
-    file_ext = file.filename.lower().split('.')[-1]
-    if file_ext not in ['xls', 'xlsx']:
-        raise HTTPException(
-            status_code=400,
-            detail="Only Excel files (.xls or .xlsx) are allowed"
-        )
+    if not all_files:
+        raise HTTPException(status_code=400, detail="No files provided")
 
     ensure_directories()
 
-    contents = await file.read()
+    results: List[CASFileResult] = []
 
-    try:
-        financial_year, json_path = await asyncio.to_thread(
-            validate_and_save_cas_excel,
-            contents,
-            password
-        )
+    for upload_file in all_files:
+        filename = upload_file.filename or "unknown"
+        file_ext = filename.lower().split('.')[-1]
 
-        return CASUploadResponse(
-            success=True,
-            message=f"CAS file uploaded and combined for FY {financial_year}",
-            financial_year=financial_year,
-            file_path=str(json_path.relative_to(BASE_DIR))
-        )
+        # Validate file extension
+        if file_ext not in ['xls', 'xlsx']:
+            results.append(CASFileResult(
+                filename=filename,
+                success=False,
+                error="Only Excel files (.xls or .xlsx) are allowed"
+            ))
+            continue
 
-    except PasswordRequiredError as e:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "password_required",
-                "message": str(e)
-            }
-        )
-    except CASParserError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to process CAS file: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process CAS file: {str(e)}"
-        )
+        try:
+            contents = await upload_file.read()
+            financial_year, _ = await asyncio.to_thread(
+                validate_and_save_cas_excel,
+                contents,
+                password
+            )
+            results.append(CASFileResult(
+                filename=filename,
+                success=True,
+                financial_year=financial_year
+            ))
+
+        except PasswordRequiredError:
+            results.append(CASFileResult(
+                filename=filename,
+                success=False,
+                password_required=True
+            ))
+
+        except CASParserError as e:
+            results.append(CASFileResult(
+                filename=filename,
+                success=False,
+                error=str(e)
+            ))
+
+        except Exception as e:
+            logger.error(f"Failed to process CAS file {filename}: {e}")
+            results.append(CASFileResult(
+                filename=filename,
+                success=False,
+                error=f"Failed to process: {str(e)}"
+            ))
+
+    return CASUploadResponse(results=results)
 
 
 @router.get("/cas-files", response_model=CASFilesResponse)
@@ -468,3 +496,99 @@ async def get_capital_gains_cas(fy: str = None):
             status_code=500,
             detail=f"Failed to retrieve CAS capital gains: {str(e)}"
         )
+
+
+@router.post("/upload-payslips", response_model=PayslipUploadResponse)
+async def upload_payslips(files: List[UploadFile] = File(...)):
+    """
+    Upload multiple payslip PDF files and extract salary data from each.
+
+    Returns per-file results with extracted data including:
+    - Gross pay
+    - Salary breakdown (basic, allowances, etc.)
+    - Pay period (month/year)
+    - Company name
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+
+    ensure_directories()
+
+    results: List[PayslipFileResult] = []
+    temp_files = []
+
+    try:
+        for file in files:
+            filename = file.filename or "unknown"
+
+            if not filename.lower().endswith('.pdf'):
+                results.append(PayslipFileResult(
+                    filename=filename,
+                    success=False,
+                    error="Only PDF files are allowed"
+                ))
+                continue
+
+            # Save temporarily to process
+            file_id = str(uuid.uuid4())[:FILE_ID_LENGTH]
+            temp_path = UPLOADS_DIR / f"temp_payslip_{file_id}.pdf"
+
+            contents = await file.read()
+            with open(temp_path, "wb") as f:
+                f.write(contents)
+            temp_files.append(temp_path)
+
+            # Extract payslip data
+            try:
+                result = await asyncio.to_thread(extract_payslip_data, str(temp_path))
+
+                if result:
+                    breakdown = None
+                    if result.get('breakdown'):
+                        breakdown = PayslipBreakdown(
+                            monthly=result['breakdown'].get('monthly'),
+                            annual=result['breakdown'].get('annual'),
+                        )
+
+                    pay_period = None
+                    if result.get('pay_period'):
+                        pay_period = PayslipPayPeriod(
+                            month=result['pay_period']['month'],
+                            year=result['pay_period']['year'],
+                            period_key=result['pay_period']['period_key'],
+                        )
+
+                    results.append(PayslipFileResult(
+                        filename=filename,
+                        success=True,
+                        payslip=PayslipData(
+                            gross_pay=result.get('gross_pay'),
+                            breakdown=breakdown,
+                            pay_period=pay_period,
+                            company_name=result.get('company_name'),
+                        )
+                    ))
+                else:
+                    results.append(PayslipFileResult(
+                        filename=filename,
+                        success=False,
+                        error="Could not extract data from payslip"
+                    ))
+            except Exception as e:
+                logger.error(f"Failed to process payslip {filename}: {e}")
+                results.append(PayslipFileResult(
+                    filename=filename,
+                    success=False,
+                    error=str(e)
+                ))
+
+    finally:
+        # Clean up temp files
+        for temp_path in temp_files:
+            try:
+                if temp_path.exists():
+                    temp_path.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to cleanup temp file {temp_path}: {e}")
+
+    return PayslipUploadResponse(results=results)

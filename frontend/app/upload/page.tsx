@@ -3,24 +3,15 @@
 import { useState } from 'react';
 import { FileText, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { InputFile } from '@/components/ui/input-file';
+import { UploadDialog } from '@/components/UploadDialog';
 import DataDisplay from '@/components/DataDisplay';
 
 export default function UploadPage() {
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [hasData, setHasData] = useState(false);
 
   const handleUploadSuccess = () => {
     setRefreshKey((prev) => prev + 1);
-    setIsUploadOpen(false);
   };
 
   return (
@@ -40,30 +31,36 @@ export default function UploadPage() {
           </div>
         </div>
         {hasData && (
-          <Button onClick={() => setIsUploadOpen(true)}>
-            <Upload className="h-4 w-4" />
-            Upload New PDF
-          </Button>
+          <UploadDialog
+            endpoint="/api/upload"
+            accept=".pdf"
+            multiple={false}
+            onSuccess={handleUploadSuccess}
+          >
+            <UploadDialog.Trigger asChild>
+              <Button>
+                <Upload className="h-4 w-4" />
+                Upload New PDF
+              </Button>
+            </UploadDialog.Trigger>
+            <UploadDialog.Content>
+              <UploadDialog.Header>
+                <UploadDialog.Title>Upload Statement</UploadDialog.Title>
+                <UploadDialog.Description>
+                  Upload a mutual fund PDF statement to extract transactions
+                </UploadDialog.Description>
+              </UploadDialog.Header>
+              <UploadDialog.Body placeholder="Drag and drop your PDF here" />
+            </UploadDialog.Content>
+          </UploadDialog>
         )}
       </div>
 
       <DataDisplay
         refreshKey={refreshKey}
         onDataStateChange={setHasData}
-        onUploadSuccess={() => setRefreshKey((prev) => prev + 1)}
+        onUploadSuccess={handleUploadSuccess}
       />
-
-      <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Upload Statement</DialogTitle>
-            <DialogDescription>
-              Upload a mutual fund PDF statement to extract transactions
-            </DialogDescription>
-          </DialogHeader>
-          <InputFile onSuccess={handleUploadSuccess} />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

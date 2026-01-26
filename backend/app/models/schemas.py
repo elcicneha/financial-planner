@@ -107,12 +107,18 @@ class CASCapitalGains(BaseModel):
     last_updated: str  # ISO format timestamp
 
 
-class CASUploadResponse(BaseModel):
-    """Response for CAS file upload"""
+class CASFileResult(BaseModel):
+    """Result for a single CAS file in batch upload"""
+    filename: str
     success: bool
-    message: str
-    financial_year: str  # e.g., "2024-25"
-    file_path: str
+    financial_year: str | None = None
+    password_required: bool = False
+    error: str | None = None
+
+
+class CASUploadResponse(BaseModel):
+    """Response for CAS file upload (batch)"""
+    results: list[CASFileResult]
 
 
 class CASFileInfo(BaseModel):
@@ -126,3 +132,37 @@ class CASFileInfo(BaseModel):
 class CASFilesResponse(BaseModel):
     """List of available CAS files"""
     files: List[CASFileInfo]
+
+
+class PayslipBreakdown(BaseModel):
+    """Salary breakdown components"""
+    monthly: dict | None = None  # e.g., {"basic": 50000, "house_rent_allowance": 25000}
+    annual: dict | None = None
+
+
+class PayslipPayPeriod(BaseModel):
+    """Pay period information"""
+    month: int
+    year: int
+    period_key: str  # e.g., "2024-01"
+
+
+class PayslipData(BaseModel):
+    """Data extracted from a single payslip PDF"""
+    gross_pay: float | None = None
+    breakdown: PayslipBreakdown | None = None
+    pay_period: PayslipPayPeriod | None = None
+    company_name: str | None = None
+
+
+class PayslipFileResult(BaseModel):
+    """Result for a single payslip file in batch upload"""
+    filename: str
+    success: bool
+    payslip: PayslipData | None = None
+    error: str | None = None
+
+
+class PayslipUploadResponse(BaseModel):
+    """Response for payslip upload (batch)"""
+    results: list[PayslipFileResult]

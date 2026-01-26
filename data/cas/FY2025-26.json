@@ -2,25 +2,25 @@
   "transactions": [],
   "summary": {
     "equity_short_term": {
-      "sale_consideration": 132054.76,
-      "acquisition_cost": 150499.3031612036,
-      "gain_loss": -18444.159021209998
+      "sale_consideration": 171020.85,
+      "acquisition_cost": 195499.3063224072,
+      "gain_loss": -24477.68804242
     },
     "equity_long_term": {
-      "sale_consideration": 27417.88,
-      "acquisition_cost": 30006.4598335376,
-      "gain_loss": -2588.31045354
+      "sale_consideration": 54835.76,
+      "acquisition_cost": 60012.9196670752,
+      "gain_loss": -5176.62090708
     },
     "debt_short_term": {
-      "sale_consideration": 47239.7,
-      "acquisition_cost": 46175.1324465246,
-      "gain_loss": 1064.70936348
+      "sale_consideration": 94479.4,
+      "acquisition_cost": 92350.2648930492,
+      "gain_loss": 2129.41872696
     },
     "debt_long_term": {
-      "sale_consideration": 37000.0,
-      "acquisition_cost": 30840.197002732,
-      "gain_loss": 6159.95316227
+      "sale_consideration": 74000.0,
+      "acquisition_cost": 61680.394005464,
+      "gain_loss": 12319.90632454
     }
   },
-  "updated_at": "2026-01-26T01:35:01.282575"
+  "updated_at": "2026-01-26T13:07:58.455434"
 }
