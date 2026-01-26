@@ -5,6 +5,7 @@ import { useCASCapitalGains } from '@/hooks/useCASCapitalGains';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, AlertCircle, FileText, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { CASUploadDialog } from '../components/CASUploadDialog';
 import { formatCurrency } from '@/lib/currency';
 import { CopyButton } from '@/components/ui/copy-button';
@@ -215,6 +216,8 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Fund Name</TableHead>
+                        <TableHead>Fund Type</TableHead>
+                        <TableHead>Term</TableHead>
                         <TableHead>Folio</TableHead>
                         <TableHead>Buy Date</TableHead>
                         <TableHead>Sell Date</TableHead>
@@ -231,6 +234,34 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
                         <TableRow key={index}>
                           <TableCell className="font-medium max-w-[200px] truncate" title={txn.fund_name}>
                             {txn.fund_name}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                txn.asset_type === 'EQUITY'
+                                  ? 'default'
+                                  : txn.asset_type === 'DEBT'
+                                  ? 'secondary'
+                                  : 'destructive'
+                              }
+                            >
+                              {txn.asset_type === 'EQUITY'
+                                ? 'Equity'
+                                : txn.asset_type === 'DEBT'
+                                ? 'Debt'
+                                : 'Unknown'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                                txn.term === 'long'
+                                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                  : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                              }`}
+                            >
+                              {txn.term === 'short' ? 'Short-term' : 'Long-term'}
+                            </span>
                           </TableCell>
                           <TableCell className="text-muted-foreground">{txn.folio}</TableCell>
                           <TableCell className="font-mono text-sm">{txn.buy_date}</TableCell>

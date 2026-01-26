@@ -85,6 +85,8 @@ class CASCategoryData(BaseModel):
 class CASTransaction(BaseModel):
     """Individual transaction from CAS statement"""
     fund_name: str
+    asset_type: str  # "EQUITY" or "DEBT"
+    term: str  # "short" or "long"
     folio: str
     buy_date: str
     sell_date: str

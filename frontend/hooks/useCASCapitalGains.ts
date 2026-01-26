@@ -8,6 +8,8 @@ export interface CASCategoryData {
 
 export interface CASTransaction {
   fund_name: string;
+  asset_type: string;  // "EQUITY" or "DEBT"
+  term: string;  // "short" or "long"
   folio: string;
   buy_date: string;
   sell_date: string;

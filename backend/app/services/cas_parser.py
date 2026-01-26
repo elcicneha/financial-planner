@@ -704,6 +704,8 @@ def load_and_parse_cas(
     for txn in raw_transactions:
         transactions.append(CASTransaction(
             fund_name=txn.get('fund_name', ''),
+            asset_type=txn.get('asset_type', 'UNKNOWN'),
+            term=txn.get('term', 'unknown'),
             folio=txn.get('folio', ''),
             buy_date=txn.get('buy_date', ''),
             sell_date=txn.get('sell_date', ''),
