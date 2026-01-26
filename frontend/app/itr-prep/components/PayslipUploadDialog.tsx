@@ -1,6 +1,5 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import { UploadDialog } from '@/components/UploadDialog';
 
 interface PayslipData {
@@ -53,11 +52,7 @@ export function PayslipUploadDialog({ onUploadSuccess }: PayslipUploadDialogProp
         return 'Processed successfully';
       }}
     >
-      <UploadDialog.Trigger asChild>
-        <Button variant="default" size="default">
-          Upload Payslips
-        </Button>
-      </UploadDialog.Trigger>
+      <UploadDialog.TriggerButton>Upload Payslips</UploadDialog.TriggerButton>
 
       <UploadDialog.Content>
         <UploadDialog.Header>

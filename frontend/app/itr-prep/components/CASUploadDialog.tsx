@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { ChevronRight, ExternalLink } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { UploadDialog } from '@/components/UploadDialog';
 
 interface CASUploadDialogProps {
@@ -113,11 +112,7 @@ export function CASUploadDialog({ onUploadSuccess }: CASUploadDialogProps) {
         return fy ? `Uploaded successfully (${fy})` : 'Uploaded successfully';
       }}
     >
-      <UploadDialog.Trigger asChild>
-        <Button variant="default" size="default">
-          Upload CAS Excel
-        </Button>
-      </UploadDialog.Trigger>
+      <UploadDialog.TriggerButton>Upload CAS Excel</UploadDialog.TriggerButton>
 
       <UploadDialog.Content>
         <UploadDialog.Header>

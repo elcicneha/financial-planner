@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { createContext, useContext, useState, useRef, useCallback } from 'react';
-import { Loader2, CheckCircle2, XCircle, Lock, X } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Lock, X, Upload } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -280,6 +280,27 @@ function UploadDialogRoot({
 
 const UploadDialogTrigger = DialogTrigger;
 
+interface UploadDialogTriggerButtonProps extends React.ComponentProps<typeof Button> {
+  icon?: React.ElementType;
+  iconOnly?: boolean;
+}
+
+function UploadDialogTriggerButton({
+  children,
+  icon: Icon = Upload,
+  iconOnly = false,
+  ...buttonProps
+}: UploadDialogTriggerButtonProps) {
+  return (
+    <DialogTrigger asChild>
+      <Button {...buttonProps}>
+        <Icon className="h-4 w-4" />
+        {!iconOnly && children}
+      </Button>
+    </DialogTrigger>
+  );
+}
+
 interface UploadDialogContentProps {
   children: React.ReactNode;
   className?: string;
@@ -493,9 +514,69 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
 
 export const UploadDialog = Object.assign(UploadDialogRoot, {
   Trigger: UploadDialogTrigger,
+  TriggerButton: UploadDialogTriggerButton,
   Content: UploadDialogContent,
   Header: UploadDialogHeader,
   Title: UploadDialogTitle,
   Description: UploadDialogDescription,
   Body: UploadDialogBody,
 });
+
+// =============================================================================
+// Example Usage
+// =============================================================================
+//
+// Basic usage with TriggerButton (recommended):
+// ---------------------------------------------
+// <UploadDialog endpoint="/api/upload" accept=".pdf" onSuccess={handleSuccess}>
+//   <UploadDialog.TriggerButton>Upload Files</UploadDialog.TriggerButton>
+//   <UploadDialog.Content>
+//     <UploadDialog.Header>
+//       <UploadDialog.Title>Upload</UploadDialog.Title>
+//       <UploadDialog.Description>Upload your files here</UploadDialog.Description>
+//     </UploadDialog.Header>
+//     <UploadDialog.Body placeholder="Drag and drop files here" />
+//   </UploadDialog.Content>
+// </UploadDialog>
+//
+// TriggerButton variants and sizes:
+// ---------------------------------
+// <UploadDialog.TriggerButton variant="outline" size="sm">Upload</UploadDialog.TriggerButton>
+// <UploadDialog.TriggerButton variant="ghost" size="lg">Upload</UploadDialog.TriggerButton>
+//
+// Icon-only button:
+// -----------------
+// <UploadDialog.TriggerButton iconOnly />
+//
+// Custom icon:
+// ------------
+// import { FileUp } from 'lucide-react';
+// <UploadDialog.TriggerButton icon={FileUp}>Upload</UploadDialog.TriggerButton>
+//
+// Fully custom trigger (for complete control):
+// --------------------------------------------
+// <UploadDialog.Trigger asChild>
+//   <MyCustomButton>Whatever you want</MyCustomButton>
+// </UploadDialog.Trigger>
+//
+// Body with custom idle content (shown before file selection):
+// ------------------------------------------------------------
+// <UploadDialog.Body placeholder="Drag and drop files here">
+//   <MyInstructionsComponent />
+//   <p className="text-sm text-muted-foreground">Any content here shows when idle</p>
+// </UploadDialog.Body>
+//
+// Custom success message formatting:
+// ----------------------------------
+// <UploadDialog
+//   endpoint="/api/upload"
+//   formatSuccessMessage={(response) => {
+//     const data = response as { name: string };
+//     return `Uploaded: ${data.name}`;
+//   }}
+// >
+//
+// Multiple files vs single file:
+// ------------------------------
+// <UploadDialog endpoint="/api/upload" multiple>        {/* allows multiple files */}
+// <UploadDialog endpoint="/api/upload" multiple={false}> {/* single file only */}

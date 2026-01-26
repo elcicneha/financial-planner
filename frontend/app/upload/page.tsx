@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, Upload } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { FileText } from 'lucide-react';
 import { UploadDialog } from '@/components/UploadDialog';
 import DataDisplay from '@/components/DataDisplay';
 
@@ -37,12 +36,7 @@ export default function UploadPage() {
             multiple={false}
             onSuccess={handleUploadSuccess}
           >
-            <UploadDialog.Trigger asChild>
-              <Button>
-                <Upload className="h-4 w-4" />
-                Upload New PDF
-              </Button>
-            </UploadDialog.Trigger>
+            <UploadDialog.TriggerButton>Upload New PDF</UploadDialog.TriggerButton>
             <UploadDialog.Content>
               <UploadDialog.Header>
                 <UploadDialog.Title>Upload Statement</UploadDialog.Title>
