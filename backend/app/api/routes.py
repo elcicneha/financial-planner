@@ -39,6 +39,7 @@ from app.models.schemas import (
     CASFileInfo,
     CASFilesResponse,
     FundTypeOverrideRequest,
+    FundTypeOverridesBatchRequest,
     PayslipData,
     PayslipFileResult,
     PayslipBreakdown,
@@ -53,6 +54,7 @@ from app.services.fifo_calculator import (
     get_cached_gains,
     get_last_updated as get_fifo_last_updated,
     save_fund_type_override,
+    save_fund_type_overrides_batch,
     invalidate_fifo_cache,
     recalculate_and_cache_fifo,
 )
@@ -352,6 +354,38 @@ async def update_fund_type_override(request: FundTypeOverrideRequest = Body(...)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update fund type override: {str(e)}"
+        )
+
+
+@router.put("/fund-type-overrides")
+async def update_fund_type_overrides_batch(request: FundTypeOverridesBatchRequest = Body(...)):
+    """
+    Update manual fund type overrides for multiple tickers in a single atomic operation.
+
+    Accepts a dictionary of ticker symbols to fund types. All changes are applied
+    and saved atomically to avoid race conditions when updating multiple funds.
+    Invalidates the FIFO cache once for all changes.
+    """
+    if not request.overrides:
+        raise HTTPException(status_code=400, detail="No overrides provided")
+
+    try:
+        await asyncio.to_thread(save_fund_type_overrides_batch, request.overrides)
+
+        return {
+            "success": True,
+            "message": f"Updated {len(request.overrides)} fund type override{'s' if len(request.overrides) != 1 else ''}",
+            "count": len(request.overrides),
+            "tickers": list(request.overrides.keys())
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to update fund type overrides: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update fund type overrides: {str(e)}"
         )
 
 

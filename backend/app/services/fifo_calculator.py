@@ -217,6 +217,41 @@ def save_fund_type_override(ticker: str, fund_type: str) -> None:
     invalidate_fifo_cache()
 
 
+def save_fund_type_overrides_batch(overrides_dict: Dict[str, str]) -> None:
+    """
+    Save multiple manual fund type overrides atomically and invalidate FIFO cache.
+
+    Args:
+        overrides_dict: Dictionary mapping ticker symbols to 'equity' or 'debt'
+
+    Raises:
+        ValueError: If any fund_type is invalid.
+    """
+    # Validate all entries first
+    for ticker, fund_type in overrides_dict.items():
+        if fund_type not in ['equity', 'debt']:
+            raise ValueError(f"Invalid fund_type for {ticker}: {fund_type}. Must be 'equity' or 'debt'")
+
+    # Load current overrides
+    overrides = load_fund_type_overrides()
+
+    # Update with all new values
+    overrides.update(overrides_dict)
+
+    FUND_TYPE_OVERRIDES_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with open(FUND_TYPE_OVERRIDES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(overrides, f, indent=2)
+        logger.info(f"Saved {len(overrides_dict)} fund type overrides: {list(overrides_dict.keys())}")
+    except Exception as e:
+        logger.error(f"Error saving fund type overrides: {e}")
+        raise
+
+    # Invalidate FIFO cache once for all changes
+    invalidate_fifo_cache()
+
+
 def invalidate_fifo_cache() -> None:
     """Delete FIFO cache files to force recalculation."""
     try:

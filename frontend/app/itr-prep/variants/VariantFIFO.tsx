@@ -208,15 +208,15 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
 
         {/* Unknown Funds Warning */}
         {unknownFunds.length > 0 && (
-          <Card className="border-yellow-200 dark:border-yellow-900 bg-yellow-50 dark:bg-yellow-950/30">
+          <Card className="bg-warning-muted">
             <CardHeader className="pb-3">
               <div className="flex items-start gap-3">
-                <AlertCircle className="size-5 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="size-5 text-warning-foreground mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <CardTitle className="text-base text-yellow-900 dark:text-yellow-100">
+                  <CardTitle className="text-base text-warning-foreground">
                     Unknown Fund Classification
                   </CardTitle>
-                  <CardDescription className="text-yellow-700 dark:text-yellow-300 mt-1">
+                  <CardDescription className="text-warning-text mt-1">
                     The following {unknownFunds.length} fund{unknownFunds.length > 1 ? 's' : ''} could not be automatically classified as equity or debt due to missing market cap data. These funds are excluded from the totals below.
                   </CardDescription>
                 </div>
@@ -225,12 +225,12 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
             <CardContent className="pt-0">
               <div className="flex flex-wrap gap-2">
                 {unknownFunds.map((ticker) => (
-                  <code key={ticker} className="px-2 py-1 text-xs rounded bg-yellow-100 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-100 border border-yellow-300 dark:border-yellow-700">
+                  <code key={ticker} className="px-2 py-1 text-xs rounded bg-warning/20 text-warning-text border border-warning/80">
                     {ticker}
                   </code>
                 ))}
               </div>
-              <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-3">
+              <p className="text-xs text-warning-text mt-3">
                 Tip: You can manually override the fund type in the Source Data table below.
               </p>
             </CardContent>
@@ -314,7 +314,7 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
           </button>
           {isDetailsOpen && (
             <CardContent>
-              <CapitalGainsTable gains={data.gains} refetch={refetch} />
+              <CapitalGainsTable gains={data.gains} refetch={refetch} forceRefetch={forceRefetch} />
             </CardContent>
           )}
         </Card>

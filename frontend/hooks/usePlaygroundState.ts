@@ -1,16 +1,15 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { RetirementInputs, DEFAULT_INPUTS, EMPTY_INPUTS, calculateRetirement } from '@/lib/calculations';
+import { RetirementInputs, EMPTY_INPUTS, calculateRetirement } from '@/lib/calculations';
 import { getCurrencySymbol } from '@/lib/currency';
-import { useDevMode } from '@/components/dev/DevModeProvider';
 
 const STORAGE_KEY_INPUTS = 'playground-inputs';
 
 export function usePlaygroundState() {
-  const { useEmptyDefaults } = useDevMode();
   const [mounted, setMounted] = useState(false);
-  const [inputs, setInputs] = useState<RetirementInputs>(DEFAULT_INPUTS);
+  const [inputs, setInputs] = useState<RetirementInputs>(EMPTY_INPUTS);
+  const [hasStoredData, setHasStoredData] = useState(false);
   const [assumptionsOpen, setAssumptionsOpen] = useState(false);
   const [bounce, setBounce] = useState(false);
 
@@ -26,27 +25,24 @@ export function usePlaygroundState() {
     }
   }, [results.corpusRunsOutAge]);
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount (only once)
   useEffect(() => {
-    const baseDefaults = useEmptyDefaults ? EMPTY_INPUTS : DEFAULT_INPUTS;
-
     try {
       const stored = localStorage.getItem(STORAGE_KEY_INPUTS);
-      // Only load stored values if toggle is OFF
-      if (stored && !useEmptyDefaults) {
+      // Load stored values if available, merge with EMPTY_INPUTS for missing fields
+      if (stored) {
         const parsed = JSON.parse(stored);
-        // Merge with defaults to handle schema changes
-        setInputs({ ...baseDefaults, ...parsed });
-      } else {
-        setInputs(baseDefaults);
+        setInputs({ ...EMPTY_INPUTS, ...parsed });
+        setHasStoredData(true);
       }
+      // If nothing stored, keep EMPTY_INPUTS (already set as initial state)
     } catch (error) {
       console.warn('Failed to load saved inputs:', error);
-      setInputs(baseDefaults);
+      // Keep EMPTY_INPUTS on error
     }
 
     setMounted(true);
-  }, [useEmptyDefaults]);
+  }, []);
 
   // Save to localStorage on change
   useEffect(() => {
@@ -104,6 +100,7 @@ export function usePlaygroundState() {
     currencySymbol,
     yearsAfterBreak,
     duration,
+    hasStoredData,
     // Edge case states
     edgeCase: {
       isCompletelyEmpty,

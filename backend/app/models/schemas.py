@@ -36,9 +36,14 @@ class TransactionsFile(BaseModel):
 
 
 class FundTypeOverrideRequest(BaseModel):
-    """Request to override fund type classification."""
+    """Request to override fund type classification for a single fund."""
     ticker: str = Field(..., min_length=1, max_length=100, description="Fund ticker symbol")
     fund_type: Literal['equity', 'debt'] = Field(..., description="Fund classification")
+
+
+class FundTypeOverridesBatchRequest(BaseModel):
+    """Request to override fund type classification for multiple funds."""
+    overrides: dict = Field(..., description="Dictionary mapping ticker symbols to fund types (equity/debt)")
 
 
 class FIFOGainRow(BaseModel):

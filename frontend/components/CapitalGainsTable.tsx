@@ -20,11 +20,13 @@ import { Button } from '@/components/ui/button';
 import { Pencil, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
+import { getGainLossColor } from '@/lib/utils';
 import type { FIFOGainRow } from '@/hooks/useCapitalGains';
 
 interface CapitalGainsTableProps {
   gains: FIFOGainRow[];
   refetch?: () => void;
+  forceRefetch?: () => void;
 }
 
 type SortKey = keyof FIFOGainRow;
@@ -37,7 +39,7 @@ function formatNumber(value: number, decimals: number = 3): string {
   });
 }
 
-export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableProps) {
+export default function CapitalGainsTable({ gains, refetch, forceRefetch }: CapitalGainsTableProps) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -106,26 +108,22 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
     setIsSaving(true);
 
     try {
-      // Send all changes to backend
-      const promises = Object.entries(pendingChanges).map(([ticker, fundType]) =>
-        fetch('/api/fund-type-override', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ticker, fund_type: fundType }),
-        })
-      );
+      // Send all changes in one batch request for atomicity
+      const response = await fetch('/api/fund-type-overrides', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ overrides: pendingChanges }),
+      });
 
-      const results = await Promise.all(promises);
-
-      // Check if any failed
-      const failed = results.filter((r) => !r.ok);
-      if (failed.length > 0) {
-        const errorData = await failed[0].json().catch(() => ({ detail: 'Unknown error' }));
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
         throw new Error(errorData.detail || 'Failed to update fund types');
       }
 
-      // Success - refetch data and exit edit mode
-      if (refetch) {
+      // Success - force refetch with recalculation and exit edit mode
+      if (forceRefetch) {
+        forceRefetch();
+      } else if (refetch) {
         refetch();
       }
       setIsEditMode(false);
@@ -232,9 +230,9 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
                       <SelectTrigger
                         className={
                           gain.fund_type === 'unknown'
-                            ? 'w-28 border-orange-500 border-2'
+                            ? 'w-28 border-primary border-2'
                             : pendingChanges[gain.ticker]
-                              ? 'w-28 border-yellow-500'
+                              ? 'w-28 border-primary'
                               : 'w-28'
                         }
                       >
@@ -266,18 +264,15 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
                 <TableCell>
                   <span
                     className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${gain.term === 'Long-term'
-                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                        : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                       }`}
                   >
                     {gain.term}
                   </span>
                 </TableCell>
                 <TableCell
-                  className={`text-right font-mono text-sm font-medium ${gain.gain >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
-                    }`}
+                  className={`text-right font-mono text-sm font-medium ${getGainLossColor(gain.gain)}`}
                 >
                   {formatCurrency(gain.gain)}
                 </TableCell>
