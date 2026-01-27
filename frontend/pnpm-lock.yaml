@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@radix-ui/colors':
+        specifier: ^3.0.0
+        version: 3.0.0
       '@radix-ui/react-collapsible':
         specifier: ^1.1.12
         version: 1.1.12(@types/react-dom@18.2.18)(@types/react@18.2.48)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -196,6 +199,9 @@ packages:
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
+
+  '@radix-ui/colors@3.0.0':
+    resolution: {integrity: sha512-FUOsGBkHrYJwCSEtWRCIfQbZG7q1e6DgxCIOe1SUQzDe/7rXXeA47s8yCn6fuTNQAj1Zq4oTFi9Yjp3wzElcxg==}
 
   '@radix-ui/number@1.1.1':
     resolution: {integrity: sha512-MkKCwxlXTgz6CFoJx3pCwn07GKp36+aZyu/u2Ln2VrA5DcdyCZkASEDBTd8x5whTQQL5CiYf4prXKLcgQdv29g==}
@@ -1153,6 +1159,8 @@ snapshots:
 
   '@next/swc-win32-x64-msvc@14.1.0':
     optional: true
+
+  '@radix-ui/colors@3.0.0': {}
 
   '@radix-ui/number@1.1.1': {}
 
