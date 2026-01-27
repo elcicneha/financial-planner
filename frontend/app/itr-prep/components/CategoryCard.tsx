@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
+import { IconToggle } from '@/components/ui/icon-toggle';
 import { formatCurrency } from '@/lib/currency';
+import { getGainLossColor } from '@/lib/utils';
 
 // Shared type for category data (works for both CAS and FIFO)
 export interface CategoryData {
@@ -26,11 +28,7 @@ export function DataRow({ label, value, isGain }: {
     setTimeout(() => setHasCopied(false), 2000);
   };
 
-  const colorClass = isGain
-    ? value >= 0
-      ? 'text-success'
-      : 'text-destructive'
-    : '';
+  const colorClass = isGain ? getGainLossColor(value) : '';
 
   return (
     <div
@@ -42,13 +40,14 @@ export function DataRow({ label, value, isGain }: {
         <span className={`font-mono text-sm tabular-nums ${colorClass}`}>
           {formatCurrency(value)}
         </span>
-        <span className="text-accent-foreground w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-50 transition-opacity">
-          {hasCopied ? (
-            <Check className="size-3" />
-          ) : (
-            <Copy className="size-3" />
-          )}
-        </span>
+        <div className="text-accent-foreground opacity-0 group-hover:opacity-50 transition-opacity">
+          <IconToggle
+            isToggled={hasCopied}
+            primary={<Copy className="size-3" />}
+            secondary={<Check className="size-3" />}
+            className="size-4"
+          />
+        </div>
       </div>
     </div>
   );

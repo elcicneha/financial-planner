@@ -5,6 +5,7 @@ import { Check, Copy } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { IconToggle } from "@/components/ui/icon-toggle"
 import {
   Tooltip,
   TooltipContent,
@@ -55,7 +56,12 @@ export function CopyButton({
           {...props}
         >
           <span className="sr-only">Copy</span>
-          {hasCopied ? <Check className="size-3" /> : <Copy className="size-3" />}
+          <IconToggle
+            isToggled={hasCopied}
+            primary={<Copy className="size-3" />}
+            secondary={<Check className="size-3" />}
+            className="size-3"
+          />
         </Button>
       </TooltipTrigger>
       <TooltipContent>{hasCopied ? "Copied" : tooltip}</TooltipContent>
