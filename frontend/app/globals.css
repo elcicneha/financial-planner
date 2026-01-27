@@ -5,34 +5,35 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* Core semantic tokens */
+  /* ============================================
+     DEFAULT THEME - Light Mode (default)
+     ============================================ */
+  :root,
+  [data-theme="default"] {
+    /* Design tokens - these define the theme personality */
+    --radius: 0.75rem;
+
+    /* Light mode colors */
     --background: 250 247 242;
     --foreground: 37 37 44;
 
-    /* Surface hierarchy */
     --card: 255 255 255;
     --card-foreground: 37 37 44;
     --popover: 255 255 255;
     --popover-foreground: 37 37 44;
 
-    /* Brand colors - Warm coral */
     --primary: 236 98 45;
     --primary-foreground: 255 255 255;
 
-    /* Secondary - Soft sage */
     --secondary: 233 245 240;
     --secondary-foreground: 46 107 84;
 
-    /* Muted - Warm gray */
     --muted: 243 240 233;
     --muted-foreground: 112 112 118;
 
-    /* Accent - Soft lavender */
     --accent: 245 238 252;
     --accent-foreground: 107 54 143;
 
-    /* Semantic status colors */
     --success: 43 171 126;
     --success-foreground: 255 255 255;
     --success-muted: 233 245 240;
@@ -45,20 +46,18 @@
     --destructive-foreground: 255 255 255;
     --destructive-muted: 252 237 237;
 
-    /* UI elements */
     --border: 232 227 217;
     --input: 232 227 217;
     --ring: 236 98 45;
-    --radius: 0.75rem;
 
-    /* Sidebar specific */
     --sidebar: 255 255 255;
     --sidebar-foreground: 37 37 44;
     --sidebar-border: 237 232 222;
     --sidebar-accent: 236 98 45;
   }
 
-  .dark {
+  /* Default theme - Dark mode (only colors change) */
+  [data-theme="default"].dark {
     --background: 14 14 16;
     --foreground: 242 239 234;
 
@@ -99,6 +98,194 @@
     --sidebar-foreground: 242 239 234;
     --sidebar-border: 28 28 33;
     --sidebar-accent: 235 107 61;
+  }
+
+  /* ============================================
+     NEO THEME - Light Mode
+     ============================================ */
+  [data-theme="neo"] {
+    /* Design tokens - different personality */
+    --radius: 1.5rem;
+
+    /* Light mode colors */
+    --background: 255 250 245;
+    --foreground: 30 30 35;
+
+    --card: 255 255 255;
+    --card-foreground: 30 30 35;
+    --popover: 255 255 255;
+    --popover-foreground: 30 30 35;
+
+    --primary: 220 80 120;
+    --primary-foreground: 255 255 255;
+
+    --secondary: 240 230 255;
+    --secondary-foreground: 80 40 120;
+
+    --muted: 245 240 235;
+    --muted-foreground: 110 110 115;
+
+    --accent: 255 240 245;
+    --accent-foreground: 140 40 80;
+
+    --success: 40 180 100;
+    --success-foreground: 255 255 255;
+    --success-muted: 230 250 240;
+
+    --warning: 250 160 20;
+    --warning-foreground: 80 50 10;
+    --warning-muted: 255 245 220;
+
+    --destructive: 230 50 50;
+    --destructive-foreground: 255 255 255;
+    --destructive-muted: 255 235 235;
+
+    --border: 230 225 220;
+    --input: 230 225 220;
+    --ring: 220 80 120;
+
+    --sidebar: 255 255 255;
+    --sidebar-foreground: 30 30 35;
+    --sidebar-border: 235 230 225;
+    --sidebar-accent: 220 80 120;
+  }
+
+  /* Neo theme - Dark mode */
+  [data-theme="neo"].dark {
+    --background: 18 18 22;
+    --foreground: 245 240 250;
+
+    --card: 24 24 28;
+    --card-foreground: 245 240 250;
+    --popover: 24 24 28;
+    --popover-foreground: 245 240 250;
+
+    --primary: 240 100 150;
+    --primary-foreground: 255 255 255;
+
+    --secondary: 40 35 60;
+    --secondary-foreground: 210 200 230;
+
+    --muted: 35 35 40;
+    --muted-foreground: 150 150 160;
+
+    --accent: 45 35 50;
+    --accent-foreground: 220 180 210;
+
+    --success: 50 190 120;
+    --success-foreground: 255 255 255;
+    --success-muted: 25 45 35;
+
+    --warning: 245 150 30;
+    --warning-foreground: 35 20 5;
+    --warning-muted: 55 40 25;
+
+    --destructive: 210 60 60;
+    --destructive-foreground: 255 255 255;
+    --destructive-muted: 55 25 25;
+
+    --border: 40 40 45;
+    --input: 40 40 45;
+    --ring: 240 100 150;
+
+    --sidebar: 18 18 22;
+    --sidebar-foreground: 245 240 250;
+    --sidebar-border: 30 30 35;
+    --sidebar-accent: 240 100 150;
+  }
+
+  /* ============================================
+     OCEAN THEME - Light Mode
+     ============================================ */
+  [data-theme="ocean"] {
+    /* Design tokens - ocean personality */
+    --radius: 0.5rem;
+
+    /* Light mode colors */
+    --background: 245 250 255;
+    --foreground: 20 35 50;
+
+    --card: 255 255 255;
+    --card-foreground: 20 35 50;
+    --popover: 255 255 255;
+    --popover-foreground: 20 35 50;
+
+    --primary: 30 120 180;
+    --primary-foreground: 255 255 255;
+
+    --secondary: 220 240 250;
+    --secondary-foreground: 20 80 120;
+
+    --muted: 240 245 248;
+    --muted-foreground: 100 115 130;
+
+    --accent: 230 245 255;
+    --accent-foreground: 30 90 140;
+
+    --success: 35 160 110;
+    --success-foreground: 255 255 255;
+    --success-muted: 225 245 240;
+
+    --warning: 240 150 30;
+    --warning-foreground: 70 45 10;
+    --warning-muted: 250 240 220;
+
+    --destructive: 210 50 60;
+    --destructive-foreground: 255 255 255;
+    --destructive-muted: 250 235 235;
+
+    --border: 220 235 245;
+    --input: 220 235 245;
+    --ring: 30 120 180;
+
+    --sidebar: 255 255 255;
+    --sidebar-foreground: 20 35 50;
+    --sidebar-border: 230 240 248;
+    --sidebar-accent: 30 120 180;
+  }
+
+  /* Ocean theme - Dark mode */
+  [data-theme="ocean"].dark {
+    --background: 10 18 28;
+    --foreground: 230 240 250;
+
+    --card: 18 26 38;
+    --card-foreground: 230 240 250;
+    --popover: 18 26 38;
+    --popover-foreground: 230 240 250;
+
+    --primary: 60 150 220;
+    --primary-foreground: 255 255 255;
+
+    --secondary: 25 40 60;
+    --secondary-foreground: 180 210 235;
+
+    --muted: 28 35 45;
+    --muted-foreground: 140 155 170;
+
+    --accent: 30 45 65;
+    --accent-foreground: 180 210 240;
+
+    --success: 45 170 130;
+    --success-foreground: 255 255 255;
+    --success-muted: 20 40 35;
+
+    --warning: 235 145 40;
+    --warning-foreground: 30 20 5;
+    --warning-muted: 50 40 28;
+
+    --destructive: 200 60 70;
+    --destructive-foreground: 255 255 255;
+    --destructive-muted: 50 25 28;
+
+    --border: 35 45 60;
+    --input: 35 45 60;
+    --ring: 60 150 220;
+
+    --sidebar: 12 20 32;
+    --sidebar-foreground: 230 240 250;
+    --sidebar-border: 25 35 50;
+    --sidebar-accent: 60 150 220;
   }
 }
 

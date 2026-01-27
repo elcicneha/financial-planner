@@ -6,8 +6,8 @@ import { TrendingUp, Code2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { navItems } from '@/lib/navigation';
 import { useDevMode } from '@/components/dev/DevModeProvider';
-import { useTheme } from '@/components/theme/ThemeProvider';
-import { themes, type ThemeName } from '@/lib/themes';
+import { useColorTheme, colorThemes, type ColorTheme } from '@/components/theme/ColorThemeProvider';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import {
   Select,
   SelectContent,
@@ -19,7 +19,7 @@ import {
 export function Sidebar() {
   const pathname = usePathname();
   const { isDevMode, toggleDevMode } = useDevMode();
-  const { theme, setTheme } = useTheme();
+  const { colorTheme, setColorTheme } = useColorTheme();
 
   return (
     <div className="w-56 h-full border-r border-border/50 bg-background flex flex-col">
@@ -57,23 +57,26 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="p-3 border-t border-border/50 space-y-3">
-        {/* Theme Selector */}
+        {/* Theme Selector with Mode Toggle */}
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground px-1">
             Theme
           </label>
-          <Select value={theme} onValueChange={(value) => setTheme(value as ThemeName)}>
-            <SelectTrigger className="w-full h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.values(themes).map((t) => (
-                <SelectItem key={t.name} value={t.name}>
-                  {t.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={colorTheme} onValueChange={(value) => setColorTheme(value as ColorTheme)}>
+              <SelectTrigger className="flex-1 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(colorThemes).map(([key, theme]) => (
+                  <SelectItem key={key} value={key}>
+                    {theme.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <ThemeToggle className="h-9 w-9 shrink-0" />
+          </div>
         </div>
 
         {/* Dev Mode Toggle */}
