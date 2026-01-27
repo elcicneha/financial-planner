@@ -10,6 +10,7 @@ import { CategoryCard, CategoryData } from '../components/CategoryCard';
 import { CopyButton } from '@/components/ui/copy-button';
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/currency';
+import { getGainLossColor } from '@/lib/utils';
 import { VariantProps } from './index';
 import { useDevMode } from '@/components/dev/DevModeProvider';
 
@@ -245,10 +246,7 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
             )}
           </div>
           <div className="flex items-center gap-1">
-            <span className={`font-mono text-lg font-semibold tabular-nums ${totalGains >= 0
-              ? 'text-emerald-600 dark:text-emerald-400'
-              : 'text-red-500 dark:text-red-400'
-              }`}>
+            <span className={`font-mono text-lg font-semibold tabular-nums ${getGainLossColor(totalGains)}`}>
               {formatCurrency(totalGains)}
             </span>
             <CopyButton

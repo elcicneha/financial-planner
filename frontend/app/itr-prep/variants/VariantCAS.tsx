@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CASUploadDialog } from '../components/CASUploadDialog';
 import { formatCurrency } from '@/lib/currency';
+import { getGainLossColor } from '@/lib/utils';
 import { CopyButton } from '@/components/ui/copy-button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { CategoryCard } from '../components/CategoryCard';
@@ -138,10 +139,7 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
         <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-muted/50 border">
           <span className="text-sm font-medium text-muted-foreground">Total Capital Gains</span>
           <div className="flex items-center gap-1">
-            <span className={`font-mono text-lg font-semibold tabular-nums ${totalGains >= 0
-              ? 'text-emerald-600 dark:text-emerald-400'
-              : 'text-red-500 dark:text-red-400'
-              }`}>
+            <span className={`font-mono text-lg font-semibold tabular-nums ${getGainLossColor(totalGains)}`}>
               {formatCurrency(totalGains)}
             </span>
             <CopyButton
