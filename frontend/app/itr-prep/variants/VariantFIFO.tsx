@@ -238,24 +238,26 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
         )}
 
         {/* Total Gains - Compact */}
-        <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-muted/50 border">
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-muted-foreground">Total Capital Gains</span>
-            {unknownFunds.length > 0 && (
-              <span className="text-xs text-muted-foreground/70">Excludes {unknownFunds.length} unknown fund{unknownFunds.length > 1 ? 's' : ''}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
-            <span className={`font-mono text-lg font-semibold tabular-nums ${getGainLossColor(totalGains)}`}>
-              {formatCurrency(totalGains)}
-            </span>
-            <CopyButton
-              value={Math.abs(totalGains).toFixed(4)}
-              tooltip="Copy Total"
-              className="size-7"
-            />
-          </div>
-        </div>
+        <Card>
+          <CardContent className="flex items-center justify-between px-4 py-3">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-muted-foreground">Total Capital Gains</span>
+              {unknownFunds.length > 0 && (
+                <span className="text-xs text-muted-foreground/70">Excludes {unknownFunds.length} unknown fund{unknownFunds.length > 1 ? 's' : ''}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className={`font-mono text-lg font-semibold tabular-nums ${getGainLossColor(totalGains)}`}>
+                {formatCurrency(totalGains)}
+              </span>
+              <CopyButton
+                value={Math.abs(totalGains).toFixed(4)}
+                tooltip="Copy Total"
+                className="size-7"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Equity Section */}
         <div className="space-y-3">

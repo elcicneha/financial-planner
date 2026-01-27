@@ -136,19 +136,21 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
         </div>
 
         {/* Total Gains - Compact */}
-        <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-muted/50 border">
-          <span className="text-sm font-medium text-muted-foreground">Total Capital Gains</span>
-          <div className="flex items-center gap-1">
-            <span className={`font-mono text-lg font-semibold tabular-nums ${getGainLossColor(totalGains)}`}>
-              {formatCurrency(totalGains)}
-            </span>
-            <CopyButton
-              value={Math.abs(totalGains).toFixed(4)}
-              tooltip="Copy Total"
-              className="size-7"
-            />
-          </div>
-        </div>
+        <Card>
+          <CardContent className="flex items-center justify-between px-4 py-3">
+            <span className="text-sm font-medium text-muted-foreground">Total Capital Gains</span>
+            <div className="flex items-center gap-1">
+              <span className={`font-mono text-lg font-semibold tabular-nums ${getGainLossColor(totalGains)}`}>
+                {formatCurrency(totalGains)}
+              </span>
+              <CopyButton
+                value={Math.abs(totalGains).toFixed(4)}
+                tooltip="Copy Total"
+                className="size-7"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Equity Section */}
         <div className="space-y-3">
@@ -252,8 +254,8 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
                           <TableCell>
                             <span
                               className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${txn.term === 'long'
-                                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                                  : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                                 }`}
                             >
                               {txn.term === 'short' ? 'Short-term' : 'Long-term'}
@@ -279,8 +281,8 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
                           </TableCell>
                           <TableCell
                             className={`text-right font-mono text-sm font-medium ${txn.gain_loss >= 0
-                                ? 'text-green-600 dark:text-green-400'
-                                : 'text-red-600 dark:text-red-400'
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
                               }`}
                           >
                             {formatCurrency(txn.gain_loss)}

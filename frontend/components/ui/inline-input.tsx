@@ -199,10 +199,10 @@ export const InlineInput = React.forwardRef<HTMLInputElement, InlineInputProps>(
           style={{ width: `${width}ch` }}
           inputMode="numeric"
           className={cn(
-            'bg-transparent border-0 p-0 m-0 font-semibold text-foreground text-center rounded transition-all duration-150',
-            'focus:outline-none focus:ring-0 focus:bg-primary/10 focus:shadow-[0_2px_0_hsl(var(--primary))]',
-            'shadow-[0_2px_0_hsl(var(--primary)/0.3)] cursor-pointer',
-            'hover:bg-primary/5 hover:shadow-[0_2px_0_hsl(var(--primary)/0.5)]',
+            'bg-transparent border-0 border-primary/50 border-b-2 p-0 m-0 font-semibold text-foreground text-center rounded transition-all duration-150',
+            'focus-ring',
+            'cursor-pointer',
+            'hover:bg-primary/5',
             className
           )}
         />

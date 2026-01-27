@@ -13,14 +13,14 @@ export function Sidebar() {
   const { isDevMode, toggleDevMode } = useDevMode();
 
   return (
-    <div className="w-56 h-full border-r border-border/50 bg-background flex flex-col">
+    <div className="w-56 h-full border-r border-sidebar-border bg-sidebar flex flex-col">
       {/* Header */}
-      <div className="h-16 flex items-center px-5 border-b border-border/50">
+      <div className="h-16 flex items-center px-5 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <TrendingUp className="size-4 text-primary" />
+          <div className="size-8 rounded-lg bg-primary-muted flex items-center justify-center">
+            <TrendingUp className="size-4 text-primary-muted-foreground" />
           </div>
-          <span className="font-display font-semibold text-sm">Financial Planner</span>
+          <span className="font-display font-semibold text-base">Financial Planner</span>
         </div>
       </div>
 
@@ -35,8 +35,8 @@ export function Sidebar() {
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
                 isActive
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                  : 'text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-muted/50'
               )}
             >
               <item.icon className="size-4" />
@@ -55,10 +55,10 @@ export function Sidebar() {
         <button
           onClick={toggleDevMode}
           className={cn(
-            'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors w-full',
+            'cursor-pointer flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors w-full',
             isDevMode
-              ? 'bg-primary/10 text-primary font-medium'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+              : 'text-sidebar-accent-foreground hover:text-sidebar-accent-foreground hover:bg-muted/50'
           )}
           title={isDevMode ? 'Hide dev tools' : 'Show dev tools'}
         >

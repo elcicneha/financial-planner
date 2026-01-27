@@ -56,7 +56,7 @@ export function BreakCalculator({ state }: BreakCalculatorProps) {
       {/* No Expenses - Money Lasts Forever */}
       {edgeCase.noExpenses && (
         <div className="relative text-center py-8 px-6 rounded-3xl overflow-hidden bg-gradient-to-br from-green-500/[0.08] to-emerald-500/[0.12] border border-green-500/20">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(142,76%,36%,0.1)_0%,transparent_50%)] pointer-events-none" />
+          <div className="absolute inset-0 pointer-events-none" />
           <Infinity className="relative size-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
           <span className="relative block font-display text-5xl md:text-6xl font-bold tracking-tight text-green-600 dark:text-green-400">
             Forever
@@ -74,9 +74,9 @@ export function BreakCalculator({ state }: BreakCalculatorProps) {
       {/* Never Runs Out - 100+ years */}
       {edgeCase.neverRunsOut && (
         <div className="relative text-center py-8 px-6 rounded-3xl overflow-hidden bg-gradient-to-br from-green-500/[0.08] to-emerald-500/[0.12] border border-green-500/20">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(142,76%,36%,0.1)_0%,transparent_50%)] pointer-events-none" />
-          <Sparkles className="relative size-12 mx-auto mb-2 text-green-600 dark:text-green-400" />
-          <span className="relative block font-display text-6xl md:text-7xl font-bold tracking-tight text-green-600 dark:text-green-400">
+          <div className="absolute inset-0 pointer-events-none" />
+          <Sparkles className="relative size-12 mx-auto mb-2 text-success" />
+          <span className="relative block font-display text-6xl md:text-7xl font-bold tracking-tight text-success">
             100+ <span className="text-4xl md:text-5xl font-medium">years</span>
           </span>
           <span className="relative block text-muted-foreground text-sm mt-2 uppercase tracking-widest">
@@ -91,7 +91,7 @@ export function BreakCalculator({ state }: BreakCalculatorProps) {
       {/* Insufficient Savings - Can't Afford Break */}
       {edgeCase.insufficientSavings && (
         <div className="relative text-center py-8 px-6 rounded-3xl overflow-hidden bg-gradient-to-br from-destructive/[0.08] to-red-500/[0.12] border border-destructive/30">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--destructive)/0.1)_0%,transparent_50%)] pointer-events-none" />
+          <div className="absolute inset-0 pointer-events-none" />
           <AlertTriangle className="relative size-16 mx-auto mb-3 text-destructive" />
           <span className="relative block font-display text-2xl md:text-3xl font-bold tracking-tight text-destructive">
             Can't afford this break
@@ -99,7 +99,7 @@ export function BreakCalculator({ state }: BreakCalculatorProps) {
           <span className="relative block text-muted-foreground text-sm mt-3">
             You need savings to cover {formatCurrency(inputs.monthlyExpense)}/month
           </span>
-          <div className="relative inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm border border-primary/20">
+          <div className="relative inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full text-sm border border-foreground">
             <TrendingUp className="size-4" />
             Start by adding current savings or monthly savings amount
           </div>
@@ -109,7 +109,7 @@ export function BreakCalculator({ state }: BreakCalculatorProps) {
       {/* Runs Out Immediately - Less than 1 month */}
       {edgeCase.runsOutImmediately && (
         <div className="relative text-center py-8 px-6 rounded-3xl overflow-hidden bg-gradient-to-br from-amber-500/[0.08] to-orange-500/[0.12] border border-amber-500/30">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(38,92%,50%,0.1)_0%,transparent_50%)] pointer-events-none" />
+          <div className="absolute inset-0 pointer-events-none" />
           <AlertTriangle className="relative size-12 mx-auto mb-3 text-amber-600 dark:text-amber-400" />
           <span className="relative block font-display text-5xl md:text-6xl font-bold tracking-tight text-amber-600 dark:text-amber-500">
             &lt; 1 <span className="text-3xl md:text-4xl font-medium">month</span>
@@ -125,10 +125,10 @@ export function BreakCalculator({ state }: BreakCalculatorProps) {
 
       {/* Normal Calculation */}
       {edgeCase.isNormalCalculation && (
-        <div className="relative text-center py-8 px-6 rounded-3xl overflow-hidden bg-gradient-to-br from-primary/[0.08] to-accent/[0.12]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.1)_0%,transparent_50%),radial-gradient(circle_at_70%_80%,hsl(var(--accent)/0.08)_0%,transparent_50%)] pointer-events-none" />
+        <div className="relative text-center py-8 px-6 rounded-3xl overflow-hidden bg-primary-muted">
+          <div className="absolute inset-0 pointer-events-none" />
           <span
-            className={`relative block font-display text-6xl md:text-7xl font-bold tracking-tight text-primary transition-transform duration-300 ${bounce ? 'scale-105' : ''}`}
+            className={`relative block font-display text-6xl md:text-7xl font-bold tracking-tight text-primary-text transition-transform duration-300 ${bounce ? 'scale-105' : ''}`}
             style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
           >
             {duration.primary} <span className="text-4xl md:text-5xl font-medium">{duration.unit}</span>

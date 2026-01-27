@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import { VALID_THEMES, type Theme } from '@/lib/theme-config';
 
 /**
@@ -35,32 +35,25 @@ const MODE_STORAGE_KEY = 'mode';
  * ```
  */
 export function useTheme() {
-  // Initialize from DOM (set by blocking script) to avoid hydration mismatch
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'default';
+  // Always initialize to 'default' to avoid hydration mismatches
+  // The blocking script in layout.tsx will have already set the DOM attributes
+  const [theme, setThemeState] = useState<Theme>('default');
+  const [mode, setModeState] = useState<Mode>('light');
+
+  // Sync with DOM (set by blocking script) before React renders
+  // This runs before browser paint, ensuring state matches DOM
+  useLayoutEffect(() => {
     const currentTheme = document.documentElement.getAttribute('data-theme') as Theme;
-    return currentTheme && VALID_THEMES.includes(currentTheme) ? currentTheme : 'default';
-  });
-
-  const [mode, setModeState] = useState<Mode>(() => {
-    if (typeof window === 'undefined') return 'light';
     const currentMode = document.documentElement.getAttribute('data-mode') as Mode;
-    return currentMode && VALID_MODES.includes(currentMode) ? currentMode : 'light';
-  });
 
-  // Sync with localStorage on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-    const savedMode = localStorage.getItem(MODE_STORAGE_KEY) as Mode | null;
-
-    if (savedTheme && VALID_THEMES.includes(savedTheme) && savedTheme !== theme) {
-      setThemeState(savedTheme);
+    if (currentTheme && VALID_THEMES.includes(currentTheme)) {
+      setThemeState(currentTheme);
     }
 
-    if (savedMode && VALID_MODES.includes(savedMode) && savedMode !== mode) {
-      setModeState(savedMode);
+    if (currentMode && VALID_MODES.includes(currentMode)) {
+      setModeState(currentMode);
     }
-  }, [theme, mode]);
+  }, []);
 
   /**
    * Set the color theme (design system)

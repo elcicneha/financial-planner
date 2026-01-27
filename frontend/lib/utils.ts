@@ -12,6 +12,6 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function getGainLossColor(value: number): string {
   return value >= 0
-    ? 'text-success'
-    : 'text-destructive'
+    ? 'text-success-text'
+    : 'text-destructive-text'
 }

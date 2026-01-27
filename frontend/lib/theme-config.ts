@@ -13,8 +13,8 @@ export const THEME_CONFIG = {
     label: 'Default',
     description: 'Warm and welcoming design with rounded corners',
   },
-  neo: {
-    label: 'Neo',
+  lime: {
+    label: 'Lime',
     description: 'Modern and bold with vibrant colors',
   },
 } as const;

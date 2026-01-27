@@ -3,21 +3,14 @@
 import { useTheme } from '@/hooks/useTheme';
 import { themeMetadata, type Theme } from '@/lib/theme-config';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 /**
  * Combined theme switcher component
  *
  * Features:
- * - Select dropdown for theme (design system) selection
+ * - Tabs component for theme (design system) selection
  * - ThemeToggle button for light/dark mode
- * - Maintains the same UI as before
  *
  * Usage:
  * ```tsx
@@ -33,18 +26,15 @@ export function ThemeSwitcher() {
         Theme
       </label>
       <div className="flex gap-2">
-        <Select value={theme} onValueChange={(value) => setTheme(value as Theme)}>
-          <SelectTrigger className="flex-1 h-9">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
+        <Tabs value={theme} onValueChange={(value) => setTheme(value as Theme)} className="flex-1">
+          <TabsList className="w-full">
             {Object.entries(themeMetadata).map(([key, meta]) => (
-              <SelectItem key={key} value={key}>
+              <TabsTrigger key={key} value={key}>
                 {meta.label}
-              </SelectItem>
+              </TabsTrigger>
             ))}
-          </SelectContent>
-        </Select>
+          </TabsList>
+        </Tabs>
         <ThemeToggle className="size-9 shrink-0" />
       </div>
     </div>

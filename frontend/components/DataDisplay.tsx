@@ -42,8 +42,8 @@ export default function DataDisplay({ refreshKey = 0, onDataStateChange, onUploa
       <Card>
         <CardContent className="py-16">
           <div className="flex flex-col items-center gap-4">
-            <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/30">
-              <AlertCircle className="size-6 text-red-500" />
+            <div className="p-3 rounded-full bg-destructive-muted">
+              <AlertCircle className="size-6 text-destructive" />
             </div>
             <p className="text-muted-foreground">{error}</p>
             <Button variant="outline" onClick={refetch}>

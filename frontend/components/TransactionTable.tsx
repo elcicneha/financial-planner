@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
+import { cn, getGainLossColor } from '@/lib/utils';
 import type { TransactionRecord } from '@/hooks/useTransactionData';
 
 interface TransactionTableProps {
@@ -119,14 +119,14 @@ export default function TransactionTable({ transactions }: TransactionTableProps
               </TableCell>
               <TableCell className={cn(
                 "text-right font-mono text-xs",
-                amount.isNegative && "text-red-500 dark:text-red-400"
+                amount.isNegative && "text-destructive-text"
               )}>
                 {amount.isNegative && '-'}{amount.value}
               </TableCell>
               <TableCell className="text-right font-mono text-xs">{t.nav || '-'}</TableCell>
               <TableCell className={cn(
                 "text-right font-mono text-xs",
-                units.isNegative && "text-red-500 dark:text-red-400"
+                units.isNegative && "text-destructive-text"
               )}>
                 {units.isNegative && '-'}{units.value}
               </TableCell>

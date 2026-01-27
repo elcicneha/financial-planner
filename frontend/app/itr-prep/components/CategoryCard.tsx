@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { IconToggle } from '@/components/ui/icon-toggle';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/currency';
 import { getGainLossColor } from '@/lib/utils';
 
@@ -37,7 +38,7 @@ export function DataRow({ label, value, isGain }: {
     >
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="flex items-center gap-1.5">
-        <span className={`font-mono text-sm tabular-nums ${colorClass}`}>
+        <span className={`font-mono font-medium text-sm tabular-nums ${colorClass}`}>
           {formatCurrency(value)}
         </span>
         <div className="text-accent-foreground opacity-0 group-hover:opacity-50 transition-opacity">
@@ -61,19 +62,19 @@ interface CategoryCardProps {
 
 export function CategoryCard({ title, subtitle, data }: CategoryCardProps) {
   return (
-    <div className="border rounded-lg bg-card overflow-hidden">
-      <div className="px-4 py-2.5 border-b bg-muted/40">
+    <Card className="overflow-hidden">
+      <CardHeader className="px-4 py-2.5 border-b bg-muted/40 space-y-0">
         <div className="flex items-baseline justify-between">
           <span className="font-medium text-sm">{title}</span>
-          <span className="text-[11px] text-muted-foreground">{subtitle}</span>
+          <span className="text-xs text-card-muted-foreground">{subtitle}</span>
         </div>
-      </div>
-      <div className="px-4 py-2">
+      </CardHeader>
+      <CardContent className="px-4 py-2 space-y-0">
         <DataRow label="Sale Consideration" value={data.sale_consideration} />
         <DataRow label="Acquisition Cost" value={data.acquisition_cost} />
         <div className="border-t my-1" />
         <DataRow label="Gain/Loss" value={data.gain_loss} isGain />
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
