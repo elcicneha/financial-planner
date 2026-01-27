@@ -7,11 +7,11 @@ import { PlaygroundState } from '@/hooks/usePlaygroundState';
 import { Switch } from '@/components/ui/switch';
 import { InlineInput } from '@/components/ui/inline-input';
 
-interface DesignProps {
+interface BreakCalculatorProps {
   state: PlaygroundState;
 }
 
-export function DesignCurrent({ state }: DesignProps) {
+export function BreakCalculator({ state }: BreakCalculatorProps) {
   const {
     inputs,
     results,
@@ -179,7 +179,7 @@ export function DesignCurrent({ state }: DesignProps) {
             ref={firstInputRef}
             value={inputs.currentAge}
             onChange={updateInput('currentAge')}
-            className={edgeCase.isCompletelyEmpty && inputs.currentAge === 0 ? 'ring-2 ring-primary/30' : ''}
+
           />{' '}
           years old and want to take a break in{' '}
           <InlineInput
