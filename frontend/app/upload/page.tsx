@@ -18,7 +18,7 @@ export default function UploadPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="icon-container">
-            <FileText className="h-6 w-6" />
+            <FileText className="size-6" />
           </div>
           <div>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">

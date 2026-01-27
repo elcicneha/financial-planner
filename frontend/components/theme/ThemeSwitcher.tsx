@@ -45,7 +45,7 @@ export function ThemeSwitcher() {
             ))}
           </SelectContent>
         </Select>
-        <ThemeToggle className="h-9 w-9 shrink-0" />
+        <ThemeToggle className="size-9 shrink-0" />
       </div>
     </div>
   );

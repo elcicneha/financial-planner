@@ -99,7 +99,7 @@ const TableHead = React.forwardRef<HTMLTableCellElement, TableHeadProps>(
             )}
           >
             {children}
-            <SortIcon className="h-3.5 w-3.5 shrink-0" />
+            <SortIcon className="size-3.5 shrink-0" />
           </button>
         </th>
       )

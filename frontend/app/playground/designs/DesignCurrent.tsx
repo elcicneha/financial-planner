@@ -41,13 +41,13 @@ export function DesignCurrent({ state }: DesignProps) {
       {/* Empty State */}
       {edgeCase.isCompletelyEmpty && (
         <div className="relative text-center py-12 px-6 rounded-3xl border-2 border-dashed border-muted-foreground/30 bg-muted/20">
-          <Calculator className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
+          <Calculator className="size-12 mx-auto mb-3 text-muted-foreground/40" />
           <h3 className="text-lg font-medium mb-2">See How Long Your Money Lasts</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
             Fill in your details below to calculate how many years your savings will support you during a career break.
           </p>
           <div className="flex items-center justify-center gap-2 mt-2">
-            <ArrowRight className="w-4 h-4 text-muted-foreground/50 rotate-90" />
+            <ArrowRight className="size-4 text-muted-foreground/50 rotate-90" />
             <span className="text-xs text-muted-foreground">Start here</span>
           </div>
         </div>
@@ -57,7 +57,7 @@ export function DesignCurrent({ state }: DesignProps) {
       {edgeCase.noExpenses && (
         <div className="relative text-center py-8 px-6 rounded-3xl overflow-hidden bg-gradient-to-br from-green-500/[0.08] to-emerald-500/[0.12] border border-green-500/20">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(142,76%,36%,0.1)_0%,transparent_50%)] pointer-events-none" />
-          <Infinity className="relative w-16 h-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
+          <Infinity className="relative size-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
           <span className="relative block font-display text-5xl md:text-6xl font-bold tracking-tight text-green-600 dark:text-green-400">
             Forever
           </span>
@@ -65,7 +65,7 @@ export function DesignCurrent({ state }: DesignProps) {
             Your money lasts
           </span>
           <div className="relative inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm border border-amber-500/20">
-            <AlertTriangle className="w-4 h-4" />
+            <AlertTriangle className="size-4" />
             Add monthly expenses for realistic projections
           </div>
         </div>
@@ -75,7 +75,7 @@ export function DesignCurrent({ state }: DesignProps) {
       {edgeCase.neverRunsOut && (
         <div className="relative text-center py-8 px-6 rounded-3xl overflow-hidden bg-gradient-to-br from-green-500/[0.08] to-emerald-500/[0.12] border border-green-500/20">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(142,76%,36%,0.1)_0%,transparent_50%)] pointer-events-none" />
-          <Sparkles className="relative w-12 h-12 mx-auto mb-2 text-green-600 dark:text-green-400" />
+          <Sparkles className="relative size-12 mx-auto mb-2 text-green-600 dark:text-green-400" />
           <span className="relative block font-display text-6xl md:text-7xl font-bold tracking-tight text-green-600 dark:text-green-400">
             100+ <span className="text-4xl md:text-5xl font-medium">years</span>
           </span>
@@ -92,7 +92,7 @@ export function DesignCurrent({ state }: DesignProps) {
       {edgeCase.insufficientSavings && (
         <div className="relative text-center py-8 px-6 rounded-3xl overflow-hidden bg-gradient-to-br from-destructive/[0.08] to-red-500/[0.12] border border-destructive/30">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--destructive)/0.1)_0%,transparent_50%)] pointer-events-none" />
-          <AlertTriangle className="relative w-16 h-16 mx-auto mb-3 text-destructive" />
+          <AlertTriangle className="relative size-16 mx-auto mb-3 text-destructive" />
           <span className="relative block font-display text-2xl md:text-3xl font-bold tracking-tight text-destructive">
             Can't afford this break
           </span>
@@ -100,7 +100,7 @@ export function DesignCurrent({ state }: DesignProps) {
             You need savings to cover {formatCurrency(inputs.monthlyExpense)}/month
           </span>
           <div className="relative inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm border border-primary/20">
-            <TrendingUp className="w-4 h-4" />
+            <TrendingUp className="size-4" />
             Start by adding current savings or monthly savings amount
           </div>
         </div>
@@ -110,7 +110,7 @@ export function DesignCurrent({ state }: DesignProps) {
       {edgeCase.runsOutImmediately && (
         <div className="relative text-center py-8 px-6 rounded-3xl overflow-hidden bg-gradient-to-br from-amber-500/[0.08] to-orange-500/[0.12] border border-amber-500/30">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(38,92%,50%,0.1)_0%,transparent_50%)] pointer-events-none" />
-          <AlertTriangle className="relative w-12 h-12 mx-auto mb-3 text-amber-600 dark:text-amber-400" />
+          <AlertTriangle className="relative size-12 mx-auto mb-3 text-amber-600 dark:text-amber-400" />
           <span className="relative block font-display text-5xl md:text-6xl font-bold tracking-tight text-amber-600 dark:text-amber-500">
             &lt; 1 <span className="text-3xl md:text-4xl font-medium">month</span>
           </span>
@@ -156,7 +156,7 @@ export function DesignCurrent({ state }: DesignProps) {
             <div className="text-xs text-muted-foreground mb-1">Today</div>
             <div className="font-semibold text-lg">{formatCurrency(results.currentAmount)}</div>
           </div>
-          <ArrowRight className="text-muted-foreground/50 flex-shrink-0 h-5 w-5" />
+          <ArrowRight className="text-muted-foreground/50 flex-shrink-0 size-5" />
           <div className="flex-1 max-w-[180px] p-4 rounded-2xl text-center transition-all duration-200 bg-primary/10 hover:-translate-y-0.5">
             <div className="text-xs text-muted-foreground mb-1">
               At Break{inputs.currentAge > 0 && ` (Age ${results.ageAtBreak})`}

@@ -17,8 +17,8 @@ export function Sidebar() {
       {/* Header */}
       <div className="h-16 flex items-center px-5 border-b border-border/50">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <TrendingUp className="h-4 w-4 text-primary" />
+          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <TrendingUp className="size-4 text-primary" />
           </div>
           <span className="font-display font-semibold text-sm">Financial Planner</span>
         </div>
@@ -39,7 +39,7 @@ export function Sidebar() {
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               )}
             >
-              <item.icon className="h-4 w-4" />
+              <item.icon className="size-4" />
               {item.title}
             </Link>
           );
@@ -62,7 +62,7 @@ export function Sidebar() {
           )}
           title={isDevMode ? 'Hide dev tools' : 'Show dev tools'}
         >
-          <Code2 className="h-4 w-4" />
+          <Code2 className="size-4" />
           Dev Mode
         </button>
       </div>

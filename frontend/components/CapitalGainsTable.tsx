@@ -166,13 +166,13 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
         <div className="flex gap-2">
           {!isEditMode ? (
             <Button variant="outline" size="sm" onClick={handleEnterEditMode}>
-              <Pencil className="h-4 w-4 mr-2" />
+              <Pencil className="size-4 mr-2" />
               Edit
             </Button>
           ) : (
             <>
               <Button variant="outline" size="sm" onClick={handleCancelEdit} disabled={isSaving}>
-                <X className="h-4 w-4 mr-2" />
+                <X className="size-4 mr-2" />
                 Cancel
               </Button>
               <Button
@@ -184,7 +184,7 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
                   <>Saving...</>
                 ) : (
                   <>
-                    <Check className="h-4 w-4 mr-2" />
+                    <Check className="size-4 mr-2" />
                     Save
                   </>
                 )}
@@ -234,8 +234,8 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
                           gain.fund_type === 'unknown'
                             ? 'w-28 border-orange-500 border-2'
                             : pendingChanges[gain.ticker]
-                            ? 'w-28 border-yellow-500'
-                            : 'w-28'
+                              ? 'w-28 border-yellow-500'
+                              : 'w-28'
                         }
                       >
                         <SelectValue />
@@ -251,35 +251,33 @@ export default function CapitalGainsTable({ gains, refetch }: CapitalGainsTableP
                         gain.fund_type === 'equity'
                           ? 'default'
                           : gain.fund_type === 'debt'
-                          ? 'secondary'
-                          : 'destructive'
+                            ? 'secondary'
+                            : 'destructive'
                       }
                     >
                       {gain.fund_type === 'equity'
                         ? 'Equity'
                         : gain.fund_type === 'debt'
-                        ? 'Debt'
-                        : 'Unknown'}
+                          ? 'Debt'
+                          : 'Unknown'}
                     </Badge>
                   )}
                 </TableCell>
                 <TableCell>
                   <span
-                    className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                      gain.term === 'Long-term'
+                    className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${gain.term === 'Long-term'
                         ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                         : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                    }`}
+                      }`}
                   >
                     {gain.term}
                   </span>
                 </TableCell>
                 <TableCell
-                  className={`text-right font-mono text-sm font-medium ${
-                    gain.gain >= 0
+                  className={`text-right font-mono text-sm font-medium ${gain.gain >= 0
                       ? 'text-green-600 dark:text-green-400'
                       : 'text-red-600 dark:text-red-400'
-                  }`}
+                    }`}
                 >
                   {formatCurrency(gain.gain)}
                 </TableCell>

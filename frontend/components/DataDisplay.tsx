@@ -29,7 +29,7 @@ export default function DataDisplay({ refreshKey = 0, onDataStateChange, onUploa
       <Card>
         <CardContent className="py-16">
           <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
             <p className="text-muted-foreground">Loading transactions...</p>
           </div>
         </CardContent>
@@ -43,7 +43,7 @@ export default function DataDisplay({ refreshKey = 0, onDataStateChange, onUploa
         <CardContent className="py-16">
           <div className="flex flex-col items-center gap-4">
             <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/30">
-              <AlertCircle className="h-6 w-6 text-red-500" />
+              <AlertCircle className="size-6 text-red-500" />
             </div>
             <p className="text-muted-foreground">{error}</p>
             <Button variant="outline" onClick={refetch}>
@@ -61,7 +61,7 @@ export default function DataDisplay({ refreshKey = 0, onDataStateChange, onUploa
         <CardContent className="py-16">
           <div className="flex flex-col items-center gap-4">
             <div className="p-3 rounded-full bg-muted">
-              <Upload className="h-6 w-6 text-muted-foreground" />
+              <Upload className="size-6 text-muted-foreground" />
             </div>
             <div className="text-center">
               <p className="text-muted-foreground">No transactions found</p>
@@ -75,7 +75,7 @@ export default function DataDisplay({ refreshKey = 0, onDataStateChange, onUploa
             >
               <UploadDialog.Trigger asChild>
                 <Button>
-                  <Upload className="h-4 w-4" />
+                  <Upload className="size-4" />
                   Upload PDF
                 </Button>
               </UploadDialog.Trigger>

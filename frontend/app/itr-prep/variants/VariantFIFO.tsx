@@ -108,7 +108,7 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <Loader2 className="size-12 animate-spin text-primary" />
           <p className="text-muted-foreground">Calculating capital gains...</p>
           <p className="text-sm text-muted-foreground">
             This may take a moment if recalculating for all transactions
@@ -125,7 +125,7 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
         <Card className="w-full max-w-md">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive" />
+              <AlertCircle className="size-5 text-destructive" />
               <CardTitle>Error Loading Capital Gains</CardTitle>
             </div>
           </CardHeader>
@@ -147,7 +147,7 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
         <Card className="w-full max-w-md">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+              <TrendingUp className="size-5 text-muted-foreground" />
               <CardTitle>
                 {selectedFY ? `No Capital Gains Data for ${selectedFY}` : 'No Capital Gains Data'}
               </CardTitle>
@@ -194,9 +194,9 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
                   size="icon"
                   onClick={handleRecalculate}
                   disabled={isRefreshing}
-                  className="h-9 w-9"
+                  className="size-9"
                 >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -211,7 +211,7 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
           <Card className="border-yellow-200 dark:border-yellow-900 bg-yellow-50 dark:bg-yellow-950/30">
             <CardHeader className="pb-3">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="size-5 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <CardTitle className="text-base text-yellow-900 dark:text-yellow-100">
                     Unknown Fund Classification
@@ -252,7 +252,7 @@ export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
             <CopyButton
               value={Math.abs(totalGains).toFixed(4)}
               tooltip="Copy Total"
-              className="h-7 w-7"
+              className="size-7"
             />
           </div>
         </div>

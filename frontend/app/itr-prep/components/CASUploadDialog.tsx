@@ -25,15 +25,13 @@ function CASInstructions() {
       </button>
 
       <div
-        className={`grid transition-all duration-300 ease-out ${
-          isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-        }`}
+        className={`grid transition-all duration-300 ease-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          }`}
       >
         <div className="overflow-hidden">
           <div
-            className={`pl-5 pr-3 py-3 rounded-lg bg-muted/30 transition-colors duration-300 ${
-              isOpen ? 'border-l-primary/50' : 'border-l-transparent'
-            }`}
+            className={`pl-5 pr-3 py-3 rounded-lg bg-muted/30 transition-colors duration-300 ${isOpen ? 'border-l-primary/50' : 'border-l-transparent'
+              }`}
           >
             <div className="space-y-4">
               {/* CAMS Instructions */}
@@ -126,7 +124,7 @@ export function CASUploadDialog({ onUploadSuccess }: CASUploadDialogProps) {
               className="inline-flex items-center gap-1 text-primary hover:underline underline-offset-4 decoration-primary/40 hover:decoration-primary transition-colors font-medium"
             >
               CAMS
-              <ExternalLink className="h-3.5 w-3.5" />
+              <ExternalLink className="size-3.5" />
             </a>
             {' '}and{' '}
             <a
@@ -136,7 +134,7 @@ export function CASUploadDialog({ onUploadSuccess }: CASUploadDialogProps) {
               className="inline-flex items-center gap-1 text-primary hover:underline underline-offset-4 decoration-primary/40 hover:decoration-primary transition-colors font-medium"
             >
               KFINTECH
-              <ExternalLink className="h-3.5 w-3.5" />
+              <ExternalLink className="size-3.5" />
             </a>
             . You can upload both files at once. Financial year will be auto-detected.
           </UploadDialog.Description>

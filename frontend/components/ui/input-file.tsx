@@ -154,7 +154,7 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
           {!hasFiles && !isDragging && (
             <div className="space-y-4">
               <div className="icon-container mx-auto w-fit">
-                <FileUp className="h-6 w-6" />
+                <FileUp className="size-6" />
               </div>
               <div>
                 <p className="text-foreground font-medium">{placeholder}</p>
@@ -167,7 +167,7 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
           {isDragging && (
             <div className="space-y-4">
               <div className="icon-container mx-auto w-fit">
-                <FileUp className="h-6 w-6" />
+                <FileUp className="size-6" />
               </div>
               <p className="text-primary font-medium">Drop your file here</p>
             </div>
@@ -177,7 +177,7 @@ export const InputFile = forwardRef<InputFileHandle, InputFileProps>(
           {hasFiles && !isDragging && (
             <div className="space-y-4">
               <div className="icon-container mx-auto w-fit">
-                <FileIcon className="h-6 w-6" />
+                <FileIcon className="size-6" />
               </div>
               <div>
                 {files.length === 1 ? (

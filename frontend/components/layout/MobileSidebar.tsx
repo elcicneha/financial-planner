@@ -25,16 +25,16 @@ export function MobileSidebar() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-lg h-9 w-9">
-          <Menu className="h-5 w-5" />
+        <Button variant="ghost" size="icon" className="rounded-lg size-9">
+          <Menu className="size-5" />
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-56 p-0 border-border/50 bg-background">
         <SheetHeader className="h-16 flex flex-row items-center px-5 border-b border-border/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <TrendingUp className="h-4 w-4 text-primary" />
+            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <TrendingUp className="size-4 text-primary" />
             </div>
             <SheetTitle className="font-display font-semibold text-sm">
               Financial Planner
@@ -57,7 +57,7 @@ export function MobileSidebar() {
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className="size-4" />
                 {item.title}
               </Link>
             );
@@ -79,7 +79,7 @@ export function MobileSidebar() {
             )}
             title={isDevMode ? 'Hide dev tools' : 'Show dev tools'}
           >
-            <Code2 className="h-4 w-4" />
+            <Code2 className="size-4" />
             Dev Mode
           </button>
         </div>

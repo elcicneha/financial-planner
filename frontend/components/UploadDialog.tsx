@@ -570,7 +570,7 @@ function UploadDialogTriggerButton({
   return (
     <DialogTrigger asChild>
       <Button {...buttonProps}>
-        <Icon className="h-4 w-4" />
+        <Icon className="size-4" />
         {!iconOnly && children}
       </Button>
     </DialogTrigger>
@@ -683,7 +683,7 @@ function StatusGroup({
             variant="ghost"
             className="w-full p-4 h-auto flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 justify-start"
           >
-            <Icon className={`h-5 w-5 ${styles.icon} flex-shrink-0`} />
+            <Icon className={`size-5 ${styles.icon} flex-shrink-0`} />
             <div className="flex-1 text-left min-w-0">
               <div className="flex items-center gap-2">
                 <Badge className={`${styles.badge} text-xs`}>
@@ -693,9 +693,8 @@ function StatusGroup({
               </div>
             </div>
             <ChevronRight
-              className={`h-4 w-4 text-muted-foreground transition-transform duration-200 flex-shrink-0 ${
-                isOpen ? 'rotate-90' : ''
-              }`}
+              className={`size-4 text-muted-foreground transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-90' : ''
+                }`}
             />
           </Button>
         </CollapsibleTrigger>
@@ -722,9 +721,9 @@ function StatusGroup({
                       variant="ghost"
                       size="iconSm"
                       onClick={() => onRemoveFile(originalIndex)}
-                      className="opacity-0 group-hover:opacity-100 h-7 w-7"
+                      className="opacity-0 group-hover:opacity-100 size-7"
                     >
-                      <X className="h-3.5 w-3.5" />
+                      <X className="size-3.5" />
                     </Button>
                   )}
                 </div>
@@ -839,7 +838,7 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
           {groupedFiles.uploading.length > 0 && (
             <div className="p-4 rounded-lg border bg-muted/30 border-border transition-all animate-in fade-in duration-200">
               <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 text-muted-foreground animate-spin flex-shrink-0" />
+                <Loader2 className="size-5 text-muted-foreground animate-spin flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <Badge className="bg-muted-foreground text-background text-xs">
@@ -906,7 +905,7 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
                 className="p-4 rounded-lg border bg-accent/30 border-accent-foreground/20 transition-all animate-in fade-in slide-in-from-top-2 duration-300"
               >
                 <div className="flex items-start gap-3">
-                  <Lock className="h-5 w-5 text-accent-foreground mt-0.5" />
+                  <Lock className="size-5 text-accent-foreground mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium truncate">{fileState.file.name}</p>
@@ -914,7 +913,7 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
                         onClick={() => handleRemoveFile(originalIndex)}
                         className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-colors"
                       >
-                        <X className="h-4 w-4 text-muted-foreground" />
+                        <X className="size-4 text-muted-foreground" />
                       </button>
                     </div>
                     <form onSubmit={(e) => handlePasswordSubmit(originalIndex, e)} className="mt-3 space-y-3">
@@ -954,7 +953,7 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
           {zipState.status === 'extracting' && (
             <div className="p-4 rounded-lg border bg-muted/30 border-border">
               <div className="flex items-center gap-3">
-                <Archive className="h-5 w-5 text-muted-foreground" />
+                <Archive className="size-5 text-muted-foreground" />
                 <div className="flex-1">
                   <p className="text-sm font-medium">
                     {zipState.zipFiles.length === 1
@@ -962,7 +961,7 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
                       : `${zipState.zipFiles.length} zip files`}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+                    <Loader2 className="size-3.5 text-muted-foreground animate-spin" />
                     <p className="text-sm text-muted-foreground">Extracting files...</p>
                   </div>
                 </div>
@@ -974,7 +973,7 @@ function UploadDialogBody({ children, placeholder = 'Drag and drop your files he
           {zipState.status === 'error' && (
             <div className="p-4 rounded-lg border bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
               <div className="flex items-start gap-3">
-                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
+                <XCircle className="size-5 text-red-600 dark:text-red-400 mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-medium">
                     {zipState.zipFiles.length === 1

@@ -40,7 +40,7 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <Loader2 className="size-12 animate-spin text-primary" />
           <p className="text-muted-foreground">Loading CAS capital gains data...</p>
         </div>
       </div>
@@ -59,7 +59,7 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
           <Card className="w-full max-w-md">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-destructive" />
+                <AlertCircle className="size-5 text-destructive" />
                 <CardTitle>Error Loading CAS Data</CardTitle>
               </div>
             </CardHeader>
@@ -86,7 +86,7 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
           <Card className="w-full max-w-md">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-muted-foreground" />
+                <FileText className="size-5 text-muted-foreground" />
                 <CardTitle>
                   {selectedFY ? `No CAS Data for ${selectedFY}` : 'No CAS Data Available'}
                 </CardTitle>
@@ -145,7 +145,7 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
             <CopyButton
               value={Math.abs(totalGains).toFixed(4)}
               tooltip="Copy Total"
-              className="h-7 w-7"
+              className="size-7"
             />
           </div>
         </div>
@@ -200,9 +200,8 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
                 </CardDescription>
               </div>
               <ChevronDown
-                className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
-                  isSourceOpen ? 'rotate-180' : ''
-                }`}
+                className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${isSourceOpen ? 'rotate-180' : ''
+                  }`}
               />
             </CardHeader>
           </button>
@@ -239,24 +238,23 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
                                 txn.asset_type === 'EQUITY'
                                   ? 'default'
                                   : txn.asset_type === 'DEBT'
-                                  ? 'secondary'
-                                  : 'destructive'
+                                    ? 'secondary'
+                                    : 'destructive'
                               }
                             >
                               {txn.asset_type === 'EQUITY'
                                 ? 'Equity'
                                 : txn.asset_type === 'DEBT'
-                                ? 'Debt'
-                                : 'Unknown'}
+                                  ? 'Debt'
+                                  : 'Unknown'}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <span
-                              className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                                txn.term === 'long'
+                              className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${txn.term === 'long'
                                   ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                                   : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                              }`}
+                                }`}
                             >
                               {txn.term === 'short' ? 'Short-term' : 'Long-term'}
                             </span>
@@ -280,11 +278,10 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
                             {formatCurrency(txn.acquisition_cost)}
                           </TableCell>
                           <TableCell
-                            className={`text-right font-mono text-sm font-medium ${
-                              txn.gain_loss >= 0
+                            className={`text-right font-mono text-sm font-medium ${txn.gain_loss >= 0
                                 ? 'text-green-600 dark:text-green-400'
                                 : 'text-red-600 dark:text-red-400'
-                            }`}
+                              }`}
                           >
                             {formatCurrency(txn.gain_loss)}
                           </TableCell>
