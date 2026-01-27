@@ -39,3 +39,7 @@ dist/
 build/
 
 IDEATION.md
+
+# Ignore Claude Code directory except skills
+.claude/*
+!.claude/skills/
