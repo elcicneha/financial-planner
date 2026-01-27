@@ -73,18 +73,18 @@
      THEME DEFINITIONS
      ============================================
 
-     IMPORTANT: When adding or removing a theme, update these 3 files:
+     IMPORTANT: When adding or removing a theme, update these 2 locations:
 
-     1. THIS FILE (globals.css):
-        - Add/remove theme CSS variables for design tokens (radius, fonts, etc.)
-        - Add/remove [data-theme="yourtheme"][data-mode="light"] block
-        - Add/remove [data-theme="yourtheme"][data-mode="dark"] block
+     1. lib/theme-config.ts:
+        - Add your theme to the THEME_CONFIG object with label and description
 
-     2. hooks/useTheme.ts:
-        - Line 15: Add theme name to VALID_THEMES array
+     2. THIS FILE (globals.css):
+        - Add theme design tokens: [data-theme="yourtheme"] { --radius, etc. }
+        - Add light mode colors: [data-theme="yourtheme"][data-mode="light"] { ... }
+        - Add dark mode colors: [data-theme="yourtheme"][data-mode="dark"] { ... }
 
-     3. app/layout.tsx:
-        - Line 17: Add theme name to validThemes array in blocking script
+     That's it! The TypeScript types, validation arrays, and inline scripts
+     are all auto-generated from the centralized config.
 
      ============================================ */
 

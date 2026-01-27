@@ -1,18 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { VALID_THEMES, type Theme } from '@/lib/theme-config';
 
 /**
- * Available color themes (design systems)
+ * Re-export Theme type for convenience
  */
-export type Theme = 'default' | 'neo' | 'ocean';
+export type { Theme } from '@/lib/theme-config';
 
 /**
  * Available color modes
  */
 export type Mode = 'light' | 'dark';
 
-const VALID_THEMES: Theme[] = ['default', 'neo'];
 const VALID_MODES: Mode[] = ['light', 'dark'];
 
 const THEME_STORAGE_KEY = 'theme';
@@ -105,21 +105,3 @@ export function useTheme() {
     toggleMode,
   };
 }
-
-/**
- * Theme metadata for UI display
- */
-export const themeMetadata: Record<Theme, { label: string; description: string }> = {
-  default: {
-    label: 'Default',
-    description: 'Warm and welcoming design with rounded corners',
-  },
-  neo: {
-    label: 'Neo',
-    description: 'Modern and bold with vibrant colors',
-  },
-  ocean: {
-    label: 'Ocean',
-    description: 'Calm and professional with blue tones',
-  },
-};

@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileSidebar } from '@/components/layout/MobileSidebar';
 import { DevModeProvider } from '@/components/dev/DevModeProvider';
 import { Toaster } from '@/components/ui/sonner';
+import { generateThemeScript } from '@/lib/theme-config';
 
 export const metadata: Metadata = {
   title: 'Financial Planner',
@@ -17,29 +18,8 @@ export default function RootLayout({
 }) {
   // Inline blocking script to prevent flash of unstyled content
   // This runs before React hydration and sets both data-theme and data-mode attributes
-  const themeScript = `
-    (function() {
-      try {
-        const validThemes = ['default', 'neo'];
-        const validModes = ['light', 'dark'];
-
-        const theme = localStorage.getItem('theme') || 'default';
-        const mode = localStorage.getItem('mode') || 'light';
-
-        if (validThemes.includes(theme)) {
-          document.documentElement.setAttribute('data-theme', theme);
-        } else {
-          document.documentElement.setAttribute('data-theme', 'default');
-        }
-
-        if (validModes.includes(mode)) {
-          document.documentElement.setAttribute('data-mode', mode);
-        } else {
-          document.documentElement.setAttribute('data-mode', 'light');
-        }
-      } catch (e) {}
-    })();
-  `;
+  // Generated from centralized theme config
+  const themeScript = generateThemeScript();
 
   return (
     <html lang="en" suppressHydrationWarning>

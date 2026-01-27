@@ -1,6 +1,7 @@
 'use client';
 
-import { useTheme, themeMetadata, type Theme } from '@/hooks/useTheme';
+import { useTheme } from '@/hooks/useTheme';
+import { themeMetadata, type Theme } from '@/lib/theme-config';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import {
   Select,
