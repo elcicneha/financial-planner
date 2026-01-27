@@ -77,6 +77,15 @@ export default function ITRPrepPage() {
   // Get selected variant component
   const SelectedComponent = variants[selectedVariant]?.component ?? variants[defaultVariant].component;
 
+  // Don't render until mounted to prevent flash of wrong variant
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Flex container for Variant Switcher and FY Selector */}

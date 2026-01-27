@@ -1,113 +1,155 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
 
+/* Optional: Import raw color tokens (Layer A) */
+@import './colors.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+
   /* ============================================
-     DEFAULT THEME - Light Mode (default)
+     THEME DEFINITIONS
+     ============================================
+
+     IMPORTANT: When adding or removing a theme, update these 3 files:
+
+     1. THIS FILE (globals.css):
+        - Add/remove theme CSS variables for design tokens (radius, fonts, etc.)
+        - Add/remove [data-theme="yourtheme"][data-mode="light"] block
+        - Add/remove [data-theme="yourtheme"][data-mode="dark"] block
+
+     2. hooks/useTheme.ts:
+        - Line 15: Add theme name to VALID_THEMES array
+
+     3. app/layout.tsx:
+        - Line 17: Add theme name to validThemes array in blocking script
+
+     ============================================ */
+
+
+  /* ============================================
+     DEFAULT THEME
      ============================================ */
   :root,
   [data-theme="default"] {
-    /* Design tokens - these define the theme personality */
+    /* Design tokens - non-color properties that define theme personality */
     --radius: 0.75rem;
-
-    /* Light mode colors */
-    --background: 250 247 242;
-    --foreground: 37 37 44;
-
-    --card: 255 255 255;
-    --card-foreground: 37 37 44;
-    --popover: 255 255 255;
-    --popover-foreground: 37 37 44;
-
-    --primary: 236 98 45;
-    --primary-foreground: 255 255 255;
-
-    --secondary: 233 245 240;
-    --secondary-foreground: 46 107 84;
-
-    --muted: 243 240 233;
-    --muted-foreground: 112 112 118;
-
-    --accent: 245 238 252;
-    --accent-foreground: 107 54 143;
-
-    --success: 43 171 126;
-    --success-foreground: 255 255 255;
-    --success-muted: 233 245 240;
-
-    --warning: 245 158 10;
-    --warning-foreground: 74 48 3;
-    --warning-muted: 252 240 220;
-
-    --destructive: 220 38 38;
-    --destructive-foreground: 255 255 255;
-    --destructive-muted: 252 237 237;
-
-    --border: 232 227 217;
-    --input: 232 227 217;
-    --ring: 236 98 45;
-
-    --sidebar: 255 255 255;
-    --sidebar-foreground: 37 37 44;
-    --sidebar-border: 237 232 222;
-    --sidebar-accent: 236 98 45;
+    --font-size-base: 16px;
+    --font-family: "DM Sans", system-ui, sans-serif;
   }
 
-  /* Default theme - Dark mode (only colors change) */
-  [data-theme="default"].dark {
-    --background: 14 14 16;
-    --foreground: 242 239 234;
+  /* Default theme - Light Mode */
+  :root[data-mode="light"],
+  [data-theme="default"][data-mode="light"] {
+    /* Core semantic tokens */
+    --background: 250 248 245;
+    --foreground: 37 37 45;
 
-    --card: 21 21 24;
-    --card-foreground: 242 239 234;
-    --popover: 21 21 24;
-    --popover-foreground: 242 239 234;
+    /* Surface hierarchy */
+    --card: 255 255 255;
+    --card-foreground: 37 37 45;
+    --popover: 255 255 255;
+    --popover-foreground: 37 37 45;
 
-    --primary: 235 107 61;
+    /* Brand colors - Warm coral */
+    --primary: 239 105 57;
     --primary-foreground: 255 255 255;
 
-    --secondary: 31 48 42;
-    --secondary-foreground: 193 224 213;
+    /* Secondary - Soft sage */
+    --secondary: 235 244 241;
+    --secondary-foreground: 46 107 85;
 
-    --muted: 33 33 38;
-    --muted-foreground: 145 145 153;
+    /* Muted - Warm gray */
+    --muted: 240 238 234;
+    --muted-foreground: 111 111 123;
 
-    --accent: 37 35 57;
-    --accent-foreground: 209 193 224;
+    /* Accent - Soft lavender */
+    --accent: 242 237 247;
+    --accent-foreground: 89 54 125;
 
-    --success: 51 179 134;
+    /* Semantic status colors */
+    --success: 43 171 124;
     --success-foreground: 255 255 255;
-    --success-muted: 27 44 38;
+    --success-muted: 234 246 241;
 
-    --warning: 240 146 13;
-    --warning-foreground: 31 19 3;
-    --warning-muted: 50 38 24;
+    --warning: 245 159 10;
+    --warning-foreground: 73 48 3;
+    --warning-muted: 250 243 229;
+
+    --destructive: 220 40 40;
+    --destructive-foreground: 255 255 255;
+    --destructive-muted: 251 239 239;
+
+    /* UI elements */
+    --border: 229 226 220;
+    --input: 229 226 220;
+    --ring: 239 105 57;
+
+    /* Sidebar specific */
+    --sidebar: 255 255 255;
+    --sidebar-foreground: 37 37 45;
+    --sidebar-border: 233 231 226;
+    --sidebar-accent: 239 105 57;
+  }
+
+  /* Default theme - Dark mode */
+  [data-theme="default"][data-mode="dark"] {
+    --background: 14 14 17;
+    --foreground: 246 245 243;
+
+    --card: 21 21 25;
+    --card-foreground: 246 245 243;
+    --popover: 21 21 25;
+    --popover-foreground: 246 245 243;
+
+    --primary: 235 115 71;
+    --primary-foreground: 255 255 255;
+
+    --secondary: 33 49 43;
+    --secondary-foreground: 205 228 220;
+
+    --muted: 32 32 39;
+    --muted-foreground: 163 156 143;
+
+    --accent: 46 34 57;
+    --accent-foreground: 217 201 232;
+
+    --success: 52 178 132;
+    --success-foreground: 255 255 255;
+    --success-muted: 27 45 38;
+
+    --warning: 236 156 19;
+    --warning-foreground: 49 32 2;
+    --warning-muted: 48 39 23;
 
     --destructive: 204 51 51;
     --destructive-foreground: 255 255 255;
-    --destructive-muted: 54 23 23;
+    --destructive-muted: 48 23 23;
 
-    --border: 38 38 43;
-    --input: 38 38 43;
-    --ring: 235 107 61;
+    --border: 37 37 45;
+    --input: 37 37 45;
+    --ring: 235 115 71;
 
-    --sidebar: 16 16 19;
-    --sidebar-foreground: 242 239 234;
-    --sidebar-border: 28 28 33;
-    --sidebar-accent: 235 107 61;
+    --sidebar: 16 16 20;
+    --sidebar-foreground: 246 245 243;
+    --sidebar-border: 28 28 34;
+    --sidebar-accent: 235 115 71;
   }
 
   /* ============================================
-     NEO THEME - Light Mode
+     NEO THEME
      ============================================ */
   [data-theme="neo"] {
     /* Design tokens - different personality */
     --radius: 1.5rem;
+    --font-size-base: 18px;
+    --font-family: "Inter var", "DM Sans", system-ui, sans-serif;
+  }
 
-    /* Light mode colors */
+  /* Neo theme - Light Mode */
+  [data-theme="neo"][data-mode="light"] {
     --background: 255 250 245;
     --foreground: 30 30 35;
 
@@ -151,7 +193,7 @@
   }
 
   /* Neo theme - Dark mode */
-  [data-theme="neo"].dark {
+  [data-theme="neo"][data-mode="dark"] {
     --background: 18 18 22;
     --foreground: 245 240 250;
 
@@ -194,99 +236,6 @@
     --sidebar-accent: 240 100 150;
   }
 
-  /* ============================================
-     OCEAN THEME - Light Mode
-     ============================================ */
-  [data-theme="ocean"] {
-    /* Design tokens - ocean personality */
-    --radius: 0.5rem;
-
-    /* Light mode colors */
-    --background: 245 250 255;
-    --foreground: 20 35 50;
-
-    --card: 255 255 255;
-    --card-foreground: 20 35 50;
-    --popover: 255 255 255;
-    --popover-foreground: 20 35 50;
-
-    --primary: 30 120 180;
-    --primary-foreground: 255 255 255;
-
-    --secondary: 220 240 250;
-    --secondary-foreground: 20 80 120;
-
-    --muted: 240 245 248;
-    --muted-foreground: 100 115 130;
-
-    --accent: 230 245 255;
-    --accent-foreground: 30 90 140;
-
-    --success: 35 160 110;
-    --success-foreground: 255 255 255;
-    --success-muted: 225 245 240;
-
-    --warning: 240 150 30;
-    --warning-foreground: 70 45 10;
-    --warning-muted: 250 240 220;
-
-    --destructive: 210 50 60;
-    --destructive-foreground: 255 255 255;
-    --destructive-muted: 250 235 235;
-
-    --border: 220 235 245;
-    --input: 220 235 245;
-    --ring: 30 120 180;
-
-    --sidebar: 255 255 255;
-    --sidebar-foreground: 20 35 50;
-    --sidebar-border: 230 240 248;
-    --sidebar-accent: 30 120 180;
-  }
-
-  /* Ocean theme - Dark mode */
-  [data-theme="ocean"].dark {
-    --background: 10 18 28;
-    --foreground: 230 240 250;
-
-    --card: 18 26 38;
-    --card-foreground: 230 240 250;
-    --popover: 18 26 38;
-    --popover-foreground: 230 240 250;
-
-    --primary: 60 150 220;
-    --primary-foreground: 255 255 255;
-
-    --secondary: 25 40 60;
-    --secondary-foreground: 180 210 235;
-
-    --muted: 28 35 45;
-    --muted-foreground: 140 155 170;
-
-    --accent: 30 45 65;
-    --accent-foreground: 180 210 240;
-
-    --success: 45 170 130;
-    --success-foreground: 255 255 255;
-    --success-muted: 20 40 35;
-
-    --warning: 235 145 40;
-    --warning-foreground: 30 20 5;
-    --warning-muted: 50 40 28;
-
-    --destructive: 200 60 70;
-    --destructive-foreground: 255 255 255;
-    --destructive-muted: 50 25 28;
-
-    --border: 35 45 60;
-    --input: 35 45 60;
-    --ring: 60 150 220;
-
-    --sidebar: 12 20 32;
-    --sidebar-foreground: 230 240 250;
-    --sidebar-border: 25 35 50;
-    --sidebar-accent: 60 150 220;
-  }
 }
 
 @layer base {
@@ -303,13 +252,19 @@
     font-family: 'DM Sans', system-ui, sans-serif;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: 'Fraunces', Georgia, serif;
     @apply font-semibold tracking-tight;
   }
 }
 
 @layer components {
+
   /* Card hover effect */
   .card-interactive {
     @apply transition-all duration-200 ease-out;
@@ -335,15 +290,6 @@
 }
 
 @layer utilities {
-  /* Success text using semantic token */
-  .text-success {
-    color: hsl(var(--success));
-  }
-
-  /* Warning text using semantic token */
-  .text-warning {
-    color: hsl(var(--warning));
-  }
 
   /* Standardized focus ring */
   .focus-ring {
@@ -357,6 +303,7 @@
     opacity: 0;
     transform: translateY(8px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -368,6 +315,7 @@
     height: 0;
     opacity: 0;
   }
+
   to {
     height: var(--radix-collapsible-content-height);
     opacity: 1;
@@ -379,6 +327,7 @@
     height: var(--radix-collapsible-content-height);
     opacity: 1;
   }
+
   to {
     height: 0;
     opacity: 0;
@@ -389,6 +338,7 @@
   .animate-collapsible-down {
     animation: collapsible-down 0.2s ease-out;
   }
+
   .animate-collapsible-up {
     animation: collapsible-up 0.2s ease-out;
   }
