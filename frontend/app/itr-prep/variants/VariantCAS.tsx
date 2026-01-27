@@ -175,12 +175,12 @@ export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
           <div className="grid gap-3 sm:grid-cols-2">
             <CategoryCard
               title="Short-term"
-              subtitle="< 3 years"
+              subtitle="After Apr'23"
               data={data.debt_short_term}
             />
             <CategoryCard
               title="Long-term"
-              subtitle="≥ 3 years"
+              subtitle="Pre-Apr'23 & >24 mo"
               data={data.debt_long_term}
             />
           </div>

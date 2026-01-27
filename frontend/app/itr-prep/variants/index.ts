@@ -14,9 +14,9 @@ export interface VariantEntry {
 }
 
 export const variants: Record<string, VariantEntry> = {
+  other: { name: 'Other Info', component: VariantOtherInfo },
   cas: { name: 'CAS Statement', component: VariantCAS },
   fifo: { name: 'My Calculations', component: VariantFIFO },
-  other: { name: 'Other Info', component: VariantOtherInfo },
 };
 
 export const variantKeys = Object.keys(variants);

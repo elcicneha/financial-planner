@@ -4,6 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
+### Quick Start (Both Services)
+
+```bash
+# Terminal 1: Backend
+cd backend
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip3 install -r requirements.txt
+uvicorn app.main:app --reload  # http://localhost:8000
+
+# Terminal 2: Frontend
+cd frontend
+pnpm install  # Use pnpm (preferred over npm)
+pnpm run dev  # http://localhost:3000
+```
+
 ### Backend (FastAPI)
 ```bash
 cd backend
@@ -13,14 +29,40 @@ pip3 install -r requirements.txt
 uvicorn app.main:app --reload  # Runs on http://localhost:8000
 ```
 
+**Available during development:**
+- API docs (interactive): http://localhost:8000/docs
+- OpenAPI schema: http://localhost:8000/openapi.json
+- Health check: http://localhost:8000/api/health
+
 ### Frontend (Next.js)
+
+Development:
 ```bash
 cd frontend
-pnpm install
-pnpm run dev    # Runs on http://localhost:3000
-pnpm run build  # Production build
-pnpm run lint   # ESLint
+pnpm install  # Use pnpm as package manager
+pnpm run dev  # Runs on http://localhost:3000 with hot reload
 ```
+
+Production:
+```bash
+pnpm run build  # Build optimized bundle
+pnpm run start  # Run production server
+```
+
+Linting & Code Quality:
+```bash
+pnpm run lint  # Run ESLint
+```
+
+### Testing
+
+Tax rules validation:
+```bash
+cd backend
+python3 test_tax_rules.py  # Validates equity/debt fund holding period rules
+```
+
+All tests pass when FIFO calculations are working correctly.
 
 ## Architecture
 
@@ -60,7 +102,8 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 **Variant System:**
 - Each variant is a standalone component in `frontend/app/itr-prep/variants/`
 - Variant selection persisted in localStorage (`itr-prep-variant` key)
-- Switcher shows in dev mode only (toggleable via gear icon)
+- Variant switcher available in dev mode: On the ITR Prep page, click the gear icon (⚙️) in the top-right corner to toggle between CAS/FIFO variants
+- Dev mode is enabled via `DevModeProvider` context and persisted in localStorage
 
 ### Data Flow
 
@@ -143,22 +186,47 @@ The `/itr-prep` page provides capital gains calculations for Income Tax Return p
 - Pages: `/` (home), `/upload` (upload interface), `/itr-prep` (ITR preparation with variants), `/playground` (dev mode)
 - TypeScript with path aliases (`@/` imports configured in `tsconfig.json`)
 - Styling: Tailwind CSS with custom theme in `tailwind.config.js`, supports dark mode
-- Dev mode: Toggle via `DevModeProvider` context, persisted in localStorage
+- Dev mode: Toggled via localStorage flag, enabled/disabled via `DevModeProvider` context
+
+### Debugging & Development
+
+**Backend:**
+- Interactive API docs available at http://localhost:8000/docs (Swagger UI)
+- Review `backend/app/config.py` for all path constants and configuration
+- Data directories are automatically created on first request (via `ensure_directories()` in config.py)
+- Common issues:
+  - Port 8000 already in use: Change in uvicorn command or kill existing process
+  - CORS errors: Check `CORS_ORIGINS` environment variable matches frontend URL
+  - PDF extraction fails: Verify PDF format is supported (PyMuPDF handles standard PDFs)
+
+**Frontend:**
+- Next.js dev mode includes hot module replacement (HMR) for instant feedback
+- Use browser DevTools to inspect component tree and network requests
+- Check `frontend/.next/` for build artifacts (will be regenerated on dev restart)
+- Development builds are slower than production builds (this is normal)
+- Common issues:
+  - API proxy not working: Verify backend is running and `BACKEND_URL` env var is correct
+  - Styling not applied: Run `pnpm run lint` to check Tailwind configuration
+  - Type errors: Run TypeScript compiler to check types across entire project
 
 ### Environment Variables
 - `BACKEND_URL` (frontend) - Backend API base URL for rewrites, defaults to `http://localhost:8000`
 - `CORS_ORIGINS` (backend) - Comma-separated origins allowed for CORS
 
 ### Data Directory Structure
+
+**Automatic directories** (created on first request):
 - `data/uploads/{date}/` - Uploaded PDF files (temporary, cleaned up after processing)
-- `data/outputs/{date}/` - Generated transaction CSVs
+- `data/outputs/{date}/` - Generated transaction CSVs from PDF extraction
 - `data/cas/` - CAS JSON files (named `FY{year}.json`, e.g., `FY2024-25.json`) - parsed from Excel uploads
-- `data/payslips/payslips_data.json` - All payslip records with extracted salary data (PDFs not retained)
-- `data/fifo_cache.json` - Cached FIFO capital gains calculations
-- `data/fund_type_overrides.json` - Manual fund type classifications
+- `data/payslips/` - Contains `payslips_data.json` with extracted salary data (PDFs not retained)
+- `data/fifo_cache/` - Contains:
+  - `capital_gains.json` - Cached FIFO calculations (auto-invalidates on transaction/override changes)
+  - `cache_metadata.json` - Cache validity tracking
+- `data/fund_type_overrides.json` - Manual fund type classifications (created on first override)
 
 ### Reference Data
-- `isin_ticker_db.csv` and `isin_ticker_links_db.csv` in backend are used in step 4 (processFundDeets.py) to standardize and validate fund identifiers
+- `isin_ticker_db.json` and `isin_ticker_links_db.json` in `backend/app/services/pdf_extractor/` are used in step 4 (processFundDeets.py) to standardize and validate fund identifiers (CSV versions also exist for backward compatibility)
 
 ### Tax Rules Configuration
 
@@ -177,3 +245,34 @@ Capital gains tax rules are maintained in `backend/app/tax_rules.py` for easy mo
 **Testing:**
 - Run `python3 backend/test_tax_rules.py` to verify tax rules implementation
 - FIFO cache is automatically invalidated when rules change
+
+## Common Development Tasks
+
+### Modifying Tax Rules
+
+Tax rules are isolated in `backend/app/tax_rules.py` for easy updates when Indian tax laws change:
+- `get_equity_fund_term(holding_days)` - Returns "Long-term" or "Short-term" for equity funds
+- `get_debt_fund_term(buy_date, sell_date)` - Returns holding classification for debt funds
+- After modifying rules, run `python3 backend/test_tax_rules.py` to validate
+- FIFO cache automatically invalidates when rules change, recalculating on next request
+
+### Adding New PDF Extraction Steps
+
+The PDF extraction pipeline (in `backend/app/services/pdf_extractor/`) has 5 modular steps:
+1. Modify individual step files (e.g., `processFundDeets.py` to add fund classification logic)
+2. Update `__init__.py` to call the modified step in `extract_transactions()`
+3. Test with a sample PDF via the upload endpoint
+4. CSV output validates all changes worked correctly
+
+### Updating Frontend Components
+
+- Variant UI components live in `frontend/app/itr-prep/variants/` - modify to change ITR display
+- Shared components in `frontend/components/` - modify for reusable UI changes
+- All API calls proxied through Next.js (configured in `next.config.js`) - ensure BACKEND_URL env var is set
+- Use TypeScript path aliases (`@/`) for clean imports
+
+### Handling Large File Uploads
+
+- Backend uses `python-multipart` for file streaming
+- Frontend has file validation before upload (see `PayslipUploadDialog.tsx`)
+- Large PDFs (>10MB) may take time to process - no timeout configured yet
