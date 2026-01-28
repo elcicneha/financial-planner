@@ -50,7 +50,22 @@ def get_payslip_service(
     )
 
 
+# Capital Gains Dependencies
+@lru_cache()
+def get_capital_gains_repository():
+    """Get capital gains repository instance."""
+    from app.features.itr_prep.capital_gains.repository import FileCapitalGainsRepository
+    return FileCapitalGainsRepository()
+
+
+def get_capital_gains_service(
+    repo=Depends(get_capital_gains_repository)
+):
+    """Get capital gains service instance."""
+    from app.features.itr_prep.capital_gains.service import CapitalGainsService
+    return CapitalGainsService(repository=repo)
+
+
 # Placeholder for future dependencies:
-# - Phase 4: Capital gains dependencies
 # - Phase 5: CAS dependencies
 # - Phase 6: Playground dependencies

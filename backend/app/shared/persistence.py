@@ -13,38 +13,38 @@ class ICapitalGainsRepository(IRepository):
     """Interface for capital gains data access."""
 
     @abstractmethod
-    def get_cache_metadata(self) -> Optional[Dict[str, Any]]:
-        """Get cache validation metadata."""
+    def load_transactions(self) -> List[Any]:
+        """Load all transactions from storage."""
         pass
 
     @abstractmethod
-    def set_cache_metadata(self, metadata: Dict[str, Any]) -> None:
-        """Update cache metadata."""
-        pass
-
-    @abstractmethod
-    def get_capital_gains(self) -> Dict[str, Any]:
-        """Get cached capital gains."""
-        pass
-
-    @abstractmethod
-    def set_capital_gains(self, gains: Dict[str, Any]) -> None:
-        """Store capital gains to cache."""
-        pass
-
-    @abstractmethod
-    def get_fund_type_override(self, ticker: str) -> Optional[str]:
-        """Get manual fund type override for a ticker."""
+    def load_fund_type_overrides(self) -> Dict[str, str]:
+        """Load manual fund type overrides."""
         pass
 
     @abstractmethod
     def save_fund_type_override(self, ticker: str, fund_type: str) -> None:
-        """Save fund type override for a ticker."""
+        """Save a single fund type override."""
         pass
 
     @abstractmethod
-    def get_all_fund_type_overrides(self) -> Dict[str, str]:
-        """Get all fund type overrides."""
+    def save_fund_type_overrides_batch(self, overrides: Dict[str, str]) -> None:
+        """Save multiple fund type overrides atomically."""
+        pass
+
+    @abstractmethod
+    def load_cached_gains(self) -> List[Dict[str, Any]]:
+        """Load cached capital gains."""
+        pass
+
+    @abstractmethod
+    def save_cached_gains(self, gains: List[Any]) -> None:
+        """Save capital gains to cache."""
+        pass
+
+    @abstractmethod
+    def get_last_updated(self) -> str:
+        """Get the most recent modification date of transaction files."""
         pass
 
 

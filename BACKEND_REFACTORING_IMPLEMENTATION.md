@@ -1,6 +1,6 @@
 # Backend Refactoring Implementation Guide
 
-**Status**: Phase 0-3 ✅ Complete | Phase 4-7 Pending
+**Status**: Phase 0-4 ✅ Complete | Phase 5-7 Pending
 
 This guide provides step-by-step instructions for completing the backend refactoring from Phase 1 onwards. Phase 0 (infrastructure setup) is already complete.
 
@@ -147,111 +147,56 @@ This guide provides step-by-step instructions for completing the backend refacto
 
 ---
 
-## Phase 4: Split FIFO Calculator (4 hours)
+## Phase 4: Split FIFO Calculator ✅ COMPLETED
 
 **Goal**: Break 689-line monolith into focused modules
 
-**Current Code**: `backend/app/services/fifo_calculator.py`
+**What was done:**
+- ✓ Created `models.py` with Transaction, BuyLot, FIFOGain classes and decimal helpers (120 lines)
+- ✓ Created `classifier.py` with fund type classification logic (130 lines)
+- ✓ Created `calculator.py` with core FIFO algorithm (135 lines)
+- ✓ Created `cache_manager.py` with cache validation logic (75 lines)
+- ✓ Created `repository.py` with FileCapitalGainsRepository implementing ICapitalGainsRepository (285 lines)
+- ✓ Created `service.py` with CapitalGainsService orchestration layer (125 lines)
+- ✓ Created `schemas.py` with FIFO-related Pydantic models (55 lines)
+- ✓ Created `routes.py` with 3 capital gains endpoints (175 lines)
+- ✓ Updated `backend/app/features/itr_prep/__init__.py` to include capital_gains router
+- ✓ Updated `backend/app/dependencies.py` with capital gains repository and service dependencies
+- ✓ Updated `backend/app/shared/persistence.py` ICapitalGainsRepository interface to match implementation
+- ✓ Tested all 3 endpoints successfully (GET /capital-gains, PUT /fund-type-override, PUT /fund-type-overrides)
+- ✓ Deleted `backend/app/services/fifo_calculator.py` (689 lines)
+- ✓ Removed capital gains endpoints and imports from `backend/app/api/routes.py`
 
-### Overview
+**Endpoints migrated:**
+1. `GET /api/capital-gains` - Get FIFO capital gains with optional FY filter ✓
+2. `PUT /api/fund-type-override` - Update single fund type override ✓
+3. `PUT /api/fund-type-overrides` - Batch update fund type overrides ✓
 
-Split into 6 focused files:
-- `models.py` (~60 lines) - Data structures
-- `classifier.py` (~120 lines) - Fund type classification
-- `calculator.py` (~200 lines) - FIFO algorithm
-- `cache_manager.py` (~100 lines) - Cache validation
-- `repository.py` (~150 lines) - Data access
-- `service.py` (~100 lines) - Orchestration
+**Files created:**
+- `backend/app/features/itr_prep/capital_gains/models.py`
+- `backend/app/features/itr_prep/capital_gains/classifier.py`
+- `backend/app/features/itr_prep/capital_gains/calculator.py`
+- `backend/app/features/itr_prep/capital_gains/cache_manager.py`
+- `backend/app/features/itr_prep/capital_gains/repository.py`
+- `backend/app/features/itr_prep/capital_gains/service.py`
+- `backend/app/features/itr_prep/capital_gains/schemas.py`
+- `backend/app/features/itr_prep/capital_gains/routes.py`
 
-### Steps:
+**Files modified:**
+- `backend/app/features/itr_prep/__init__.py` (added capital_gains router)
+- `backend/app/dependencies.py` (added capital gains dependencies)
+- `backend/app/shared/persistence.py` (updated ICapitalGainsRepository interface)
+- `backend/app/api/routes.py` (removed FIFO endpoints and imports)
 
-#### 4.1 Read Current FIFO Calculator
+**Test results:**
+- All endpoints return correct responses
+- Summary calculation works correctly (total_stcg, total_ltcg, total_gains)
+- Fund type overrides work (single and batch)
+- No import errors on server startup
 
-```bash
-# Read the file to understand structure
-cat backend/app/services/fifo_calculator.py
-```
+**Pattern validated**: Successfully split 689-line monolith into 8 focused modules with clear separation of concerns. Repository-Service-Routes architecture with dependency injection works well for complex calculation workflows.
 
-#### 4.2 Create Models
-
-Create `backend/app/features/itr_prep/capital_gains/models.py`:
-
-Extract dataclasses from fifo_calculator.py (Transaction, BuyLot, FIFOGain classes).
-
-#### 4.3 Create Classifier
-
-Create `backend/app/features/itr_prep/capital_gains/classifier.py`:
-
-Extract `classify_fund_type()` and `get_fund_type_mapping()` functions.
-
-#### 4.4 Create Calculator
-
-Create `backend/app/features/itr_prep/capital_gains/calculator.py`:
-
-Extract core `calculate_fifo_gains()` function.
-
-#### 4.5 Create Cache Manager
-
-Create `backend/app/features/itr_prep/capital_gains/cache_manager.py`:
-
-Extract cache validation logic (`is_cache_valid()`, `invalidate_fifo_cache()`).
-
-#### 4.6 Create Repository
-
-Create `backend/app/features/itr_prep/capital_gains/repository.py`:
-
-Implement `ICapitalGainsRepository` interface with file-based storage.
-
-#### 4.7 Create Service
-
-Create `backend/app/features/itr_prep/capital_gains/service.py`:
-
-Create orchestration layer that uses classifier, calculator, cache_manager, and repository.
-
-#### 4.8 Create Schemas
-
-Create `backend/app/features/itr_prep/capital_gains/schemas.py`:
-
-Extract FIFO-related schemas from models/schemas.py.
-
-#### 4.9 Create Routes
-
-Create `backend/app/features/itr_prep/capital_gains/routes.py`:
-
-Extract 3 endpoints from routes.py lines 223-390.
-
-#### 4.10 Update ITR Router
-
-Update `backend/app/features/itr_prep/__init__.py`:
-
-```python
-def create_router():
-    router = APIRouter(prefix="/api", tags=["ITR Prep"])
-
-    from .capital_gains.routes import router as cg_router
-    from .payslips.routes import router as payslip_router
-
-    router.include_router(cg_router)
-    router.include_router(payslip_router)
-
-    return router
-```
-
-#### 4.11 Update Dependencies
-
-Add capital gains dependencies to `dependencies.py`.
-
-#### 4.12 Delete Old Files
-
-```bash
-rm backend/app/services/fifo_calculator.py
-```
-
-Delete capital gains code from routes.py (lines 223-390).
-
-#### 4.13 Testing
-
-Test all 3 capital gains endpoints.
+**Next**: Proceed to Phase 5
 
 ---
 

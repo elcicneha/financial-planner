@@ -26,24 +26,11 @@ from app.config import (
     ensure_directories,
 )
 from app.models.schemas import (
-    FIFOResponse,
-    FIFOGainRow,
-    FIFOSummary,
     CASCapitalGains,
     CASUploadResponse,
     CASFileResult,
     CASFileInfo,
     CASFilesResponse,
-    FundTypeOverrideRequest,
-    FundTypeOverridesBatchRequest,
-)
-from app.services.fifo_calculator import (
-    get_cached_gains,
-    get_last_updated as get_fifo_last_updated,
-    save_fund_type_override,
-    save_fund_type_overrides_batch,
-    invalidate_fifo_cache,
-    recalculate_and_cache_fifo,
 )
 from app.services.cas_parser import (
     CASParserError,
@@ -54,145 +41,6 @@ from app.services.cas_parser import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-@router.get("/capital-gains", response_model=FIFOResponse)
-async def get_capital_gains(fy: str = None, force_recalculate: bool = False):
-    """
-    Get FIFO capital gains calculations.
-
-    Args:
-        fy: Optional financial year filter in format "2024-25"
-        force_recalculate: If True, invalidates cache and forces full recalculation
-
-    Checks if cached results are valid, recalculates if needed,
-    and returns all realized capital gains with summary statistics.
-    """
-    try:
-        # Force recalculation if requested
-        if force_recalculate:
-            logger.info("Force recalculation requested, invalidating cache...")
-            await asyncio.to_thread(invalidate_fifo_cache)
-            fresh_gains = await asyncio.to_thread(recalculate_and_cache_fifo)
-            gains_data = [g.to_dict() for g in fresh_gains]
-        else:
-            gains_data = await asyncio.to_thread(get_cached_gains)
-
-        if not gains_data:
-            return FIFOResponse(
-                gains=[],
-                summary=FIFOSummary(
-                    total_stcg=0.0,
-                    total_ltcg=0.0,
-                    total_gains=0.0,
-                    total_transactions=0,
-                    date_range="N/A"
-                ),
-                last_updated=get_fifo_last_updated()
-            )
-
-        try:
-            # Try to parse cached data with current schema
-            gains = [FIFOGainRow(**g) for g in gains_data]
-        except Exception as validation_error:
-            # If validation fails (e.g., schema mismatch), invalidate cache and recalculate
-            logger.warning(f"Cache schema mismatch, recalculating: {validation_error}")
-            await asyncio.to_thread(invalidate_fifo_cache)
-            fresh_gains = await asyncio.to_thread(recalculate_and_cache_fifo)
-            gains_data = [g.to_dict() for g in fresh_gains]
-            gains = [FIFOGainRow(**g) for g in gains_data]
-
-        # Filter by financial year if specified
-        if fy:
-            gains = [g for g in gains if g.financial_year == fy]
-
-        total_stcg = sum(g.gain for g in gains if g.term == "Short-term")
-        total_ltcg = sum(g.gain for g in gains if g.term == "Long-term")
-        total_gains = sum(g.gain for g in gains)
-
-        if gains:
-            dates = sorted([g.sell_date for g in gains])
-            date_range = f"{dates[0]} to {dates[-1]}"
-        else:
-            date_range = "N/A"
-
-        summary = FIFOSummary(
-            total_stcg=round(total_stcg, 2),
-            total_ltcg=round(total_ltcg, 2),
-            total_gains=round(total_gains, 2),
-            total_transactions=len(gains),
-            date_range=date_range
-        )
-
-        return FIFOResponse(gains=gains, summary=summary, last_updated=get_fifo_last_updated())
-
-    except Exception as e:
-        logger.error(f"Failed to calculate capital gains: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to calculate capital gains: {str(e)}"
-        )
-
-
-@router.put("/fund-type-override")
-async def update_fund_type_override(request: FundTypeOverrideRequest = Body(...)):
-    """
-    Update manual fund type override for a ticker.
-
-    Allows users to manually classify a fund as 'equity' or 'debt',
-    overriding the automatic classification. The override persists
-    and invalidates the FIFO cache.
-    """
-    try:
-        await asyncio.to_thread(save_fund_type_override, request.ticker, request.fund_type)
-
-        return {
-            "success": True,
-            "message": f"Fund type updated for {request.ticker}",
-            "ticker": request.ticker,
-            "fund_type": request.fund_type
-        }
-
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to update fund type override: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to update fund type override: {str(e)}"
-        )
-
-
-@router.put("/fund-type-overrides")
-async def update_fund_type_overrides_batch(request: FundTypeOverridesBatchRequest = Body(...)):
-    """
-    Update manual fund type overrides for multiple tickers in a single atomic operation.
-
-    Accepts a dictionary of ticker symbols to fund types. All changes are applied
-    and saved atomically to avoid race conditions when updating multiple funds.
-    Invalidates the FIFO cache once for all changes.
-    """
-    if not request.overrides:
-        raise HTTPException(status_code=400, detail="No overrides provided")
-
-    try:
-        await asyncio.to_thread(save_fund_type_overrides_batch, request.overrides)
-
-        return {
-            "success": True,
-            "message": f"Updated {len(request.overrides)} fund type override{'s' if len(request.overrides) != 1 else ''}",
-            "count": len(request.overrides),
-            "tickers": list(request.overrides.keys())
-        }
-
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to update fund type overrides: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to update fund type overrides: {str(e)}"
-        )
 
 
 @router.post("/upload-cas", response_model=CASUploadResponse)
