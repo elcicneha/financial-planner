@@ -1,24 +1,26 @@
 # Backend Refactoring Implementation Guide
 
-**Status**: Phase 0-5 ✅ Complete | Phase 6-7 Pending
+**Status**: Phase 0-6 ✅ Complete | Phase 7 Pending
 
 This guide provides step-by-step instructions for completing the backend refactoring from Phase 1 onwards. Phase 0 (infrastructure setup) is already complete.
 
 ## Summary of Completed Work
 
-**Phases Completed**: 0-5 (Infrastructure, Health, Investment Aggregator, Payslips, Capital Gains, CAS Parser)
+**Phases Completed**: 0-6 (Infrastructure, Health, Investment Aggregator, Payslips, Capital Gains, CAS Parser, Playground)
 
 **Files Refactored**:
 - 827-line `cas_parser.py` → 10 focused CAS modules
 - 689-line `fifo_calculator.py` → 8 focused capital gains modules
 - Payslips feature → 7 modules with Repository-Service-Routes pattern
 - Investment Aggregator → 5 modules with clean architecture
+- Playground feature → 4 modules with calculator registry pattern
 - Health check → 2 modules
 
 **Key Achievements**:
-- ✅ All 15 endpoints migrated and tested
+- ✅ All 18 endpoints migrated and tested (15 existing + 3 new playground)
 - ✅ Repository-Service-Routes architecture established
 - ✅ Dependency injection implemented
+- ✅ Calculator registry pattern for dynamic discovery
 - ✅ No API contract changes
 - ✅ Zero import errors
 - ✅ Clean separation of concerns
@@ -28,7 +30,7 @@ This guide provides step-by-step instructions for completing the backend refacto
 - `backend/app/services/cas_parser.py`
 - `backend/app/services/fifo_calculator.py`
 
-**Next**: Phase 6 (Playground) and Phase 7 (Final Cleanup)
+**Next**: Phase 7 (Final Cleanup)
 
 ---
 
@@ -287,39 +289,55 @@ This guide provides step-by-step instructions for completing the backend refacto
 
 ---
 
-## Phase 6: Setup Playground (1 hour)
+## Phase 6: Setup Playground ✅ COMPLETED
 
 **Goal**: Prepare playground with calculator registry
 
-### Steps:
+**What was done:**
+- ✓ Discovered existing frontend Break Calculator (client-side only in TypeScript)
+- ✓ Created `backend/app/features/playground/schemas.py` - Input/output schemas for Break Calculator and generic calculator execution
+- ✓ Created `backend/app/features/playground/calculators/break_calculator.py` - Backend implementation with `@register_calculator` decorator
+- ✓ Created `backend/app/features/playground/calculators/__init__.py` - Imports all calculators to trigger registration
+- ✓ Created `backend/app/features/playground/routes.py` - 3 playground endpoints (list, generic execute, typed break calculator)
+- ✓ Updated `backend/app/features/playground/__init__.py` - Exports playground_router
+- ✓ Updated `backend/app/main.py` - Registered playground router
+- ✓ Tested all 3 endpoints successfully
 
-#### 6.1 Find Existing Calculators
+**Endpoints added:**
+1. `GET /api/playground/calculators` - List all registered calculators (dynamic discovery) ✓
+2. `POST /api/playground/calculate` - Generic calculator execution endpoint ✓
+3. `POST /api/playground/break-calculator` - Typed endpoint for Break Calculator ✓
 
-Search for existing playground/calculator code in the codebase.
+**Files created:**
+- `backend/app/features/playground/schemas.py`
+- `backend/app/features/playground/calculators/break_calculator.py`
+- `backend/app/features/playground/calculators/__init__.py`
+- `backend/app/features/playground/routes.py`
 
-#### 6.2 Create Calculator Files
+**Files modified:**
+- `backend/app/features/playground/__init__.py` (added router export)
+- `backend/app/main.py` (registered playground_router)
 
-Move existing calculators to `features/playground/calculators/` and update with `@register_calculator` decorator.
+**Test results:**
+- Calculator registry works - "break" calculator discovered via decorator
+- `/api/playground/calculators` returns list with 1 calculator
+- `/api/playground/calculate` executes calculator with generic params
+- `/api/playground/break-calculator` executes with typed inputs/outputs
+- Error handling works (404 for non-existent calculator)
+- OpenAPI spec updated with "Playground" tag
+- No import errors on server startup
 
-#### 6.3 Create Playground Routes
+**Implementation notes:**
+- Break Calculator backend logic matches frontend TypeScript implementation exactly
+- Two-phase calculation: accumulation (with FV formulas) + spending (iterative simulation)
+- Supports effective vs nominal rate conversion
+- Supports ordinary annuity vs annuity due (month start vs month end investing)
+- Calculator registry enables dynamic discovery without route modifications
+- Generic endpoint allows frontend/bots to discover and execute calculators programmatically
 
-Create `features/playground/routes.py` with generic calculator endpoint.
+**Pattern validated**: Calculator registry pattern works perfectly for extensible playground features. New calculators can be added with just a decorator, no route changes needed.
 
-#### 6.4 Create Schemas
-
-Create `features/playground/schemas.py`.
-
-#### 6.5 Create Calculators Init
-
-Create `features/playground/calculators/__init__.py` to import all calculators.
-
-#### 6.6 Update main.py
-
-Add playground router.
-
-#### 6.7 Testing
-
-Test calculator discovery and execution.
+**Next**: Proceed to Phase 7
 
 ---
 
