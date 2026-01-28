@@ -102,12 +102,6 @@ def cleanup_upload(upload_folder) -> None:
         logger.warning(f"Failed to cleanup upload folder {upload_folder}: {e}")
 
 
-@router.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
-
-
 @router.post("/upload", response_model=UploadResponse)
 async def upload_pdf(file: UploadFile = File(...)):
     """
