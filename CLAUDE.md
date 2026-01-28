@@ -108,8 +108,14 @@ frontend/
 ├── app/
 │   ├── page.tsx         # Home
 │   ├── upload/          # PDF upload interface
-│   ├── itr-prep/        # ITR preparation
-│   │   └── variants/    # CAS, FIFO, OtherInfo components
+│   ├── itr-prep/        # ITR preparation (route-based tabs)
+│   │   ├── layout.tsx   # Shared layout with tab navigation + FY selector
+│   │   ├── page.tsx     # Redirects to default tab
+│   │   ├── capital-gains/   # "My Calculations" tab (FIFO)
+│   │   ├── cas-statement/   # "CAS Statement" tab
+│   │   ├── other-info/      # "Other Info" tab (payslips)
+│   │   ├── components/      # Shared ITR components
+│   │   └── context/         # ITRPrepContext for shared FY state
 │   └── playground/      # Dev calculators
 ├── components/          # Shared components
 └── hooks/               # Custom hooks
@@ -118,7 +124,8 @@ frontend/
 **Key patterns:**
 - TypeScript with `@/` path aliases
 - Tailwind CSS with dark mode support
-- ITR variants: standalone components switched via `DevModeProvider`
+- ITR Prep uses **route-based tabs** with Next.js App Router for code splitting and prefetching
+- Shared layout (`layout.tsx`) provides tab navigation and FY selector across all ITR tabs
 - API proxy: `next.config.js` rewrites `/api/*` to backend
 
 ---
@@ -191,9 +198,17 @@ Located in `backend/app/core/tax_rules.py`:
 4. Auto-discoverable via `/api/playground/calculators`
 
 **Update frontend components:**
-- ITR variants: `frontend/app/itr-prep/variants/`
-- Shared components: `frontend/components/`
+- ITR Prep tabs: `frontend/app/itr-prep/{tab-name}/page.tsx`
+- ITR shared components: `frontend/app/itr-prep/components/`
+- ITR shared context: `frontend/app/itr-prep/context/ITRPrepContext.tsx`
+- Global shared components: `frontend/components/`
 - Use `@/` imports for clean paths
+
+**Add new ITR Prep tab:**
+1. Create folder `frontend/app/itr-prep/{tab-name}/`
+2. Add `page.tsx` (use `useITRPrep()` hook for FY state)
+3. Add `loading.tsx` for loading state
+4. Register tab in `frontend/app/itr-prep/components/TabNavigation.tsx`
 
 ### Testing
 

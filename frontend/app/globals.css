@@ -109,18 +109,18 @@
 
     --destructive-text: var(--red-11);
     --destructive: var(--red-9);
-    --destructive-foreground: white;
+    --destructive-foreground: 255 255 255;
     --destructive-muted: var(--red-2);
 
     --success-text: var(--green-11);
     --success: var(--green-9);
-    --success-foreground: white;
+    --success-foreground: 255 255 255;
     --success-muted: var(--green-2);
 
     --warning-text: var(--yellow-11);
     --warning: var(--yellow-9);
-    --warning-foreground: white;
-    --warning-muted: var(--yellow-2);
+    --warning-foreground: 255 255 255;
+    --warning-muted: var(--yellow-3);
 
   }
 
@@ -242,17 +242,17 @@
 
     --destructive-text: var(--red-11);
     --destructive: var(--red-9);
-    --destructive-foreground: white;
+    --destructive-foreground: 255 255 255;
     --destructive-muted: var(--red-2);
 
     --success-text: var(--grass-10);
     --success: var(--green-9);
-    --success-foreground: white;
+    --success-foreground: 255 255 255;
     --success-muted: var(--green-2);
 
     --warning-text: var(--yellow-11);
     --warning: var(--yellow-9);
-    --warning-foreground: var(--yellow-12);
+    --warning-foreground: 255 255 255;
     --warning-muted: var(--yellow-2);
 
     --border: var(--sand-6);

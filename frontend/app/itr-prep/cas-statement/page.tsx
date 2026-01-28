@@ -20,11 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { VariantProps } from './index';
+import { useITRPrep } from '../context/ITRPrepContext';
 
-export default function VariantCAS({ selectedFY, fyLoading }: VariantProps) {
+export default function CASStatementPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isSourceOpen, setIsSourceOpen] = useState(false);
+  const { selectedFY, fyLoading } = useITRPrep();
 
   // Fetch capital gains for selected FY
   const { data, loading, error, refetch } = useCASCapitalGains(selectedFY, refreshKey);

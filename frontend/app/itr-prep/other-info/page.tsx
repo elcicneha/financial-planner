@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/currency';
 import { PayslipUploadDialog } from '../components/PayslipUploadDialog';
-import { VariantProps } from './index';
+import { useITRPrep } from '../context/ITRPrepContext';
 
 interface PayslipPayPeriod {
   month: number;
@@ -114,10 +114,11 @@ function getFinancialYear(payPeriod: PayslipPayPeriod | null): string | null {
   }
 }
 
-export default function VariantOtherInfo({ selectedFY, fyLoading }: VariantProps) {
+export default function OtherInfoPage() {
   const [payslips, setPayslips] = useState<PayslipData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const { selectedFY, fyLoading } = useITRPrep();
 
   // Load saved payslips on mount
   useEffect(() => {

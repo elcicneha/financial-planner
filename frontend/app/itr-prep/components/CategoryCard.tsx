@@ -41,7 +41,7 @@ export function DataRow({ label, value, isGain }: {
         <span className={`font-mono font-medium text-sm tabular-nums ${colorClass}`}>
           {formatCurrency(value)}
         </span>
-        <div className="text-accent-foreground opacity-0 group-hover:opacity-50 transition-opacity">
+        <div className="text-accent-foreground opacity-0 group-hover:opacity-100 transition-opacity">
           <IconToggle
             isToggled={hasCopied}
             primary={<Copy className="size-3" />}

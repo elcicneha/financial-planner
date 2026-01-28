@@ -11,8 +11,8 @@ import { CopyButton } from '@/components/ui/copy-button';
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/currency';
 import { getGainLossColor } from '@/lib/utils';
-import { VariantProps } from './index';
 import { useDevMode } from '@/components/dev/DevModeProvider';
+import { useITRPrep } from '../context/ITRPrepContext';
 
 // Aggregate FIFO gains into 4 categories (excluding unknown)
 function aggregateGainsByCategory(gains: FIFOGainRow[]): {
@@ -59,10 +59,11 @@ function aggregateGainsByCategory(gains: FIFOGainRow[]): {
   return categories;
 }
 
-export default function VariantFIFO({ selectedFY, fyLoading }: VariantProps) {
+export default function CapitalGainsPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { isDevMode } = useDevMode();
+  const { selectedFY, fyLoading } = useITRPrep();
 
   // Only fetch when FYs are loaded AND selectedFY is set
   const enabled = !fyLoading && selectedFY !== '';
