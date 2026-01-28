@@ -28,8 +28,6 @@ from app.config import (
     ensure_directories,
 )
 from app.models.schemas import (
-    ProcessingResult,
-    UploadResponse,
     FIFOResponse,
     FIFOGainRow,
     FIFOSummary,
@@ -48,7 +46,6 @@ from app.models.schemas import (
     PayslipRecord,
     PayslipsListResponse,
 )
-from app.services.pdf_extractor import extract_transactions
 from app.services.pdf_extractor.payslip_extractor import extract_payslip_data
 from app.services.fifo_calculator import (
     get_cached_gains,
@@ -67,181 +64,6 @@ from app.services.cas_parser import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-def sanitize_filename(filename: str) -> str:
-    """
-    Sanitize filename to prevent path traversal and special characters.
-
-    Args:
-        filename: Original filename from upload.
-
-    Returns:
-        Sanitized filename safe for filesystem use.
-    """
-    from pathlib import Path
-    filename = Path(filename).name
-    sanitized = re.sub(r'[^\w\-.]', '_', filename)
-    if not sanitized.lower().endswith('.pdf'):
-        sanitized = sanitized + '.pdf'
-    return sanitized
-
-
-def cleanup_upload(upload_folder) -> None:
-    """
-    Remove upload folder and its contents after processing.
-
-    Args:
-        upload_folder: Path to the upload folder to clean up.
-    """
-    try:
-        if upload_folder.exists():
-            shutil.rmtree(upload_folder)
-            logger.info(f"Cleaned up upload folder: {upload_folder}")
-    except Exception as e:
-        logger.warning(f"Failed to cleanup upload folder {upload_folder}: {e}")
-
-
-@router.post("/upload", response_model=UploadResponse)
-async def upload_pdf(file: UploadFile = File(...)):
-    """
-    Upload a PDF file and process it to extract mutual fund transactions.
-
-    The uploaded PDF is processed to extract transactions, saved as JSON,
-    and then the original PDF is cleaned up.
-    """
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
-
-    ensure_directories()
-
-    file_id = str(uuid.uuid4())[:FILE_ID_LENGTH]
-    date_folder = datetime.now().strftime("%Y-%m-%d")
-
-    upload_folder = UPLOADS_DIR / date_folder
-    output_folder = OUTPUTS_DIR / date_folder
-    upload_folder.mkdir(parents=True, exist_ok=True)
-    output_folder.mkdir(parents=True, exist_ok=True)
-
-    safe_filename = sanitize_filename(file.filename)
-    pdf_filename = f"{file_id}_{safe_filename}"
-    pdf_path = upload_folder / pdf_filename
-
-    contents = await file.read()
-    with open(pdf_path, "wb") as f:
-        f.write(contents)
-
-    try:
-        output_path = await asyncio.to_thread(
-            extract_transactions, pdf_path, output_folder, file_id
-        )
-
-        # Clean up the upload folder after successful processing
-        cleanup_upload(upload_folder)
-
-        return UploadResponse(
-            success=True,
-            message="File uploaded and processed successfully",
-            file_id=file_id,
-            output_path=str(output_path.relative_to(BASE_DIR)),
-        )
-    except Exception as e:
-        logger.error(f"Failed to process PDF: {e}")
-        # Clean up on failure too
-        cleanup_upload(upload_folder)
-        raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
-
-
-@router.get("/results/{file_id}", response_model=ProcessingResult)
-async def get_results(file_id: str):
-    """Retrieve processing results for a given file ID."""
-    if not OUTPUTS_DIR.exists():
-        raise HTTPException(status_code=404, detail=f"Results not found for file_id: {file_id}")
-
-    for date_folder in OUTPUTS_DIR.iterdir():
-        if date_folder.is_dir() and date_folder.name != 'fifo_cache':
-            for json_file in date_folder.glob(f"transactions_{file_id}.json"):
-                try:
-                    with open(json_file, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-
-                    return ProcessingResult(
-                        file_id=file_id,
-                        output_path=str(json_file.relative_to(BASE_DIR)),
-                        transactions=data.get("transactions", []),
-                    )
-                except json.JSONDecodeError as e:
-                    logger.error(f"Invalid JSON in {json_file}: {e}")
-                    raise HTTPException(status_code=500, detail="Failed to read transaction data")
-
-    raise HTTPException(status_code=404, detail=f"Results not found for file_id: {file_id}")
-
-
-@router.get("/download/{file_id}")
-async def download_file(file_id: str):
-    """Download the processed transaction file."""
-    if not OUTPUTS_DIR.exists():
-        raise HTTPException(status_code=404, detail=f"File not found for file_id: {file_id}")
-
-    for date_folder in OUTPUTS_DIR.iterdir():
-        if date_folder.is_dir() and date_folder.name != 'fifo_cache':
-            for json_file in date_folder.glob(f"transactions_{file_id}.json"):
-                return FileResponse(
-                    path=json_file,
-                    filename=f"transactions_{file_id}.json",
-                    media_type="application/json",
-                )
-
-    raise HTTPException(status_code=404, detail=f"File not found for file_id: {file_id}")
-
-
-@router.get("/files")
-async def list_files():
-    """List all processed transaction files."""
-    files = []
-
-    if OUTPUTS_DIR.exists():
-        for date_folder in sorted(OUTPUTS_DIR.iterdir(), reverse=True):
-            if date_folder.is_dir() and date_folder.name != 'fifo_cache':
-                for json_file in date_folder.glob("transactions_*.json"):
-                    file_id = json_file.stem.replace("transactions_", "")
-                    files.append({
-                        "file_id": file_id,
-                        "date": date_folder.name,
-                        "path": str(json_file.relative_to(BASE_DIR)),
-                    })
-
-    return {"files": files}
-
-
-@router.get("/available-financial-years")
-async def get_available_financial_years():
-    """
-    Get list of all unique financial years from FIFO gains data.
-
-    Returns:
-        List of financial year strings sorted in descending order (e.g., ["2024-25", "2023-24"])
-    """
-    try:
-        gains_data = await asyncio.to_thread(get_cached_gains)
-
-        if not gains_data:
-            return {"financial_years": []}
-
-        # Extract unique financial years from gains
-        fys = set()
-        for g in gains_data:
-            fys.add(g['financial_year'])
-
-        sorted_fys = sorted(fys, reverse=True)
-        return {"financial_years": sorted_fys}
-
-    except Exception as e:
-        logger.error(f"Failed to get financial years: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get financial years: {str(e)}"
-        )
 
 
 @router.get("/capital-gains", response_model=FIFOResponse)

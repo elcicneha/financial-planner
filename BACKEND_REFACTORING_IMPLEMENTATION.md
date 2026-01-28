@@ -1,6 +1,6 @@
 # Backend Refactoring Implementation Guide
 
-**Status**: Phase 0 ✅ Complete | Phase 1-7 Pending
+**Status**: Phase 0-2 ✅ Complete | Phase 3-7 Pending
 
 This guide provides step-by-step instructions for completing the backend refactoring from Phase 1 onwards. Phase 0 (infrastructure setup) is already complete.
 
@@ -24,407 +24,74 @@ This guide provides step-by-step instructions for completing the backend refacto
 
 ---
 
-## Phase 1: Extract Health Check Feature (30 minutes)
+## Phase 1: Extract Health Check Feature ✅ COMPLETED
 
 **Goal**: Validate the pattern with the simplest feature
 
-**Current Code**: `backend/app/api/routes.py` lines 105-108
+**What was done:**
+- Created `backend/app/features/health/schemas.py` - HealthResponse model
+- Created `backend/app/features/health/routes.py` - Health check endpoint with System tag
+- Updated `backend/app/main.py` - Added health_router import and registration
+- Removed health endpoint from `backend/app/api/routes.py` (deleted lines 105-108)
+- Tested successfully: `/api/health` returns `{"status":"healthy","timestamp":"2026-01-28T11:15:10.789811"}`
 
-### Steps:
+**Files created:**
+- `backend/app/features/health/schemas.py`
+- `backend/app/features/health/routes.py`
 
-#### 1.1 Create Health Schemas
+**Files modified:**
+- `backend/app/main.py` (added health_router import and include_router call)
+- `backend/app/api/routes.py` (removed health endpoint)
 
-Create `backend/app/features/health/schemas.py`:
+**Pattern validated**: The feature extraction pattern works correctly. Health check is now a standalone module with clean separation of concerns.
 
-```python
-from pydantic import BaseModel
-
-
-class HealthResponse(BaseModel):
-    status: str
-    timestamp: str
-```
-
-#### 1.2 Create Health Routes
-
-Create `backend/app/features/health/routes.py`:
-
-```python
-from fastapi import APIRouter
-from datetime import datetime
-from .schemas import HealthResponse
-
-router = APIRouter(tags=["System"])
-
-
-@router.get("/health", response_model=HealthResponse)
-async def health_check() -> HealthResponse:
-    """Health check endpoint."""
-    return HealthResponse(
-        status="healthy",
-        timestamp=datetime.now().isoformat()
-    )
-```
-
-#### 1.3 Update main.py
-
-Read `backend/app/main.py` and add the health router:
-
-```python
-# Add this import at the top
-from app.features.health.routes import router as health_router
-
-# Add this after app creation, before existing routes
-app.include_router(health_router, prefix="/api")
-```
-
-#### 1.4 Remove from routes.py
-
-Read `backend/app/api/routes.py` and delete lines 105-108 (the health endpoint).
-
-#### 1.5 Testing
-
-```bash
-# Start backend
-cd backend
-uvicorn app.main:app --reload
-
-# Test in another terminal
-curl http://localhost:8000/api/health
-```
-
-Expected output: `{"status":"healthy","timestamp":"2026-01-28T..."}`
+**Next**: Proceed to Phase 2
 
 ---
 
-## Phase 2: Extract Investment Aggregator (3 hours)
+## Phase 2: Extract Investment Aggregator ✅ COMPLETED
 
 **Goal**: Migrate PDF extraction feature with all 5 endpoints
 
-**Current Code**:
-- Routes: `backend/app/api/routes.py` lines 111-221
-- Extractor: `backend/app/services/pdf_extractor/*`
-
-### Steps:
-
-#### 2.1 Move PDF Extractor
-
-```bash
-cd backend/app
-mv services/pdf_extractor/* features/investment_aggregator/extractor/
-```
-
-#### 2.2 Create Repository
-
-Create `backend/app/features/investment_aggregator/repository.py`:
-
-```python
-from pathlib import Path
-from fastapi import UploadFile
-import shutil
-import json
-from datetime import datetime
-from typing import Dict, Any, List, Optional
-
-
-class FileTransactionRepository:
-    """File-based repository for transaction data."""
-
-    def __init__(self, uploads_dir: Path, outputs_dir: Path):
-        self.uploads_dir = uploads_dir
-        self.outputs_dir = outputs_dir
-
-    async def save_upload(self, file: UploadFile, file_id: str) -> Path:
-        """Save uploaded PDF file."""
-        from app.shared.file_manager import sanitize_filename
-
-        filename = sanitize_filename(file.filename)
-        file_path = self.uploads_dir / f"{file_id}_{filename}"
-
-        # Ensure directory exists
-        self.uploads_dir.mkdir(parents=True, exist_ok=True)
-
-        # Save file
-        with open(file_path, 'wb') as f:
-            shutil.copyfileobj(file.file, f)
-
-        return file_path
-
-    def cleanup_upload(self, file_path: Path) -> None:
-        """Delete uploaded PDF after processing."""
-        try:
-            if file_path.exists():
-                file_path.unlink()
-        except Exception:
-            pass
-
-    def get_output_path(self, file_id: str) -> Optional[Path]:
-        """Get path to processed output file."""
-        # Search for file in outputs directory
-        for date_dir in self.outputs_dir.glob("*/"):
-            output_file = date_dir / f"transactions_{file_id}.csv"
-            if output_file.exists():
-                return output_file
-        return None
-
-    def list_all_files(self) -> List[Dict[str, Any]]:
-        """List all processed transaction files."""
-        files = []
-        for date_dir in sorted(self.outputs_dir.glob("*/"), reverse=True):
-            for csv_file in date_dir.glob("transactions_*.csv"):
-                file_id = csv_file.stem.replace("transactions_", "")
-                files.append({
-                    "file_id": file_id,
-                    "filename": csv_file.name,
-                    "date": date_dir.name,
-                    "path": str(csv_file)
-                })
-        return files
-```
-
-#### 2.3 Create Service
-
-Create `backend/app/features/investment_aggregator/service.py`:
-
-```python
-from pathlib import Path
-from fastapi import UploadFile, HTTPException
-from .repository import FileTransactionRepository
-from .extractor import extract_transactions
-import logging
-
-logger = logging.getLogger(__name__)
-
-
-class PDFTransactionService:
-    """Service for PDF transaction extraction."""
-
-    def __init__(self, repository: FileTransactionRepository):
-        self.repo = repository
-
-    async def process_upload(self, file: UploadFile):
-        """Process uploaded PDF and extract transactions."""
-        import uuid
-
-        # Generate unique file ID
-        file_id = str(uuid.uuid4())[:8]
-
-        # Validate file type
-        if not file.filename.endswith('.pdf'):
-            raise HTTPException(status_code=400, detail="Only PDF files are allowed")
-
-        # Save upload
-        pdf_path = await self.repo.save_upload(file, file_id)
-
-        try:
-            # Extract transactions
-            result = extract_transactions(str(pdf_path), file_id)
-
-            # Cleanup
-            self.repo.cleanup_upload(pdf_path)
-
-            return {
-                "success": True,
-                "file_id": file_id,
-                "message": "File processed successfully",
-                "output_path": result.get("output_file")
-            }
-
-        except Exception as e:
-            logger.error(f"Error processing file {file_id}: {str(e)}")
-            self.repo.cleanup_upload(pdf_path)
-            raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
-
-    def get_results(self, file_id: str):
-        """Get processing results for a file."""
-        output_path = self.repo.get_output_path(file_id)
-
-        if not output_path:
-            raise HTTPException(status_code=404, detail="File not found")
-
-        return {
-            "file_id": file_id,
-            "output_file": str(output_path),
-            "exists": True
-        }
-
-    def list_files(self):
-        """List all processed files."""
-        return self.repo.list_all_files()
-
-    def get_download_path(self, file_id: str) -> Path:
-        """Get file path for download."""
-        output_path = self.repo.get_output_path(file_id)
-
-        if not output_path:
-            raise HTTPException(status_code=404, detail="File not found")
-
-        return output_path
-```
-
-#### 2.4 Create Schemas
-
-Create `backend/app/features/investment_aggregator/schemas.py`:
-
-Extract relevant schemas from `backend/app/models/schemas.py`:
-
-```python
-from pydantic import BaseModel
-from typing import Optional, List
-
-
-class UploadResponse(BaseModel):
-    success: bool
-    file_id: str
-    message: str
-    output_path: Optional[str] = None
-
-
-class ProcessingResult(BaseModel):
-    file_id: str
-    output_file: str
-    exists: bool
-
-
-class FileInfo(BaseModel):
-    file_id: str
-    filename: str
-    date: str
-    path: str
-
-
-class AvailableFinancialYear(BaseModel):
-    year: str
-```
-
-#### 2.5 Create Routes
-
-Create `backend/app/features/investment_aggregator/routes.py`:
-
-Extract from `backend/app/api/routes.py` lines 111-221:
-
-```python
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
-from fastapi.responses import FileResponse
-from typing import List
-from .schemas import UploadResponse, ProcessingResult, FileInfo, AvailableFinancialYear
-from .service import PDFTransactionService
-from app.dependencies import get_pdf_transaction_service
-
-router = APIRouter(tags=["Investment Aggregator"])
-
-
-@router.post("/upload", response_model=UploadResponse)
-async def upload_pdf(
-    file: UploadFile = File(...),
-    service: PDFTransactionService = Depends(get_pdf_transaction_service)
-):
-    """Upload and process PDF statement."""
-    return await service.process_upload(file)
-
-
-@router.get("/results/{file_id}", response_model=ProcessingResult)
-async def get_results(
-    file_id: str,
-    service: PDFTransactionService = Depends(get_pdf_transaction_service)
-):
-    """Get processing results for a file."""
-    return service.get_results(file_id)
-
-
-@router.get("/download/{file_id}")
-async def download_file(
-    file_id: str,
-    service: PDFTransactionService = Depends(get_pdf_transaction_service)
-):
-    """Download processed CSV file."""
-    file_path = service.get_download_path(file_id)
-    return FileResponse(
-        path=str(file_path),
-        filename=file_path.name,
-        media_type="text/csv"
-    )
-
-
-@router.get("/files", response_model=List[FileInfo])
-async def list_files(
-    service: PDFTransactionService = Depends(get_pdf_transaction_service)
-):
-    """List all processed files."""
-    return service.list_files()
-
-
-@router.get("/available-financial-years", response_model=List[AvailableFinancialYear])
-async def get_available_financial_years():
-    """Get list of financial years with data."""
-    from app.core.utils import get_available_financial_years
-    years = get_available_financial_years()
-    return [{"year": year} for year in years]
-```
-
-#### 2.6 Update Dependencies
-
-Update `backend/app/dependencies.py`:
-
-```python
-"""Dependency injection configuration for FastAPI."""
-
-from functools import lru_cache
-from fastapi import Depends
-from pathlib import Path
-from app.config import UPLOADS_DIR, OUTPUTS_DIR
-
-
-# Investment Aggregator Dependencies
-@lru_cache()
-def get_pdf_transaction_repository():
-    """Get PDF transaction repository instance."""
-    from app.features.investment_aggregator.repository import FileTransactionRepository
-    return FileTransactionRepository(
-        uploads_dir=Path(UPLOADS_DIR),
-        outputs_dir=Path(OUTPUTS_DIR)
-    )
-
-
-def get_pdf_transaction_service(
-    repo=Depends(get_pdf_transaction_repository)
-):
-    """Get PDF transaction service instance."""
-    from app.features.investment_aggregator.service import PDFTransactionService
-    return PDFTransactionService(repository=repo)
-```
-
-#### 2.7 Update main.py
-
-Add investment aggregator router:
-
-```python
-from app.features.investment_aggregator.routes import router as invest_router
-
-# Add after health router
-app.include_router(invest_router, prefix="/api")
-```
-
-#### 2.8 Update Extractor Imports
-
-Update `backend/app/features/investment_aggregator/extractor/__init__.py` to fix import paths (change from `app.services.pdf_extractor` to relative imports).
-
-#### 2.9 Delete from routes.py
-
-Delete lines 111-221 from `backend/app/api/routes.py`.
-
-#### 2.10 Testing
-
-```bash
-# Test upload
-curl -X POST -F "file=@test.pdf" http://localhost:8000/api/upload
-
-# Test list files
-curl http://localhost:8000/api/files
-
-# Test download
-curl http://localhost:8000/api/download/{file_id} --output output.csv
-```
+**What was done:**
+- ✓ Step 2.1: Moved PDF extractor from `backend/app/services/pdf_extractor/` to `backend/app/features/investment_aggregator/extractor/` (excluding payslip_extractor.py)
+- ✓ Step 2.2: Created `backend/app/features/investment_aggregator/repository.py` - FileTransactionRepository with date-based folder management, JSON file handling
+- ✓ Step 2.3: Created `backend/app/features/investment_aggregator/service.py` - PDFTransactionService with async processing via asyncio.to_thread
+- ✓ Step 2.4: Created `backend/app/features/investment_aggregator/schemas.py` - UploadResponse, ProcessingResult, FileInfo, AvailableFinancialYear
+- ✓ Step 2.5: Created `backend/app/features/investment_aggregator/routes.py` - 5 endpoints with Investment Aggregator tag
+- ✓ Step 2.6: Updated `backend/app/dependencies.py` - Added dependency injection for repository and service
+- ✓ Step 2.7: Updated `backend/app/main.py` - Registered investment aggregator router
+- ✓ Step 2.8: Verified extractor imports (already using relative imports, no changes needed)
+- ✓ Step 2.9: Removed old code from `backend/app/api/routes.py` - Deleted lines 72-245 (helper functions + 5 endpoints + unused imports)
+- ✓ Step 2.10: Tested all 5 endpoints successfully
+
+**Files created:**
+- `backend/app/features/investment_aggregator/repository.py`
+- `backend/app/features/investment_aggregator/service.py`
+- `backend/app/features/investment_aggregator/schemas.py`
+- `backend/app/features/investment_aggregator/routes.py`
+
+**Files modified:**
+- `backend/app/dependencies.py` (added investment aggregator dependencies)
+- `backend/app/main.py` (registered invest_router)
+- `backend/app/api/routes.py` (removed endpoints, helper functions, and imports)
+
+**Endpoints migrated:**
+1. `POST /api/upload` - Upload and process PDF statements ✓
+2. `GET /api/results/{file_id}` - Get extraction results with transactions ✓
+3. `GET /api/download/{file_id}` - Download processed JSON file ✓
+4. `GET /api/files` - List all processed files ✓
+5. `GET /api/available-financial-years` - Get financial years from FIFO data ✓ (will be moved to capital_gains in Phase 4)
+
+**Test results:**
+- All endpoints return correct responses
+- Error handling works (404 for non-existent file_id)
+- OpenAPI spec updated correctly
+- No import errors on server startup
+
+**Pattern validated**: Repository-Service-Routes architecture works well for multi-step processing workflows. Dependency injection provides clean separation and testability.
+
+**Next**: Proceed to Phase 3
 
 ---
 
