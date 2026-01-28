@@ -1,6 +1,6 @@
 # Backend Refactoring Implementation Guide
 
-**Status**: Phase 0-2 ✅ Complete | Phase 3-7 Pending
+**Status**: Phase 0-3 ✅ Complete | Phase 4-7 Pending
 
 This guide provides step-by-step instructions for completing the backend refactoring from Phase 1 onwards. Phase 0 (infrastructure setup) is already complete.
 
@@ -95,316 +95,55 @@ This guide provides step-by-step instructions for completing the backend refacto
 
 ---
 
-## Phase 3: Extract Payslips Sub-Domain (2 hours)
+## Phase 3: Extract Payslips Sub-Domain ✅ COMPLETED
 
 **Goal**: Consolidate scattered payslip logic into ITR feature
 
-**Current Code**:
-- Routes: `backend/app/api/routes.py` lines 547-846
-- Extractor: `backend/app/services/pdf_extractor/payslip_extractor.py`
-
-### Steps:
-
-#### 3.1 Move Payslip Extractor
-
-```bash
-cd backend/app
-mv services/pdf_extractor/payslip_extractor.py features/itr_prep/payslips/extractor.py
-```
-
-#### 3.2 Create Validators
-
-Create `backend/app/features/itr_prep/payslips/validators.py`:
-
-Extract validation logic from routes.py:
-
-```python
-from typing import List, Dict, Any
-
-
-def is_duplicate_payslip(
-    new_payslip: Dict[str, Any],
-    existing_payslips: List[Dict[str, Any]]
-) -> bool:
-    """Check if payslip is duplicate."""
-    # Extract logic from routes.py
-    # Check for duplicates based on pay_period and company
-    for existing in existing_payslips:
-        if (existing.get("pay_period") == new_payslip.get("pay_period") and
-            existing.get("company_name") == new_payslip.get("company_name")):
-            return True
-    return False
-
-
-def is_payslip_data_empty(data: Dict[str, Any]) -> bool:
-    """Check if payslip data is empty."""
-    return not data or len(data.get("payslips", [])) == 0
-```
-
-#### 3.3 Create Repository
-
-Create `backend/app/features/itr_prep/payslips/repository.py`:
-
-```python
-from pathlib import Path
-import json
-from typing import List, Dict, Any
-from app.shared.persistence import IPayslipRepository
-
-
-class FilePayslipRepository(IPayslipRepository):
-    """File-based repository for payslip data."""
-
-    def __init__(self, data_file: Path):
-        self.data_file = data_file
-
-    def get_all_payslips(self) -> List[Dict[str, Any]]:
-        """Get all saved payslips."""
-        if self.data_file.exists():
-            with open(self.data_file, 'r') as f:
-                data = json.load(f)
-                return data.get("payslips", [])
-        return []
-
-    def save_payslips(self, payslips: List[Dict[str, Any]]) -> None:
-        """Save payslips."""
-        self.data_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.data_file, 'w') as f:
-            json.dump({"payslips": payslips}, f, indent=2)
-
-    def delete_payslip(self, payslip_id: str) -> None:
-        """Delete a payslip by ID."""
-        payslips = self.get_all_payslips()
-        payslips = [p for p in payslips if p.get("id") != payslip_id]
-        self.save_payslips(payslips)
-
-    def delete_all_payslips(self) -> None:
-        """Delete all payslips."""
-        self.save_payslips([])
-```
-
-#### 3.4 Create Service
-
-Create `backend/app/features/itr_prep/payslips/service.py`:
-
-```python
-from fastapi import UploadFile, HTTPException
-from typing import List
-import uuid
-from .repository import FilePayslipRepository
-from .extractor import extract_payslip_data
-from .validators import is_duplicate_payslip
-
-
-class PayslipService:
-    """Service for payslip processing."""
-
-    def __init__(self, repository: FilePayslipRepository):
-        self.repo = repository
-
-    async def process_uploads(self, files: List[UploadFile]):
-        """Process uploaded payslip files."""
-        results = []
-        existing_payslips = self.repo.get_all_payslips()
-
-        for file in files:
-            # Read file content
-            content = await file.read()
-
-            # Extract data
-            extracted_data = extract_payslip_data(content)
-
-            # Check for duplicates
-            if is_duplicate_payslip(extracted_data, existing_payslips):
-                results.append({
-                    "filename": file.filename,
-                    "status": "duplicate",
-                    "message": "Duplicate payslip"
-                })
-                continue
-
-            # Add unique ID
-            extracted_data["id"] = str(uuid.uuid4())[:8]
-
-            # Save
-            existing_payslips.append(extracted_data)
-            results.append({
-                "filename": file.filename,
-                "status": "success",
-                "data": extracted_data
-            })
-
-        # Save all
-        self.repo.save_payslips(existing_payslips)
-
-        return {
-            "success": True,
-            "processed": len(results),
-            "results": results
-        }
-
-    def get_all_payslips(self):
-        """Get all saved payslips."""
-        return self.repo.get_all_payslips()
-
-    def delete_payslip(self, payslip_id: str):
-        """Delete a payslip."""
-        self.repo.delete_payslip(payslip_id)
-        return {"success": True, "message": "Payslip deleted"}
-
-    def delete_all_payslips(self):
-        """Delete all payslips."""
-        self.repo.delete_all_payslips()
-        return {"success": True, "message": "All payslips deleted"}
-```
-
-#### 3.5 Create Schemas
-
-Create `backend/app/features/itr_prep/payslips/schemas.py`:
-
-```python
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-
-
-class PayslipData(BaseModel):
-    id: str
-    company_name: Optional[str]
-    pay_period: Optional[str]
-    gross_pay: Optional[float]
-    net_pay: Optional[float]
-    breakdown: Optional[Dict[str, Any]]
-
-
-class PayslipUploadResponse(BaseModel):
-    success: bool
-    processed: int
-    results: List[Dict[str, Any]]
-
-
-class PayslipDeleteResponse(BaseModel):
-    success: bool
-    message: str
-```
-
-#### 3.6 Create Routes
-
-Create `backend/app/features/itr_prep/payslips/routes.py`:
-
-```python
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
-from typing import List
-from .schemas import PayslipUploadResponse, PayslipData, PayslipDeleteResponse
-from .service import PayslipService
-from app.dependencies import get_payslip_service
-
-router = APIRouter()
-
-
-@router.post("/upload-payslips", response_model=PayslipUploadResponse)
-async def upload_payslips(
-    files: List[UploadFile] = File(...),
-    service: PayslipService = Depends(get_payslip_service)
-):
-    """Upload and process payslip PDFs."""
-    return await service.process_uploads(files)
-
-
-@router.get("/payslips", response_model=List[PayslipData])
-async def get_payslips(
-    service: PayslipService = Depends(get_payslip_service)
-):
-    """Get all saved payslips."""
-    return service.get_all_payslips()
-
-
-@router.delete("/payslips/{payslip_id}", response_model=PayslipDeleteResponse)
-async def delete_payslip(
-    payslip_id: str,
-    service: PayslipService = Depends(get_payslip_service)
-):
-    """Delete a specific payslip."""
-    return service.delete_payslip(payslip_id)
-
-
-@router.delete("/payslips", response_model=PayslipDeleteResponse)
-async def delete_all_payslips(
-    service: PayslipService = Depends(get_payslip_service)
-):
-    """Delete all payslips."""
-    return service.delete_all_payslips()
-```
-
-#### 3.7 Create ITR Router Registration
-
-Create `backend/app/features/itr_prep/__init__.py`:
-
-```python
-from fastapi import APIRouter
-
-
-def create_router():
-    """Create and configure ITR Prep feature router."""
-    router = APIRouter(prefix="/api", tags=["ITR Prep"])
-
-    # Import sub-domain routers
-    from .payslips.routes import router as payslip_router
-
-    # Register sub-domains
-    router.include_router(payslip_router)
-
-    return router
-```
-
-#### 3.8 Update Dependencies
-
-Add to `backend/app/dependencies.py`:
-
-```python
-from app.config import PAYSLIPS_DATA_FILE
-
-
-# Payslip Dependencies
-@lru_cache()
-def get_payslip_repository():
-    """Get payslip repository instance."""
-    from app.features.itr_prep.payslips.repository import FilePayslipRepository
-    return FilePayslipRepository(data_file=Path(PAYSLIPS_DATA_FILE))
-
-
-def get_payslip_service(
-    repo=Depends(get_payslip_repository)
-):
-    """Get payslip service instance."""
-    from app.features.itr_prep.payslips.service import PayslipService
-    return PayslipService(repository=repo)
-```
-
-#### 3.9 Update main.py
-
-```python
-from app.features.itr_prep import create_router as create_itr_router
-
-# Add after investment aggregator
-app.include_router(create_itr_router())
-```
-
-#### 3.10 Delete from routes.py
-
-Delete lines 547-846 from `backend/app/api/routes.py`.
-
-#### 3.11 Testing
-
-```bash
-# Test upload
-curl -X POST -F "files=@payslip.pdf" http://localhost:8000/api/upload-payslips
-
-# Test get all
-curl http://localhost:8000/api/payslips
-
-# Test delete
-curl -X DELETE http://localhost:8000/api/payslips/{id}
-```
+**What was done:**
+- ✓ Moved payslip extractor to `backend/app/features/itr_prep/payslips/extractor.py` (updated import for pdfToTxt)
+- ✓ Created `backend/app/features/itr_prep/payslips/validators.py` - Validation logic for empty/duplicate payslips
+- ✓ Created `backend/app/features/itr_prep/payslips/repository.py` - FilePayslipRepository implementing IPayslipRepository
+- ✓ Created `backend/app/features/itr_prep/payslips/service.py` - PayslipService with upload processing, validation, and CRUD operations
+- ✓ Created `backend/app/features/itr_prep/payslips/schemas.py` - Pydantic models (PayslipData, PayslipRecord, PayslipUploadResponse, PayslipsListResponse, etc.)
+- ✓ Created `backend/app/features/itr_prep/payslips/routes.py` - 4 payslip endpoints with ITR Prep tag
+- ✓ Created `backend/app/features/itr_prep/__init__.py` - ITR router registration with payslips sub-domain
+- ✓ Updated `backend/app/dependencies.py` - Added payslip repository and service dependencies with file_id_length parameter
+- ✓ Updated `backend/app/main.py` - Registered ITR router via create_itr_router()
+- ✓ Removed old code from `backend/app/api/routes.py` - Deleted payslip helper functions and endpoints (lines 363-662)
+- ✓ Removed payslip-related imports from `backend/app/api/routes.py` (PAYSLIPS_DIR, PAYSLIPS_DATA_FILE, payslip schemas, payslip_extractor)
+- ✓ Tested all 4 endpoints successfully
+
+**Files created:**
+- `backend/app/features/itr_prep/__init__.py`
+- `backend/app/features/itr_prep/payslips/extractor.py` (moved from services/pdf_extractor/)
+- `backend/app/features/itr_prep/payslips/validators.py`
+- `backend/app/features/itr_prep/payslips/repository.py`
+- `backend/app/features/itr_prep/payslips/service.py`
+- `backend/app/features/itr_prep/payslips/schemas.py`
+- `backend/app/features/itr_prep/payslips/routes.py`
+
+**Files modified:**
+- `backend/app/dependencies.py` (added payslip dependencies)
+- `backend/app/main.py` (registered ITR router)
+- `backend/app/api/routes.py` (removed payslip endpoints, helper functions, and imports)
+
+**Endpoints migrated:**
+1. `POST /api/upload-payslips` - Upload and extract payslip data ✓
+2. `GET /api/payslips` - Get all saved payslips (sorted by pay period) ✓
+3. `DELETE /api/payslips/{payslip_id}` - Delete specific payslip ✓
+4. `DELETE /api/payslips` - Delete all payslips ✓
+
+**Test results:**
+- All endpoints return correct responses
+- Error handling works (404 for non-existent payslip_id)
+- OpenAPI spec updated correctly with "ITR Prep" tag
+- No import errors on server startup
+- Existing payslips preserved and accessible
+- Verified deletion endpoint with test payslip
+
+**Pattern validated**: ITR Prep feature now has clean sub-domain structure. Payslips module uses Repository-Service-Routes pattern with dependency injection, matching investment aggregator architecture.
+
+**Next**: Proceed to Phase 4
 
 ---
 
