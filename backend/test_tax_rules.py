@@ -4,7 +4,7 @@ This is a standalone script to quickly validate the tax rules logic.
 """
 
 from datetime import datetime
-from app.tax_rules import get_debt_fund_term, get_equity_fund_term
+from app.core.tax_rules import get_debt_fund_term, get_equity_fund_term
 
 
 def test_debt_fund_rules():

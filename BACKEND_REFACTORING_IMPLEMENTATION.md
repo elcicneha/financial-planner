@@ -1,12 +1,12 @@
 # Backend Refactoring Implementation Guide
 
-**Status**: Phase 0-6 ✅ Complete | Phase 7 Pending
+**Status**: Phase 0-7 ✅ Complete
 
 This guide provides step-by-step instructions for completing the backend refactoring from Phase 1 onwards. Phase 0 (infrastructure setup) is already complete.
 
 ## Summary of Completed Work
 
-**Phases Completed**: 0-6 (Infrastructure, Health, Investment Aggregator, Payslips, Capital Gains, CAS Parser, Playground)
+**Phases Completed**: 0-7 (Infrastructure, Health, Investment Aggregator, Payslips, Capital Gains, CAS Parser, Playground, Final Cleanup)
 
 **Files Refactored**:
 - 827-line `cas_parser.py` → 10 focused CAS modules
@@ -29,8 +29,13 @@ This guide provides step-by-step instructions for completing the backend refacto
 - `backend/app/api/routes.py`
 - `backend/app/services/cas_parser.py`
 - `backend/app/services/fifo_calculator.py`
+- `backend/app/api/` (entire folder)
+- `backend/app/services/` (entire folder including pdf_extractor/)
+- `backend/app/models/` (entire folder)
+- `backend/app/tax_rules.py` (moved to core/)
+- `backend/app/utils.py` (moved to core/)
 
-**Next**: Phase 7 (Final Cleanup)
+**Refactoring Complete**
 
 ---
 
@@ -341,103 +346,138 @@ This guide provides step-by-step instructions for completing the backend refacto
 
 ---
 
-## Phase 7: Final Cleanup (1 hour)
+## Phase 7: Final Cleanup ✅ COMPLETED
 
 **Goal**: Clean up old files and update documentation
 
-### Steps:
+**What was done:**
+- ✓ Verified routes.py was already deleted (Phase 5)
+- ✓ Deleted `backend/app/api/` folder (empty __init__.py only)
+- ✓ Deleted `backend/app/services/` folder (duplicated code moved to features)
+- ✓ Deleted `backend/app/models/` folder (legacy unused schemas)
+- ✓ Deleted `backend/app/tax_rules.py` (duplicate of core/tax_rules.py)
+- ✓ Deleted `backend/app/utils.py` (duplicate of core/utils.py)
+- ✓ Updated `test_tax_rules.py` to import from `app.core.tax_rules`
+- ✓ Verified main.py only imports from features
+- ✓ Updated CLAUDE.md with new feature-based architecture
+- ✓ Tested all 18 endpoints successfully
+- ✓ Verified tax rules tests pass
 
-#### 7.1 Verify routes.py is Empty
+**Files deleted:**
+- `backend/app/api/` (entire folder)
+- `backend/app/services/` (entire folder)
+- `backend/app/models/` (entire folder)
+- `backend/app/tax_rules.py`
+- `backend/app/utils.py`
 
-Check `backend/app/api/routes.py` - should have no endpoints left.
+**Files modified:**
+- `backend/test_tax_rules.py` (updated import path)
+- `CLAUDE.md` (updated all backend file paths)
 
-#### 7.2 Delete Old Files
-
-```bash
-rm backend/app/api/routes.py
-rm -rf backend/app/services/  # If empty
-```
-
-#### 7.3 Update main.py
-
-Ensure main.py only imports from features.
-
-#### 7.4 Update CLAUDE.md
-
-Update project documentation with new structure.
-
-#### 7.5 Final Testing
-
-Run full test suite and verify all endpoints work.
+**Test results:**
+- All 18 endpoints working correctly
+- Tax rules tests: 10 passed, 0 failed
+- No import errors on server startup
 
 ---
 
 ## Testing Checklist
 
 After each phase:
-- [x] All affected endpoints return correct responses (Phases 1-5)
-- [x] No import errors (Phases 1-5)
-- [x] API docs at `/docs` reflect changes (Phases 1-5)
-- [x] Manual testing of changed endpoints (Phases 1-5)
+- [x] All affected endpoints return correct responses (Phases 1-7)
+- [x] No import errors (Phases 1-7)
+- [x] API docs at `/docs` reflect changes (Phases 1-7)
+- [x] Manual testing of changed endpoints (Phases 1-7)
 
-After all phases (6-7):
-- [ ] All 15 endpoints work identically
-- [ ] No API contract changes
-- [ ] Performance unchanged
-- [ ] Code is navigable
+Final verification:
+- [x] All 18 endpoints work identically (15 original + 3 playground)
+- [x] No API contract changes
+- [x] Performance unchanged
+- [x] Code is navigable
+- [x] Tax rules tests pass
 
 ---
 
-## Reference: Current File Structure
+## Reference: Final File Structure
 
 ```
 backend/app/
-├── main.py
-├── config.py
+├── main.py                # FastAPI app entry point
+├── config.py              # Configuration and paths
 ├── dependencies.py        # Dependency injection
 ├── exceptions.py          # Custom exceptions
 │
 ├── core/
-│   ├── utils.py
-│   └── tax_rules.py
+│   ├── utils.py           # Shared utilities (financial year helpers)
+│   └── tax_rules.py       # Capital gains tax rules
 │
 ├── shared/
-│   ├── persistence.py
-│   ├── calculator_registry.py
-│   └── file_manager.py
+│   ├── persistence.py     # Repository interfaces
+│   ├── calculator_registry.py  # Calculator pattern
+│   └── file_manager.py    # File utilities
 │
-├── features/
-│   ├── health/            # ✓ Phase 1
-│   ├── investment_aggregator/  # ✓ Phase 2
-│   ├── itr_prep/
-│   │   ├── __init__.py    # ITR router
-│   │   ├── capital_gains/ # ✓ Phase 4
-│   │   ├── cas/           # ✓ Phase 5
-│   │   │   ├── parsers/
-│   │   │   │   ├── base.py
-│   │   │   │   ├── cams_parser.py
-│   │   │   │   ├── kfintech_parser.py
-│   │   │   │   ├── utils.py
-│   │   │   │   └── __init__.py
-│   │   │   ├── repository.py
-│   │   │   ├── service.py
-│   │   │   ├── schemas.py
-│   │   │   ├── exceptions.py
-│   │   │   └── routes.py
-│   │   ├── payslips/      # ✓ Phase 3
-│   │   └── manual_entry/  # Future
-│   └── playground/        # Phase 6
-│
-├── models/
-│   └── schemas.py         # Legacy schemas (to be distributed)
-└── services/              # Legacy (being phased out)
-    └── pdf_extractor/     # Moved to investment_aggregator
+└── features/
+    ├── health/            # Health check endpoint
+    │   ├── schemas.py
+    │   └── routes.py
+    │
+    ├── investment_aggregator/  # PDF processing feature
+    │   ├── extractor/     # PDF extraction pipeline
+    │   │   ├── pdfToTxt.py
+    │   │   ├── extractTextToCSV.py
+    │   │   ├── processDatesData.py
+    │   │   ├── processFundDeets.py
+    │   │   ├── finalCombine.py
+    │   │   └── __init__.py
+    │   ├── repository.py
+    │   ├── service.py
+    │   ├── schemas.py
+    │   └── routes.py
+    │
+    ├── itr_prep/          # ITR preparation feature
+    │   ├── __init__.py    # ITR router combining sub-domains
+    │   ├── capital_gains/ # FIFO calculator
+    │   │   ├── models.py
+    │   │   ├── classifier.py
+    │   │   ├── calculator.py
+    │   │   ├── cache_manager.py
+    │   │   ├── repository.py
+    │   │   ├── service.py
+    │   │   ├── schemas.py
+    │   │   └── routes.py
+    │   ├── cas/           # CAS Excel parser
+    │   │   ├── parsers/
+    │   │   │   ├── base.py
+    │   │   │   ├── cams_parser.py
+    │   │   │   ├── kfintech_parser.py
+    │   │   │   ├── utils.py
+    │   │   │   └── __init__.py
+    │   │   ├── repository.py
+    │   │   ├── service.py
+    │   │   ├── schemas.py
+    │   │   ├── exceptions.py
+    │   │   └── routes.py
+    │   └── payslips/      # Payslip extractor
+    │       ├── extractor.py
+    │       ├── validators.py
+    │       ├── repository.py
+    │       ├── service.py
+    │       ├── schemas.py
+    │       └── routes.py
+    │
+    └── playground/        # Development calculators
+        ├── calculators/
+        │   ├── break_calculator.py
+        │   └── __init__.py
+        ├── schemas.py
+        ├── routes.py
+        └── __init__.py
 ```
 
-**Deleted:**
-- `backend/app/api/routes.py` (Phase 5)
-- `backend/app/services/cas_parser.py` (Phase 5)
-- `backend/app/services/fifo_calculator.py` (Phase 4)
+**All legacy directories deleted:**
+- `backend/app/api/` (routes moved to features)
+- `backend/app/services/` (code moved to features)
+- `backend/app/models/` (schemas moved to features)
 
 ---
 
