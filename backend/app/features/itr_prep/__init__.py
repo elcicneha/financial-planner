@@ -15,9 +15,11 @@ def create_router() -> APIRouter:
     # Import sub-domain routers
     from .capital_gains.routes import router as cg_router
     from .payslips.routes import router as payslip_router
+    from .cas.routes import router as cas_router
 
     # Register sub-domains
     router.include_router(cg_router)
     router.include_router(payslip_router)
+    router.include_router(cas_router)
 
     return router

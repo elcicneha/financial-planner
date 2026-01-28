@@ -66,6 +66,21 @@ def get_capital_gains_service(
     return CapitalGainsService(repository=repo)
 
 
+# CAS Dependencies
+@lru_cache()
+def get_cas_repository():
+    """Get CAS repository instance."""
+    from app.features.itr_prep.cas.repository import FileCASRepository
+    return FileCASRepository()
+
+
+def get_cas_service(
+    repo=Depends(get_cas_repository)
+):
+    """Get CAS service instance."""
+    from app.features.itr_prep.cas.service import CASService
+    return CASService(repository=repo)
+
+
 # Placeholder for future dependencies:
-# - Phase 5: CAS dependencies
 # - Phase 6: Playground dependencies
