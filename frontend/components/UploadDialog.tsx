@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { createContext, useContext, useState, useRef, useCallback } from 'react';
+import { createContext, useContext, useState, useRef, useCallback, useMemo } from 'react';
 import { Loader2, CheckCircle2, XCircle, Lock, X, Upload, Archive, AlertTriangle, ChevronRight } from 'lucide-react';
 import JSZip from 'jszip';
 import { toast } from 'sonner';
@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge';
 // =============================================================================
 
 interface FileUploadState {
+  id: string;
   file: File;
   status: 'pending' | 'uploading' | 'password_required' | 'success' | 'error' | 'skipped';
   password: string;
@@ -212,6 +213,7 @@ function UploadDialogRoot({
 
     // Initialize all files as uploading, plus rejected files as 'skipped'
     const uploadStates: FileUploadState[] = normalizedFiles.map(({ file, sourceZip }) => ({
+      id: crypto.randomUUID(),
       file,
       status: 'uploading' as const,
       password: '',
@@ -220,6 +222,7 @@ function UploadDialogRoot({
 
     // Add rejected files with 'skipped' status (we'll show them but not upload)
     const skippedStates: FileUploadState[] = rejectedFiles.map(({ file, sourceZip, rejectionReason }) => ({
+      id: crypto.randomUUID(),
       file,
       status: 'skipped' as const,
       password: '',
@@ -280,8 +283,11 @@ function UploadDialogRoot({
         }
       ];
 
+      // Create a Map for O(1) lookups instead of O(n) find() calls
+      const resultMap = new Map(results.map(r => [r.filename, r]));
+
       setFileStates(prev => prev.map((state) => {
-        const result = results.find(r => r.filename === state.file.name);
+        const result = resultMap.get(state.file.name);
         if (!result) {
           return { ...state, status: 'error', error: 'No result returned for this file' };
         }
@@ -507,16 +513,35 @@ function UploadDialogRoot({
     }
   }, [fileStates, handleClose]);
 
-  // Computed state
-  const isUploading = fileStates.some(s => s.status === 'uploading' || s.status === 'pending');
-  const allDone = fileStates.length > 0 && fileStates.every(s =>
-    s.status === 'success' || s.status === 'error' || s.status === 'password_required' || s.status === 'skipped'
+  // Memoized computed state
+  const isUploading = useMemo(() =>
+    fileStates.some(s => s.status === 'uploading' || s.status === 'pending'),
+    [fileStates]
   );
-  const hasPasswordRequired = fileStates.some(s => s.status === 'password_required');
-  const hasErrors = fileStates.some(s => s.status === 'error');
-  const isIdle = fileStates.length === 0 && zipState === null;
 
-  const contextValue: UploadDialogContextValue = {
+  const allDone = useMemo(() =>
+    fileStates.length > 0 && fileStates.every(s =>
+      s.status === 'success' || s.status === 'error' || s.status === 'password_required' || s.status === 'skipped'
+    ),
+    [fileStates]
+  );
+
+  const hasPasswordRequired = useMemo(() =>
+    fileStates.some(s => s.status === 'password_required'),
+    [fileStates]
+  );
+
+  const hasErrors = useMemo(() =>
+    fileStates.some(s => s.status === 'error'),
+    [fileStates]
+  );
+
+  const isIdle = useMemo(() =>
+    fileStates.length === 0 && zipState === null,
+    [fileStates.length, zipState]
+  );
+
+  const contextValue = useMemo<UploadDialogContextValue>(() => ({
     endpoint,
     accept,
     multiple,
@@ -536,7 +561,13 @@ function UploadDialogRoot({
     handleClose,
     handleCancelZip,
     inputFileRef,
-  };
+  }), [
+    endpoint, accept, multiple, formatSuccessMessage,
+    fileStates, isUploading, isIdle, allDone,
+    hasPasswordRequired, hasErrors, zipState,
+    handleFilesSelect, handlePasswordSubmit, updateFileState,
+    handleRemoveFile, handleReset, handleClose, handleCancelZip
+  ]);
 
   return (
     <UploadDialogContext.Provider value={contextValue}>
@@ -701,11 +732,11 @@ function StatusGroup({
 
         <CollapsibleContent>
           <div className="px-4 pb-3 space-y-2 border-t border-current/10">
-            {files.map((file, idx) => {
-              const originalIndex = allFileStates.findIndex(f => f === file);
+            {files.map((file) => {
+              const originalIndex = allFileStates.findIndex(f => f.id === file.id);
               return (
                 <div
-                  key={`${file.file.name}-${idx}`}
+                  key={file.id}
                   className="pt-3 flex items-start gap-2.5 group"
                 >
                   <div className="flex-1 min-w-0">

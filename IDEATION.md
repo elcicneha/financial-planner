@@ -37,6 +37,10 @@ calculate and display short-term gains, long-term gains, and total tax liability
 - [ ] Manual data entry for other ITR values (salary, interest, dividends, deductions)
 - [ ] Unified ITR Dashboard with ALL values needed for filing
 
+## Phase 1.5: ANALYTICS
+Add posthog tracking.
+Get a count of unique users, number of times used, etc.
+Separate in progress sections from ready ones, and work in a separate branch. Publish on Vercel, share it with people who can come and start trying it out.
 
 ## ✌️ Phase 2: EXPENSE TRACKING
 **Goal:** "Where does my money go each month?"

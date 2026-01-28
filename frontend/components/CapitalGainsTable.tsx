@@ -217,8 +217,8 @@ export default function CapitalGainsTable({ gains, refetch, forceRefetch }: Capi
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedGains.map((gain, index) => (
-              <TableRow key={index}>
+            {sortedGains.map((gain) => (
+              <TableRow key={`${gain.sell_date}-${gain.ticker}-${gain.buy_date}-${gain.units}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 48px' }}>
                 <TableCell className="font-mono text-sm">{gain.sell_date}</TableCell>
                 <TableCell className="font-medium">{gain.ticker}</TableCell>
                 <TableCell>

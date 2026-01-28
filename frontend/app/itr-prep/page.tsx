@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { VariantSwitcher } from '@/components/VariantSwitcher';
 import { variants, defaultVariant, variantKeys } from './variants';
 import { useDevMode } from '@/components/dev/DevModeProvider';
 import { useAvailableFinancialYears } from '@/hooks/useAvailableFinancialYears';
 import { useCASFiles } from '@/hooks/useCASFiles';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import {
   Select,
   SelectContent,
@@ -14,14 +15,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const STORAGE_KEY = 'itr-prep-variant';
-const FY_STORAGE_KEY = 'itr-prep-global-fy';
-
 export default function ITRPrepPage() {
   const { isDevMode } = useDevMode();
-  const [selectedVariant, setSelectedVariant] = useState(defaultVariant);
-  const [selectedFY, setSelectedFY] = useState<string>('');
-  const [mounted, setMounted] = useState(false);
+  const [selectedVariant, setSelectedVariant, mounted] = useLocalStorage('itr-prep-variant', defaultVariant);
+  const [selectedFY, setSelectedFY] = useLocalStorage<string>('itr-prep-global-fy', '');
 
   // Fetch available financial years from both sources
   const { financialYears: fifoYears, loading: fifoLoading } = useAvailableFinancialYears();
@@ -38,41 +35,21 @@ export default function ITRPrepPage() {
 
   const fyLoading = fifoLoading || casLoading;
 
-  // Load saved variant and FY from localStorage
+  // Validate stored variant on mount
   useEffect(() => {
-    const storedVariant = localStorage.getItem(STORAGE_KEY);
-    if (storedVariant && variantKeys.includes(storedVariant)) {
-      setSelectedVariant(storedVariant);
+    if (mounted && !variantKeys.includes(selectedVariant)) {
+      setSelectedVariant(defaultVariant);
     }
-    setMounted(true);
-  }, []);
+  }, [mounted, selectedVariant, setSelectedVariant]);
 
-  // Initialize FY selection
+  // Initialize FY selection with most recent if stored value is invalid
   useEffect(() => {
-    if (mounted && !fyLoading && availableFYs.length > 0 && !selectedFY) {
-      const storedFY = localStorage.getItem(FY_STORAGE_KEY);
-      if (storedFY && availableFYs.includes(storedFY)) {
-        setSelectedFY(storedFY);
-      } else {
-        // Default to most recent FY
+    if (mounted && !fyLoading && availableFYs.length > 0) {
+      if (!selectedFY || !availableFYs.includes(selectedFY)) {
         setSelectedFY(availableFYs[0]);
       }
     }
-  }, [mounted, fyLoading, availableFYs, selectedFY]);
-
-  // Save variant selection to localStorage
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem(STORAGE_KEY, selectedVariant);
-    }
-  }, [selectedVariant, mounted]);
-
-  // Save FY selection to localStorage
-  useEffect(() => {
-    if (mounted && selectedFY) {
-      localStorage.setItem(FY_STORAGE_KEY, selectedFY);
-    }
-  }, [selectedFY, mounted]);
+  }, [mounted, fyLoading, availableFYs, selectedFY, setSelectedFY]);
 
   // Get selected variant component
   const SelectedComponent = variants[selectedVariant]?.component ?? variants[defaultVariant].component;

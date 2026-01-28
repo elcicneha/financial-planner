@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { cn, getGainLossColor } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { TransactionRecord } from '@/hooks/useTransactionData';
 
 interface TransactionTableProps {
@@ -110,7 +110,7 @@ export default function TransactionTable({ transactions }: TransactionTableProps
           const amount = formatAmount(t.amount);
           const units = formatAmount(t.units);
           return (
-            <TableRow key={`${t.date}-${t.ticker}-${idx}`}>
+            <TableRow key={`${t.date}-${t.ticker}-${idx}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 48px' }}>
               <TableCell className="font-mono text-xs">{t.date}</TableCell>
               <TableCell>
                 <span className="font-mono text-xs truncate max-w-[200px] block" title={t.ticker}>

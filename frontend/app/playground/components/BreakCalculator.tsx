@@ -1,9 +1,10 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
-import { ChevronRight, ArrowRight, Calculator, AlertTriangle, Infinity, TrendingUp, Sparkles } from 'lucide-react';
+import { ChevronRight, ArrowRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { PlaygroundState } from '@/hooks/usePlaygroundState';
+import { useDevMode } from '@/components/dev/DevModeProvider';
 import { Switch } from '@/components/ui/switch';
 import { InlineInput } from '@/components/ui/inline-input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,12 +12,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { BreakResult } from './BreakResult';
 
 interface BreakCalculatorProps {
   state: PlaygroundState;
 }
 
 export function BreakCalculator({ state }: BreakCalculatorProps) {
+  const { isDevMode } = useDevMode();
   const {
     inputs,
     results,
@@ -48,123 +51,26 @@ export function BreakCalculator({ state }: BreakCalculatorProps) {
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
       {/* Hero Result - Edge Case Handling */}
-
-      {/* Empty State */}
-      {edgeCase.isCompletelyEmpty && (
-        <Card className="border-2 border-dashed relative">
-          <CardContent className="text-center py-12 px-6">
-            <Calculator className="size-12 mx-auto mb-3 text-muted-foreground/40" />
-            <h3 className="text-lg font-medium mb-2">See How Long Your Money Lasts</h3>
-            <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
-              Fill in your details below to calculate how many years your savings will support you during a career break.
-            </p>
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <ArrowRight className="size-4 text-muted-foreground/50 rotate-90" />
-              <span className="text-xs text-muted-foreground">Start here</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* No Expenses - Money Lasts Forever */}
-      {edgeCase.noExpenses && (
-        <Card className="border-success/30 bg-success/5">
-          <CardContent className="text-center py-8 px-6">
-            <Infinity className="size-16 mx-auto mb-3 text-success" />
-            <span className="block font-display text-5xl md:text-6xl font-bold tracking-tight text-success">
-              Forever
-            </span>
-            <span className="block text-muted-foreground text-sm mt-2 uppercase tracking-widest">
-              Your money lasts
-            </span>
-            <Badge className="mt-4" variant="outline">
-              <AlertTriangle className="size-4 mr-2" />
-              Add monthly expenses for realistic projections
-            </Badge>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Never Runs Out - 100+ years */}
-      {edgeCase.neverRunsOut && (
-        <Card className="border-success/30 bg-success/5">
-          <CardContent className="text-center py-8 px-6">
-            <Sparkles className="size-12 mx-auto mb-2 text-success" />
-            <span className="block font-display text-6xl md:text-7xl font-bold tracking-tight text-success">
-              100+ <span className="text-4xl md:text-5xl font-medium">years</span>
-            </span>
-            <span className="block text-muted-foreground text-sm mt-2 uppercase tracking-widest">
-              Effectively forever
-            </span>
-            <span className="block text-foreground/70 text-base mt-3 font-medium">
-              Your money outlasts typical planning horizons
-            </span>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Insufficient Savings - Can't Afford Break */}
+      {edgeCase.isCompletelyEmpty && <BreakResult.Empty />}
+      {edgeCase.noExpenses && <BreakResult.NoExpenses />}
+      {edgeCase.neverRunsOut && <BreakResult.NeverRunsOut />}
       {edgeCase.insufficientSavings && (
-        <Card className="border-destructive/30 bg-destructive/5">
-          <CardContent className="text-center py-8 px-6">
-            <AlertTriangle className="size-16 mx-auto mb-3 text-destructive" />
-            <span className="block font-display text-2xl md:text-3xl font-bold tracking-tight text-destructive">
-              Can't afford this break
-            </span>
-            <span className="block text-muted-foreground text-sm mt-3">
-              You need savings to cover {formatCurrency(inputs.monthlyExpense)}/month
-            </span>
-            <Badge className="mt-4" variant="outline">
-              <TrendingUp className="size-4 mr-2" />
-              Start by adding current savings or monthly savings amount
-            </Badge>
-          </CardContent>
-        </Card>
+        <BreakResult.InsufficientSavings monthlyExpense={inputs.monthlyExpense} />
       )}
-
-      {/* Runs Out Immediately - Less than 1 month */}
       {edgeCase.runsOutImmediately && (
-        <Card className="border-warning/30 bg-warning/5">
-          <CardContent className="text-center py-8 px-6">
-            <AlertTriangle className="size-12 mx-auto mb-3 text-warning" />
-            <span className="block font-display text-5xl md:text-6xl font-bold tracking-tight text-warning">
-              &lt; 1 <span className="text-3xl md:text-4xl font-medium">month</span>
-            </span>
-            <span className="block text-muted-foreground text-sm mt-2 uppercase tracking-widest">
-              Your savings won't cover first month
-            </span>
-            <span className="block text-foreground/70 text-sm mt-3">
-              You'll have {formatCurrency(results.amountAtBreak)} but need {formatCurrency(inputs.monthlyExpense)}
-            </span>
-          </CardContent>
-        </Card>
+        <BreakResult.RunsOutImmediately
+          amountAtBreak={results.amountAtBreak}
+          monthlyExpense={inputs.monthlyExpense}
+        />
       )}
-
-      {/* Normal Calculation */}
       {edgeCase.isNormalCalculation && (
-        <Card className="border-primary/30 bg-primary-muted">
-          <CardContent className="text-center py-8 px-6">
-            <span
-              className={`block font-display text-6xl md:text-7xl font-bold tracking-tight text-primary-text transition-transform duration-300 ${bounce ? 'scale-105' : ''}`}
-              style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
-            >
-              {duration.primary} <span className="text-4xl md:text-5xl font-medium">{duration.unit}</span>
-            </span>
-            <span className="block text-muted-foreground text-sm mt-2 uppercase tracking-widest">
-              Your money lasts after break
-            </span>
-            {inputs.currentAge > 0 && (
-              <span className="block text-foreground/70 text-base mt-3 font-medium">
-                Until age {Math.ceil(results.corpusRunsOutAge)}
-              </span>
-            )}
-            {results.remainingAmount > 0 && (
-              <Badge className="mt-3">
-                {formatCurrency(results.remainingAmount)} remaining
-              </Badge>
-            )}
-          </CardContent>
-        </Card>
+        <BreakResult.Normal
+          duration={duration}
+          bounce={bounce}
+          currentAge={inputs.currentAge}
+          corpusRunsOutAge={results.corpusRunsOutAge}
+          remainingAmount={results.remainingAmount}
+        />
       )}
 
       {/* Flow Cards - Only show for meaningful calculations */}
@@ -305,37 +211,41 @@ export function BreakCalculator({ state }: BreakCalculatorProps) {
                 <span className="text-sm text-muted-foreground">%</span>
               </div>
 
-              <div className="border-t border-border pt-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm font-medium">Use effective rate</Label>
-                    <p className="text-xs text-muted-foreground">
-                      {inputs.useEffectiveRate
-                        ? 'Monthly rate from (1+r)^(1/12)-1'
-                        : 'Monthly rate from r/12 (nominal)'}
-                    </p>
+              {isDevMode && (
+                <>
+                  <div className="border-t border-border pt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-medium">Use effective rate</Label>
+                        <p className="text-xs text-muted-foreground">
+                          {inputs.useEffectiveRate
+                            ? 'Monthly rate from (1+r)^(1/12)-1'
+                            : 'Monthly rate from r/12 (nominal)'}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={inputs.useEffectiveRate ?? false}
+                        onCheckedChange={updateInput('useEffectiveRate')}
+                      />
+                    </div>
                   </div>
-                  <Switch
-                    checked={inputs.useEffectiveRate ?? false}
-                    onCheckedChange={updateInput('useEffectiveRate')}
-                  />
-                </div>
-              </div>
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-sm font-medium">Invest at month end</Label>
-                  <p className="text-xs text-muted-foreground">
-                    {inputs.investAtMonthEnd
-                      ? 'Ordinary annuity (payment at period end)'
-                      : 'Annuity due (payment at period start)'}
-                  </p>
-                </div>
-                <Switch
-                  checked={inputs.investAtMonthEnd ?? false}
-                  onCheckedChange={updateInput('investAtMonthEnd')}
-                />
-              </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-medium">Invest at month end</Label>
+                      <p className="text-xs text-muted-foreground">
+                        {inputs.investAtMonthEnd
+                          ? 'Ordinary annuity (payment at period end)'
+                          : 'Annuity due (payment at period start)'}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={inputs.investAtMonthEnd ?? false}
+                      onCheckedChange={updateInput('investAtMonthEnd')}
+                    />
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
