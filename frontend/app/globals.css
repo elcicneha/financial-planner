@@ -243,7 +243,7 @@
     --destructive-text: var(--red-11);
     --destructive: var(--red-9);
     --destructive-foreground: 255 255 255;
-    --destructive-muted: var(--red-2);
+    --destructive-muted: var(--red-3);
 
     --success-text: var(--grass-10);
     --success: var(--green-9);

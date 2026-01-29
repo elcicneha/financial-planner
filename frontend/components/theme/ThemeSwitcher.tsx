@@ -4,6 +4,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { themeMetadata, type Theme } from '@/lib/theme-config';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
 
 /**
  * Combined theme switcher component
@@ -22,9 +23,7 @@ export function ThemeSwitcher() {
 
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium text-muted-foreground px-1">
-        Theme
-      </label>
+      <Label size="sm">Theme</Label>
       <div className="flex gap-2">
         <Tabs value={theme} onValueChange={(value) => setTheme(value as Theme)} className="flex-1">
           <TabsList className="w-full">

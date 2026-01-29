@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { navItems } from '@/lib/navigation';
 import { useDevMode } from '@/components/dev/DevModeProvider';
 import { ThemeSwitcher } from '@/components/theme/ThemeSwitcher';
+import { PrivacySwitcher } from '@/components/privacy/PrivacySwitcher';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -27,7 +28,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           return (
             <Link
               key={item.href}
@@ -50,6 +51,9 @@ export function Sidebar() {
       <div className="p-3 border-t border-border/50 space-y-3">
         {/* Theme Selector with Mode Toggle */}
         <ThemeSwitcher />
+
+        {/* Privacy Controls */}
+        <PrivacySwitcher />
 
         {/* Dev Mode Toggle */}
         <button

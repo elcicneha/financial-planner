@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import type { TransactionRecord } from '@/hooks/useTransactionData';
+import { usePrivateCurrency } from '@/hooks/usePrivateCurrency';
 
 interface TransactionTableProps {
   transactions: TransactionRecord[];
@@ -18,13 +19,6 @@ interface TransactionTableProps {
 
 type SortKey = 'date' | 'ticker' | 'amount' | 'nav' | 'units' | 'balance';
 type SortDirection = 'asc' | 'desc';
-
-function formatAmount(amount: string): { value: string; isNegative: boolean } {
-  if (!amount) return { value: '-', isNegative: false };
-  const isNegative = amount.startsWith('(') && amount.endsWith(')');
-  const cleanValue = isNegative ? amount.slice(1, -1) : amount;
-  return { value: cleanValue, isNegative };
-}
 
 function parseNumericString(str: string): number {
   if (!str) return 0;
@@ -37,6 +31,7 @@ function parseNumericString(str: string): number {
 export default function TransactionTable({ transactions }: TransactionTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const { formatCurrency } = usePrivateCurrency();
 
   const handleSort = useCallback((key: SortKey) => {
     if (sortKey === key) {
@@ -107,8 +102,17 @@ export default function TransactionTable({ transactions }: TransactionTableProps
       </TableHeader>
       <TableBody>
         {sortedTransactions.map((t, idx) => {
-          const amount = formatAmount(t.amount);
-          const units = formatAmount(t.units);
+          // Parse and format with privacy
+          const amountNum = parseNumericString(t.amount);
+          const navNum = parseNumericString(t.nav);
+          const unitsNum = parseNumericString(t.units);
+          const balanceNum = parseNumericString(t.balance);
+
+          const amountFormatted = t.amount ? formatCurrency(amountNum, undefined, true, `amount-${t.date}-${idx}`) : '-';
+          const navFormatted = t.nav ? formatCurrency(navNum, undefined, true, `nav-${t.date}-${idx}`) : '-';
+          const unitsFormatted = t.units ? formatCurrency(unitsNum, undefined, false, `units-${t.date}-${idx}`) : '-';
+          const balanceFormatted = t.balance ? formatCurrency(balanceNum, undefined, false, `balance-${t.date}-${idx}`) : '-';
+
           return (
             <TableRow key={`${t.date}-${t.ticker}-${idx}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 48px' }}>
               <TableCell className="font-mono text-xs">{t.date}</TableCell>
@@ -119,18 +123,18 @@ export default function TransactionTable({ transactions }: TransactionTableProps
               </TableCell>
               <TableCell className={cn(
                 "text-right font-mono text-xs",
-                amount.isNegative && "text-destructive-text"
+                amountNum < 0 && "text-destructive-text"
               )}>
-                {amount.isNegative && '-'}{amount.value}
+                {amountFormatted}
               </TableCell>
-              <TableCell className="text-right font-mono text-xs">{t.nav || '-'}</TableCell>
+              <TableCell className="text-right font-mono text-xs">{navFormatted}</TableCell>
               <TableCell className={cn(
                 "text-right font-mono text-xs",
-                units.isNegative && "text-destructive-text"
+                unitsNum < 0 && "text-destructive-text"
               )}>
-                {units.isNegative && '-'}{units.value}
+                {unitsFormatted}
               </TableCell>
-              <TableCell className="text-right font-mono text-xs">{t.balance || '-'}</TableCell>
+              <TableCell className="text-right font-mono text-xs">{balanceFormatted}</TableCell>
             </TableRow>
           );
         })}

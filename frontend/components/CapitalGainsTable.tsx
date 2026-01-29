@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pencil, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatCurrency } from '@/lib/currency';
+import { usePrivateCurrency } from '@/hooks/usePrivateCurrency';
 import { getGainLossColor } from '@/lib/utils';
 import type { FIFOGainRow } from '@/hooks/useCapitalGains';
 
@@ -45,6 +45,9 @@ export default function CapitalGainsTable({ gains, refetch, forceRefetch }: Capi
   const [isSaving, setIsSaving] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('sell_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  // Privacy-aware currency formatting for sensitive values
+  const { formatCurrency: formatPrivateCurrency } = usePrivateCurrency();
 
   const handleSort = useCallback((key: SortKey) => {
     if (sortKey === key) {
@@ -274,7 +277,7 @@ export default function CapitalGainsTable({ gains, refetch, forceRefetch }: Capi
                 <TableCell
                   className={`text-right font-mono text-sm font-medium ${getGainLossColor(gain.gain)}`}
                 >
-                  {formatCurrency(gain.gain)}
+                  {formatPrivateCurrency(gain.gain)}
                 </TableCell>
                 <TableCell className="font-mono text-sm">{gain.buy_date}</TableCell>
                 <TableCell className="text-right font-mono text-sm">
@@ -284,13 +287,13 @@ export default function CapitalGainsTable({ gains, refetch, forceRefetch }: Capi
                   {formatNumber(gain.sell_nav, 4)}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
-                  {formatCurrency(gain.sale_consideration)}
+                  {formatPrivateCurrency(gain.sale_consideration)}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
                   {formatNumber(gain.buy_nav, 4)}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
-                  {formatCurrency(gain.acquisition_cost)}
+                  {formatPrivateCurrency(gain.acquisition_cost)}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">{gain.holding_days}</TableCell>
                 <TableCell className="text-muted-foreground">{gain.folio}</TableCell>

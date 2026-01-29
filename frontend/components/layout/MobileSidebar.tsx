@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/sheet';
 import { useDevMode } from '@/components/dev/DevModeProvider';
 import { ThemeSwitcher } from '@/components/theme/ThemeSwitcher';
+import { PrivacySwitcher } from '@/components/privacy/PrivacySwitcher';
 
 export function MobileSidebar() {
   const [open, setOpen] = useState(false);
@@ -44,7 +45,7 @@ export function MobileSidebar() {
 
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.href}
@@ -67,6 +68,9 @@ export function MobileSidebar() {
         <div className="p-3 border-t border-border/50 mt-auto space-y-3">
           {/* Theme Selector with Mode Toggle */}
           <ThemeSwitcher />
+
+          {/* Privacy Controls */}
+          <PrivacySwitcher />
 
           {/* Dev Mode Toggle */}
           <button

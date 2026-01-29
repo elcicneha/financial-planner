@@ -7,7 +7,7 @@ import { Loader2, AlertCircle, FileText, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CASUploadDialog } from '../components/CASUploadDialog';
-import { formatCurrency } from '@/lib/currency';
+import { usePrivateCurrency } from '@/hooks/usePrivateCurrency';
 import { getGainLossColor } from '@/lib/utils';
 import { CopyButton } from '@/components/ui/copy-button';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -26,6 +26,7 @@ export default function CASStatementPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isSourceOpen, setIsSourceOpen] = useState(false);
   const { selectedFY, fyLoading } = useITRPrep();
+  const { formatCurrency } = usePrivateCurrency();
 
   // Fetch capital gains for selected FY
   const { data, loading, error, refetch } = useCASCapitalGains(selectedFY, refreshKey);

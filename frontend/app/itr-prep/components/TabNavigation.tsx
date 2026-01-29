@@ -34,18 +34,18 @@ export function TabNavigation() {
               role="tab"
               aria-selected={isActive}
               prefetch={true}
+              data-state={isActive ? 'active' : 'inactive'}
               className={cn(
-                // Base styles (matching TabsTrigger from tabs.tsx)
-                'relative inline-flex h-[calc(100%-1px)] items-center justify-center px-3 py-1 text-sm font-medium whitespace-nowrap transition-all rounded-md',
-                // Default state
-                'text-foreground/60 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground',
+                // Base styles
+                'cursor-pointer text-foreground/60 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground',
+                'relative inline-flex h-full items-center justify-center px-3 py-1 text-sm font-medium whitespace-nowrap transition-all',
                 // Focus styles
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md',
                 // Active state
-                isActive && 'text-foreground dark:text-foreground',
-                // Underline indicator (line variant style)
-                'after:absolute after:inset-x-0 after:bottom-[-5px] after:h-0.5 after:bg-primary after:opacity-0 after:transition-opacity',
-                isActive && 'after:opacity-100'
+                'data-[state=active]:text-foreground dark:data-[state=active]:text-foreground',
+                // Underline indicator - positioned to overlap the border
+                'after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-primary after:opacity-0 after:transition-opacity',
+                'data-[state=active]:after:opacity-100'
               )}
             >
               {tab.label}

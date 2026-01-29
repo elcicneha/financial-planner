@@ -18,7 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { formatCurrency } from '@/lib/currency';
+import { usePrivateCurrency } from '@/hooks/usePrivateCurrency';
 import { PayslipUploadDialog } from '../components/PayslipUploadDialog';
 import { useITRPrep } from '../context/ITRPrepContext';
 
@@ -119,6 +119,7 @@ export default function OtherInfoPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { selectedFY, fyLoading } = useITRPrep();
+  const { formatCurrency } = usePrivateCurrency();
 
   // Load saved payslips on mount
   useEffect(() => {

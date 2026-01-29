@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { IconToggle } from '@/components/ui/icon-toggle';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/currency';
+import { usePrivateCurrency } from '@/hooks/usePrivateCurrency';
 import { getGainLossColor } from '@/lib/utils';
 
 // Shared type for category data (works for both CAS and FIFO)
@@ -21,6 +21,7 @@ export function DataRow({ label, value, isGain }: {
   isGain?: boolean;
 }) {
   const [hasCopied, setHasCopied] = useState(false);
+  const { formatCurrency } = usePrivateCurrency();
 
   const handleCopy = () => {
     const rounded = Math.abs(value).toFixed(4);
