@@ -37,12 +37,12 @@ export function TabNavigation() {
               data-state={isActive ? 'active' : 'inactive'}
               className={cn(
                 // Base styles
-                'cursor-pointer text-foreground/60 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground',
+                'cursor-pointer text-muted-foreground hover:text-foreground',
                 'relative inline-flex h-full items-center justify-center px-3 py-1 text-sm font-medium whitespace-nowrap transition-all',
                 // Focus styles
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md',
+                'focus-ring',
                 // Active state
-                'data-[state=active]:text-foreground dark:data-[state=active]:text-foreground',
+                'data-[state=active]:text-foreground',
                 // Underline indicator - positioned to overlap the border
                 'after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-primary after:opacity-0 after:transition-opacity',
                 'data-[state=active]:after:opacity-100'
