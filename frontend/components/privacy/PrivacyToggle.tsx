@@ -49,7 +49,7 @@ export function PrivacyToggle({ asChild, className }: PrivacyToggleProps) {
 
   return (
     <Comp
-      variant={isHidden ? "secondary" : "default"}
+      variant={isHidden ? "secondary" : "accent"}
       size="icon"
       className={className}
       onClick={toggleHidden}
