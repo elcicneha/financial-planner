@@ -4,43 +4,58 @@ const API_BASE = "/api";
 
 export const expenseAPI = {
   async getAll(): Promise<Expense[]> {
-    const response = await fetch(`${API_BASE}/expenses`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch expenses");
+    try {
+      const response = await fetch(`${API_BASE}/expenses`);
+      if (!response.ok) {
+        // If backend isn't running or returns error, return empty array
+        console.warn("Could not fetch expenses, using empty state");
+        return [];
+      }
+      const data = await response.json();
+      return data.expenses || [];
+    } catch (error) {
+      // Network error or JSON parse error - return empty array for initial state
+      console.warn("Could not load expenses:", error);
+      return [];
     }
-    const data = await response.json();
-    return data.expenses;
   },
 
   async create(expense: Omit<Expense, "id">): Promise<Expense> {
-    const response = await fetch(`${API_BASE}/expenses`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        date: expense.date,
-        amount: expense.amount,
-        amount_formula: expense.amountFormula,
-        note: expense.note,
-        category: expense.category,
-      }),
-    });
+    try {
+      const response = await fetch(`${API_BASE}/expenses`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          date: expense.date,
+          amount: expense.amount,
+          amount_formula: expense.amountFormula,
+          note: expense.note,
+          category: expense.category,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error("Failed to create expense");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Create expense failed:", response.status, errorText);
+        throw new Error(`Failed to create expense: ${response.status}`);
+      }
+
+      const data = await response.json();
+      // Convert snake_case to camelCase
+      return {
+        id: data.id,
+        date: data.date,
+        amount: data.amount,
+        amountFormula: data.amount_formula,
+        note: data.note,
+        category: data.category,
+      };
+    } catch (error) {
+      console.error("Error creating expense:", error);
+      throw error;
     }
-
-    const data = await response.json();
-    // Convert snake_case to camelCase
-    return {
-      id: data.id,
-      date: data.date,
-      amount: data.amount,
-      amountFormula: data.amount_formula,
-      note: data.note,
-      category: data.category,
-    };
   },
 
   async update(id: string, expense: Partial<Expense>): Promise<Expense> {

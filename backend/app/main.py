@@ -8,6 +8,7 @@ from app.features.investment_aggregator.routes import router as invest_router
 from app.features.itr_prep import create_router as create_itr_router
 from app.features.playground import playground_router
 from app.features.expenses import router as expenses_router
+from app.config import ensure_directories
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
@@ -16,6 +17,12 @@ app = FastAPI(
     description="API for processing mutual fund PDF statements",
     version="1.0.0",
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize required directories on startup."""
+    ensure_directories()
 
 app.add_middleware(
     CORSMiddleware,

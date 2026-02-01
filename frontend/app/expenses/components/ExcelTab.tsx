@@ -17,15 +17,9 @@ export function ExcelTab() {
   // Load expenses on mount
   useEffect(() => {
     const loadExpenses = async () => {
-      try {
-        const data = await expenseAPI.getAll();
-        setExpenses(data);
-      } catch (error) {
-        toast.error("Failed to load expenses");
-        console.error("Error loading expenses:", error);
-      } finally {
-        setIsLoading(false);
-      }
+      const data = await expenseAPI.getAll();
+      setExpenses(data);
+      setIsLoading(false);
     };
 
     loadExpenses();
