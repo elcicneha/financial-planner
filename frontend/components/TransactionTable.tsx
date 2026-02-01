@@ -115,26 +115,26 @@ export default function TransactionTable({ transactions }: TransactionTableProps
 
           return (
             <TableRow key={`${t.date}-${t.ticker}-${idx}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 48px' }}>
-              <TableCell className="font-mono text-xs">{t.date}</TableCell>
+              <TableCell className="">{t.date}</TableCell>
               <TableCell>
-                <span className="font-mono text-xs truncate max-w-[200px] block" title={t.ticker}>
+                <span className="truncate max-w-[200px] block" title={t.ticker}>
                   {t.ticker}
                 </span>
               </TableCell>
               <TableCell className={cn(
-                "text-right font-mono text-xs",
+                "number-format",
                 amountNum < 0 && "text-destructive-text"
               )}>
                 {amountFormatted}
               </TableCell>
-              <TableCell className="text-right font-mono text-xs">{navFormatted}</TableCell>
+              <TableCell className="number-format">{navFormatted}</TableCell>
               <TableCell className={cn(
-                "text-right font-mono text-xs",
+                "number-format",
                 unitsNum < 0 && "text-destructive-text"
               )}>
                 {unitsFormatted}
               </TableCell>
-              <TableCell className="text-right font-mono text-xs">{balanceFormatted}</TableCell>
+              <TableCell className="number-format">{balanceFormatted}</TableCell>
             </TableRow>
           );
         })}

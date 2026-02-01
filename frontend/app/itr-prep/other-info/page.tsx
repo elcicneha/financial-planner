@@ -243,7 +243,7 @@ export default function OtherInfoPage() {
           <PayslipUploadDialog onUploadSuccess={handleUploadSuccess} />
         </div>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="p-0">
             {isLoading || fyLoading ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -285,18 +285,18 @@ export default function OtherInfoPage() {
                         <TableCell className="font-medium">
                           {formatPayPeriod(payslip.pay_period)}
                         </TableCell>
-                        <TableCell className="text-right font-mono">
+                        <TableCell className="number-format">
                           {payslip.gross_pay !== null
                             ? formatCurrency(payslip.gross_pay)
                             : '-'}
                         </TableCell>
-                        <TableCell className="text-right font-mono">
+                        <TableCell className="number-format">
                           {payslip.tds !== null
                             ? formatCurrency(payslip.tds)
                             : '-'}
                         </TableCell>
                         {breakdownKeys.map(key => (
-                          <TableCell key={key} className="text-right font-mono text-sm">
+                          <TableCell key={key} className="number-format">
                             {payslip.breakdown?.monthly?.[key] !== undefined
                               ? formatCurrency(payslip.breakdown.monthly[key])
                               : '-'}
@@ -333,10 +333,10 @@ export default function OtherInfoPage() {
                     {filteredPayslips.length > 1 && (
                       <TableRow className="bg-muted/50 font-medium">
                         <TableCell>Total</TableCell>
-                        <TableCell className="text-right font-mono">
+                        <TableCell className="number-format">
                           {formatCurrency(totalGrossPay)}
                         </TableCell>
-                        <TableCell className="text-right font-mono">
+                        <TableCell className="number-format">
                           {totalTDS > 0 ? formatCurrency(totalTDS) : '-'}
                         </TableCell>
                         {breakdownKeys.map(key => {
@@ -345,7 +345,7 @@ export default function OtherInfoPage() {
                             0
                           );
                           return (
-                            <TableCell key={key} className="text-right font-mono text-sm">
+                            <TableCell key={key} className="number-format">
                               {total > 0 ? formatCurrency(total) : '-'}
                             </TableCell>
                           );
