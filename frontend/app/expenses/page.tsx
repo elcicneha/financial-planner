@@ -5,7 +5,7 @@ import { ExcelTab } from "./components/ExcelTab";
 export default function ExpensesPage() {
   return (
 
-    <Tabs defaultValue="form" >
+    <Tabs defaultValue="excel" >
       <TabsList variant="line" className=" ">
         <TabsTrigger value="form">Form</TabsTrigger>
         <TabsTrigger value="excel">Excel</TabsTrigger>

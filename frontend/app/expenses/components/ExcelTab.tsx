@@ -62,12 +62,16 @@ function evaluateFormula(input: string): { value: number; error?: string } {
   }
 
   // Extract the formula (everything after =)
-  const formula = trimmed.slice(1).trim();
+  let formula = trimmed.slice(1).trim();
 
   // Basic validation - only allow numbers, operators, parentheses, and decimal points
   if (!/^[0-9+\-*/().\s]+$/.test(formula)) {
     return { value: 0, error: "Formula contains invalid characters" };
   }
+
+  // Remove leading zeros from numbers to avoid octal literal issues in strict mode
+  // Match numbers and replace those with leading zeros (but keep "0" and "0.x")
+  formula = formula.replace(/\b0+(\d+)/g, "$1");
 
   try {
     // Evaluate the formula safely
@@ -91,7 +95,6 @@ export function ExcelTab() {
   const [newRow, setNewRow] = useState<EditingRow>(emptyRow);
   const [editRow, setEditRow] = useState<EditingRow>(emptyRow);
   const [showFormulaBar, setShowFormulaBar] = useState(false);
-  const [isEditAmountFocused, setIsEditAmountFocused] = useState(false);
 
   const amountRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
@@ -131,11 +134,14 @@ export function ExcelTab() {
       setEditRow((r) => ({ ...r, amount: newValue }));
     }
 
-    // Set cursor position after inserted symbol
+    // Set cursor position after inserted symbol and ensure it's visible
     setTimeout(() => {
       input.focus();
       const newPosition = start + symbol.length;
       input.setSelectionRange(newPosition, newPosition);
+
+      // Force scroll to cursor position
+      input.scrollLeft = input.scrollWidth;
     }, 0);
   };
 
@@ -365,7 +371,7 @@ export function ExcelTab() {
                       setNewRow((r) => ({ ...r, amount: e.target.value }))
                     }
                     onFocus={() => setShowFormulaBar(true)}
-                    onBlur={() => setTimeout(() => setShowFormulaBar(false), 200)}
+                    onBlur={() => setShowFormulaBar(false)}
                     onKeyDown={(e) => handleKeyDown(e)}
                     className="h-9 font-mono"
                   />
@@ -445,10 +451,8 @@ export function ExcelTab() {
                         onChange={(e) =>
                           setEditRow((r) => ({ ...r, amount: e.target.value }))
                         }
-                        onFocus={() => setIsEditAmountFocused(true)}
-                        onBlur={() =>
-                          setTimeout(() => setIsEditAmountFocused(false), 200)
-                        }
+                        onFocus={() => setShowFormulaBar(true)}
+                        onBlur={() => setShowFormulaBar(false)}
                         onKeyDown={(e) => handleKeyDown(e)}
                         className="h-9 font-mono"
                       />
@@ -516,21 +520,9 @@ export function ExcelTab() {
                     {expense.date}
                   </td>
                   <td className="p-3 font-mono tabular-nums font-medium">
-                    <div className="flex items-center gap-1">
-                      <span>
-                        {expense.amount.toLocaleString("en-IN", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                      {expense.amountFormula && (
-                        <span
-                          className="text-xs text-muted-foreground"
-                          title={expense.amountFormula}
-                        >
-                          ƒ
-                        </span>
-                      )}
-                    </div>
+                    {expense.amount.toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                    })}
                   </td>
                   <td className="p-3">
                     <span className="px-2 py-1 rounded-md bg-muted text-xs">
@@ -576,11 +568,22 @@ export function ExcelTab() {
       </div>
 
       {/* Formula toolbar - shows when amount field is focused */}
-      {(showFormulaBar || isEditAmountFocused) && (
+      {showFormulaBar && (
         <div className="sticky bottom-0 bg-background border-t border-b shadow-lg z-10">
+          {/* Formula preview */}
+          <div className="px-3 py-2 bg-muted/30 border-b">
+            <div className="text-xs text-muted-foreground mb-1">
+              Current formula:
+            </div>
+            <div className="font-mono text-sm font-medium overflow-x-auto whitespace-nowrap scrollbar-thin">
+              {(isAdding ? newRow.amount : editRow.amount) || "(empty)"}
+            </div>
+          </div>
+
+          {/* Formula buttons */}
           <div className="flex gap-1 p-2 justify-center flex-wrap">
             <span className="text-xs text-muted-foreground self-center mr-2">
-              Formula:
+              Insert:
             </span>
             {["=", "(", ")", "+", "-", "*", "/"].map((symbol) => (
               <Button
@@ -588,7 +591,8 @@ export function ExcelTab() {
                 size="sm"
                 variant="outline"
                 className="h-9 w-10 font-mono font-bold"
-                onClick={() => insertSymbol(symbol, showFormulaBar)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => insertSymbol(symbol, isAdding)}
                 type="button"
               >
                 {symbol}
