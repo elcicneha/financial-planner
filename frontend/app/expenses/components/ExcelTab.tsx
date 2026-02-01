@@ -27,6 +27,7 @@ interface Expense {
   id: string;
   date: string;
   amount: number;
+  amountFormula?: string; // Store formula if user entered one
   note: string;
   category: string;
 }
@@ -47,12 +48,50 @@ const emptyRow: EditingRow = {
   category: "Unknown",
 };
 
+// Safely evaluate a mathematical formula
+function evaluateFormula(input: string): { value: number; error?: string } {
+  const trimmed = input.trim();
+
+  // If it doesn't start with =, treat as regular number
+  if (!trimmed.startsWith("=")) {
+    const parsed = parseFloat(trimmed);
+    if (isNaN(parsed)) {
+      return { value: 0, error: "Invalid number" };
+    }
+    return { value: parsed };
+  }
+
+  // Extract the formula (everything after =)
+  const formula = trimmed.slice(1).trim();
+
+  // Basic validation - only allow numbers, operators, parentheses, and decimal points
+  if (!/^[0-9+\-*/().\s]+$/.test(formula)) {
+    return { value: 0, error: "Formula contains invalid characters" };
+  }
+
+  try {
+    // Evaluate the formula safely
+    // Using Function constructor is safer than eval for simple math
+    const result = new Function(`'use strict'; return (${formula})`)();
+
+    if (typeof result !== "number" || isNaN(result) || !isFinite(result)) {
+      return { value: 0, error: "Formula resulted in invalid number" };
+    }
+
+    return { value: result };
+  } catch (error) {
+    return { value: 0, error: "Invalid formula" };
+  }
+}
+
 export function ExcelTab() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newRow, setNewRow] = useState<EditingRow>(emptyRow);
   const [editRow, setEditRow] = useState<EditingRow>(emptyRow);
+  const [showFormulaBar, setShowFormulaBar] = useState(false);
+  const [isEditAmountFocused, setIsEditAmountFocused] = useState(false);
 
   const amountRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
@@ -75,14 +114,53 @@ export function ExcelTab() {
     }
   }, [editingId]);
 
+  const insertSymbol = (symbol: string, isNewRow: boolean) => {
+    const inputRef = isNewRow ? amountRef : editAmountRef;
+    const input = inputRef.current;
+    if (!input) return;
+
+    const start = input.selectionStart || 0;
+    const end = input.selectionEnd || 0;
+    const currentValue = isNewRow ? newRow.amount : editRow.amount;
+    const newValue =
+      currentValue.substring(0, start) + symbol + currentValue.substring(end);
+
+    if (isNewRow) {
+      setNewRow((r) => ({ ...r, amount: newValue }));
+    } else {
+      setEditRow((r) => ({ ...r, amount: newValue }));
+    }
+
+    // Set cursor position after inserted symbol
+    setTimeout(() => {
+      input.focus();
+      const newPosition = start + symbol.length;
+      input.setSelectionRange(newPosition, newPosition);
+    }, 0);
+  };
+
   const handleAddRow = () => {
     setNewRow({ ...emptyRow, date: today });
     setIsAdding(true);
   };
 
   const handleConfirmNew = () => {
-    if (!newRow.amount || parseFloat(newRow.amount) <= 0) {
-      toast.error("Please enter a valid amount");
+    if (!newRow.amount || newRow.amount.trim() === "") {
+      toast.error("Please enter an amount");
+      amountRef.current?.focus();
+      return;
+    }
+
+    const evaluation = evaluateFormula(newRow.amount);
+
+    if (evaluation.error) {
+      toast.error(evaluation.error);
+      amountRef.current?.focus();
+      return;
+    }
+
+    if (evaluation.value <= 0) {
+      toast.error("Amount must be greater than 0");
       amountRef.current?.focus();
       return;
     }
@@ -90,7 +168,10 @@ export function ExcelTab() {
     const expense: Expense = {
       id: crypto.randomUUID(),
       date: newRow.date || today,
-      amount: parseFloat(newRow.amount),
+      amount: evaluation.value,
+      amountFormula: newRow.amount.trim().startsWith("=")
+        ? newRow.amount.trim()
+        : undefined,
       note: newRow.note.trim(),
       category: newRow.category,
     };
@@ -112,15 +193,29 @@ export function ExcelTab() {
     setEditingId(expense.id);
     setEditRow({
       date: expense.date,
-      amount: expense.amount.toString(),
+      amount: expense.amountFormula || expense.amount.toString(),
       note: expense.note,
       category: expense.category,
     });
   };
 
   const handleConfirmEdit = () => {
-    if (!editRow.amount || parseFloat(editRow.amount) <= 0) {
-      toast.error("Please enter a valid amount");
+    if (!editRow.amount || editRow.amount.trim() === "") {
+      toast.error("Please enter an amount");
+      editAmountRef.current?.focus();
+      return;
+    }
+
+    const evaluation = evaluateFormula(editRow.amount);
+
+    if (evaluation.error) {
+      toast.error(evaluation.error);
+      editAmountRef.current?.focus();
+      return;
+    }
+
+    if (evaluation.value <= 0) {
+      toast.error("Amount must be greater than 0");
       editAmountRef.current?.focus();
       return;
     }
@@ -129,12 +224,15 @@ export function ExcelTab() {
       prev.map((e) =>
         e.id === editingId
           ? {
-            ...e,
-            date: editRow.date || today,
-            amount: parseFloat(editRow.amount),
-            note: editRow.note.trim(),
-            category: editRow.category,
-          }
+              ...e,
+              date: editRow.date || today,
+              amount: evaluation.value,
+              amountFormula: editRow.amount.trim().startsWith("=")
+                ? editRow.amount.trim()
+                : undefined,
+              note: editRow.note.trim(),
+              category: editRow.category,
+            }
           : e
       )
     );
@@ -259,15 +357,17 @@ export function ExcelTab() {
                 <td className="p-2">
                   <Input
                     ref={amountRef}
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    placeholder="0.00"
+                    placeholder="0.00 or =100+50"
                     value={newRow.amount}
                     onChange={(e) =>
                       setNewRow((r) => ({ ...r, amount: e.target.value }))
                     }
+                    onFocus={() => setShowFormulaBar(true)}
+                    onBlur={() => setTimeout(() => setShowFormulaBar(false), 200)}
                     onKeyDown={(e) => handleKeyDown(e)}
-                    className="h-9"
+                    className="h-9 font-mono"
                   />
                 </td>
                 <td className="p-2">
@@ -338,15 +438,19 @@ export function ExcelTab() {
                     <td className="p-2">
                       <Input
                         ref={editAmountRef}
-                        type="number"
+                        type="text"
                         inputMode="decimal"
-                        placeholder="0.00"
+                        placeholder="0.00 or =100+50"
                         value={editRow.amount}
                         onChange={(e) =>
                           setEditRow((r) => ({ ...r, amount: e.target.value }))
                         }
+                        onFocus={() => setIsEditAmountFocused(true)}
+                        onBlur={() =>
+                          setTimeout(() => setIsEditAmountFocused(false), 200)
+                        }
                         onKeyDown={(e) => handleKeyDown(e)}
-                        className="h-9"
+                        className="h-9 font-mono"
                       />
                     </td>
                     <td className="p-2">
@@ -412,9 +516,21 @@ export function ExcelTab() {
                     {expense.date}
                   </td>
                   <td className="p-3 font-mono tabular-nums font-medium">
-                    {expense.amount.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
+                    <div className="flex items-center gap-1">
+                      <span>
+                        {expense.amount.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
+                      {expense.amountFormula && (
+                        <span
+                          className="text-xs text-muted-foreground"
+                          title={expense.amountFormula}
+                        >
+                          ƒ
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="p-3">
                     <span className="px-2 py-1 rounded-md bg-muted text-xs">
@@ -458,6 +574,29 @@ export function ExcelTab() {
           </tbody>
         </table>
       </div>
+
+      {/* Formula toolbar - shows when amount field is focused */}
+      {(showFormulaBar || isEditAmountFocused) && (
+        <div className="sticky bottom-0 bg-background border-t border-b shadow-lg z-10">
+          <div className="flex gap-1 p-2 justify-center flex-wrap">
+            <span className="text-xs text-muted-foreground self-center mr-2">
+              Formula:
+            </span>
+            {["=", "(", ")", "+", "-", "*", "/"].map((symbol) => (
+              <Button
+                key={symbol}
+                size="sm"
+                variant="outline"
+                className="h-9 w-10 font-mono font-bold"
+                onClick={() => insertSymbol(symbol, showFormulaBar)}
+                type="button"
+              >
+                {symbol}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Mobile hint */}
       {(isAdding || editingId) && (
