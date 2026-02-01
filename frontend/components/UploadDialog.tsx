@@ -1071,7 +1071,7 @@ function UploadDialogFooter({ className }: { className?: string }) {
           <span>Upload incomplete</span>
         )}
       </p>
-      <Button onClick={handleClose} variant="default">
+      <Button onClick={handleClose}>
         Done
       </Button>
     </div>
