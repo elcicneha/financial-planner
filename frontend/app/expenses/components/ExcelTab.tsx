@@ -293,15 +293,15 @@ export function ExcelTab() {
       prev.map((e) =>
         e.id === editingId
           ? {
-              ...e,
-              date: editRow.date || today,
-              amount: evaluation.value,
-              amountFormula: /[+\-*/()]/.test(editRow.amount.replace(/^-/, ""))
-                ? editRow.amount.trim()
-                : undefined,
-              note: editRow.note.trim(),
-              category: editRow.category,
-            }
+            ...e,
+            date: editRow.date || today,
+            amount: evaluation.value,
+            amountFormula: /[+\-*/()]/.test(editRow.amount.replace(/^-/, ""))
+              ? editRow.amount.trim()
+              : undefined,
+            note: editRow.note.trim(),
+            category: editRow.category,
+          }
           : e
       )
     );
@@ -397,7 +397,7 @@ export function ExcelTab() {
       </div>
 
       {/* Table container with horizontal scroll for mobile */}
-      <div className="overflow-x-auto border rounded-lg">
+      <div className="overflow-x-auto border rounded-lg @container">
         <table className="w-full min-w-[600px] text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
@@ -411,87 +411,127 @@ export function ExcelTab() {
           <tbody>
             {/* New row being added */}
             {isAdding && (
-              <tr className="border-b bg-primary/5">
-                <td className="p-2">
-                  <Input
-                    ref={dateRef}
-                    type="date"
-                    value={newRow.date}
-                    max={today}
-                    onChange={(e) =>
-                      setNewRow((r) => ({ ...r, date: e.target.value }))
-                    }
-                    onKeyDown={handleDateKeyDown}
-                    className="h-9"
-                  />
-                </td>
-                <td className="p-2">
-                  <div className="space-y-1">
+              <>
+                <tr className="border-b bg-primary/5">
+                  <td className="p-2">
                     <Input
-                      ref={amountRef}
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.00 or 100+50"
-                      value={newRow.amount}
-                      onChange={(e) => {
-                        setNewRow((r) => ({ ...r, amount: e.target.value }));
-                        setAmountError("");
-                      }}
-                      onFocus={() => setShowFormulaBar(true)}
-                      onBlur={() => setShowFormulaBar(false)}
-                      onKeyDown={(e) => handleKeyDown(e)}
-                      className={`h-9 font-mono ${
-                        amountError ? "border-destructive focus-visible:ring-destructive" : ""
-                      }`}
+                      ref={dateRef}
+                      type="date"
+                      value={newRow.date}
+                      max={today}
+                      onChange={(e) =>
+                        setNewRow((r) => ({ ...r, date: e.target.value }))
+                      }
+                      onKeyDown={handleDateKeyDown}
+                      className="h-9"
                     />
-                    {amountError && (
-                      <p className="text-xs text-destructive">{amountError}</p>
-                    )}
-                  </div>
-                </td>
-                <td className="p-2">
-                  <Select
-                    value={newRow.category}
-                    onValueChange={(v) =>
-                      setNewRow((r) => ({ ...r, category: v }))
-                    }
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </td>
-                <td className="p-2">
-                  <Input
-                    ref={noteRef}
-                    type="text"
-                    placeholder="Description..."
-                    value={newRow.note}
-                    onChange={(e) =>
-                      setNewRow((r) => ({ ...r, note: e.target.value }))
-                    }
-                    onKeyDown={(e) => handleKeyDown(e)}
-                    className="h-9"
-                  />
-                </td>
-                <td className="p-2">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-muted-foreground"
-                    onClick={handleCancelNew}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </td>
-              </tr>
+                  </td>
+                  <td className="p-2">
+                    <div className="space-y-1">
+                      <Input
+                        ref={amountRef}
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0.00 or 100+50"
+                        value={newRow.amount}
+                        onChange={(e) => {
+                          setNewRow((r) => ({ ...r, amount: e.target.value }));
+                          setAmountError("");
+                        }}
+                        onFocus={() => setShowFormulaBar(true)}
+                        onBlur={() => setShowFormulaBar(false)}
+                        onKeyDown={(e) => handleKeyDown(e)}
+                        className={`h-9 font-mono ${amountError ? "border-destructive focus-visible:ring-destructive" : ""
+                          }`}
+                      />
+                      {amountError && (
+                        <p className="text-xs text-destructive">{amountError}</p>
+                      )}
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <Select
+                      value={newRow.category}
+                      onValueChange={(v) =>
+                        setNewRow((r) => ({ ...r, category: v }))
+                      }
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="p-2">
+                    <Input
+                      ref={noteRef}
+                      type="text"
+                      placeholder="Description..."
+                      value={newRow.note}
+                      onChange={(e) =>
+                        setNewRow((r) => ({ ...r, note: e.target.value }))
+                      }
+                      onKeyDown={(e) => handleKeyDown(e)}
+                      className="h-9"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground"
+                      onClick={handleCancelNew}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </td>
+                </tr>
+
+                {/* Formula bar row for new expense */}
+                {showFormulaBar && (
+                  <tr className="bg-background">
+                    <td colSpan={5} className="p-0 border-t border-b">
+                      <div className="sticky left-0 max-w-[calc(100cqw)] bg-background">
+                        {/* Formula preview */}
+                        <div className="px-3 py-2 bg-muted/30 border-b">
+                          <div className="text-xs text-muted-foreground mb-1">
+                            Current formula:
+                          </div>
+                          <div className="font-mono text-sm font-medium overflow-x-auto whitespace-nowrap scrollbar-thin">
+                            {cleanFormula(newRow.amount) || "(empty)"}
+                          </div>
+                        </div>
+
+                        {/* Formula buttons */}
+                        <div className="flex gap-1 px-3 py-2 justify-center flex-wrap bg-background">
+                          <span className="text-xs text-muted-foreground self-center mr-2">
+                            Insert:
+                          </span>
+                          {["(", ")", "+", "-", "*", "/"].map((symbol) => (
+                            <Button
+                              key={symbol}
+                              size="sm"
+                              variant="outline"
+                              className="h-9 w-10 font-mono font-bold"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => insertSymbol(symbol, true)}
+                              type="button"
+                            >
+                              {symbol}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </>
             )}
 
             {/* Existing expenses */}
@@ -500,95 +540,135 @@ export function ExcelTab() {
 
               if (isEditing) {
                 return (
-                  <tr key={expense.id} className="border-b bg-primary/5">
-                    <td className="p-2">
-                      <Input
-                        ref={editDateRef}
-                        type="date"
-                        value={editRow.date}
-                        max={today}
-                        onChange={(e) =>
-                          setEditRow((r) => ({ ...r, date: e.target.value }))
-                        }
-                        onKeyDown={handleDateKeyDown}
-                        className="h-9"
-                      />
-                    </td>
-                    <td className="p-2">
-                      <div className="space-y-1">
+                  <>
+                    <tr key={expense.id} className="border-b bg-primary/5">
+                      <td className="p-2">
                         <Input
-                          ref={editAmountRef}
-                          type="text"
-                          inputMode="decimal"
-                          placeholder="0.00 or 100+50"
-                          value={editRow.amount}
-                          onChange={(e) => {
-                            setEditRow((r) => ({ ...r, amount: e.target.value }));
-                            setAmountError("");
-                          }}
-                          onFocus={() => setShowFormulaBar(true)}
-                          onBlur={() => setShowFormulaBar(false)}
-                          onKeyDown={(e) => handleKeyDown(e)}
-                          className={`h-9 font-mono ${
-                            amountError ? "border-destructive focus-visible:ring-destructive" : ""
-                          }`}
+                          ref={editDateRef}
+                          type="date"
+                          value={editRow.date}
+                          max={today}
+                          onChange={(e) =>
+                            setEditRow((r) => ({ ...r, date: e.target.value }))
+                          }
+                          onKeyDown={handleDateKeyDown}
+                          className="h-9"
                         />
-                        {amountError && (
-                          <p className="text-xs text-destructive">{amountError}</p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-2">
-                      <Select
-                        value={editRow.category}
-                        onValueChange={(v) =>
-                          setEditRow((r) => ({ ...r, category: v }))
-                        }
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CATEGORIES.map((cat) => (
-                            <SelectItem key={cat} value={cat}>
-                              {cat}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="p-2">
-                      <Input
-                        ref={editNoteRef}
-                        type="text"
-                        placeholder="Description..."
-                        value={editRow.note}
-                        onChange={(e) =>
-                          setEditRow((r) => ({ ...r, note: e.target.value }))
-                        }
-                        onKeyDown={(e) => handleKeyDown(e)}
-                        className="h-9"
-                      />
-                    </td>
-                    <td className="p-2 flex gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-green-600"
-                        onClick={handleConfirmEdit}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-muted-foreground"
-                        onClick={handleCancelEdit}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="p-2">
+                        <div className="space-y-1">
+                          <Input
+                            ref={editAmountRef}
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0.00 or 100+50"
+                            value={editRow.amount}
+                            onChange={(e) => {
+                              setEditRow((r) => ({ ...r, amount: e.target.value }));
+                              setAmountError("");
+                            }}
+                            onFocus={() => setShowFormulaBar(true)}
+                            onBlur={() => setShowFormulaBar(false)}
+                            onKeyDown={(e) => handleKeyDown(e)}
+                            className={`h-9 font-mono ${amountError ? "border-destructive focus-visible:ring-destructive" : ""
+                              }`}
+                          />
+                          {amountError && (
+                            <p className="text-xs text-destructive">{amountError}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <Select
+                          value={editRow.category}
+                          onValueChange={(v) =>
+                            setEditRow((r) => ({ ...r, category: v }))
+                          }
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CATEGORIES.map((cat) => (
+                              <SelectItem key={cat} value={cat}>
+                                {cat}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          ref={editNoteRef}
+                          type="text"
+                          placeholder="Description..."
+                          value={editRow.note}
+                          onChange={(e) =>
+                            setEditRow((r) => ({ ...r, note: e.target.value }))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e)}
+                          className="h-9"
+                        />
+                      </td>
+                      <td className="p-2 flex gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-green-600"
+                          onClick={handleConfirmEdit}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground"
+                          onClick={handleCancelEdit}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+
+                    {/* Formula bar row for editing expense */}
+                    {showFormulaBar && (
+                      <tr key={`${expense.id}-formula`} className="bg-background">
+                        <td colSpan={5} className="p-0 border-t border-b">
+                          <div className="sticky left-0 max-w-[calc(100cqw)] bg-background">
+                            {/* Formula preview */}
+                            <div className="px-3 py-2 bg-muted/30 border-b">
+                              <div className="text-xs text-muted-foreground mb-1">
+                                Current formula:
+                              </div>
+                              <div className="font-mono text-sm font-medium overflow-x-auto whitespace-nowrap scrollbar-thin">
+                                {cleanFormula(editRow.amount) || "(empty)"}
+                              </div>
+                            </div>
+
+                            {/* Formula buttons */}
+                            <div className="flex gap-1 px-3 py-2 justify-center flex-wrap bg-background">
+                              <span className="text-xs text-muted-foreground self-center mr-2">
+                                Insert:
+                              </span>
+                              {["(", ")", "+", "-", "*", "/"].map((symbol) => (
+                                <Button
+                                  key={symbol}
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-9 w-10 font-mono font-bold"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => insertSymbol(symbol, false)}
+                                  type="button"
+                                >
+                                  {symbol}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 );
               }
 
@@ -647,41 +727,6 @@ export function ExcelTab() {
           </tbody>
         </table>
       </div>
-
-      {/* Formula toolbar - shows when amount field is focused */}
-      {showFormulaBar && (
-        <div className="sticky bottom-0 bg-background border-t border-b shadow-lg z-10">
-          {/* Formula preview */}
-          <div className="px-3 py-2 bg-muted/30 border-b">
-            <div className="text-xs text-muted-foreground mb-1">
-              Current formula:
-            </div>
-            <div className="font-mono text-sm font-medium overflow-x-auto whitespace-nowrap scrollbar-thin">
-              {cleanFormula(isAdding ? newRow.amount : editRow.amount) || "(empty)"}
-            </div>
-          </div>
-
-          {/* Formula buttons */}
-          <div className="flex gap-1 p-2 justify-center flex-wrap">
-            <span className="text-xs text-muted-foreground self-center mr-2">
-              Insert:
-            </span>
-            {["(", ")", "+", "-", "*", "/"].map((symbol) => (
-              <Button
-                key={symbol}
-                size="sm"
-                variant="outline"
-                className="h-9 w-10 font-mono font-bold"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => insertSymbol(symbol, isAdding)}
-                type="button"
-              >
-                {symbol}
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Mobile hint */}
       {(isAdding || editingId) && (
