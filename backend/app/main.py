@@ -7,6 +7,7 @@ from app.features.health.routes import router as health_router
 from app.features.investment_aggregator.routes import router as invest_router
 from app.features.itr_prep import create_router as create_itr_router
 from app.features.playground import playground_router
+from app.features.expenses import router as expenses_router
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
@@ -28,6 +29,7 @@ app.include_router(health_router, prefix="/api")
 app.include_router(invest_router, prefix="/api")
 app.include_router(create_itr_router())
 app.include_router(playground_router)
+app.include_router(expenses_router, prefix="/api")
 
 
 @app.get("/")

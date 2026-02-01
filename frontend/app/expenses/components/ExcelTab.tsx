@@ -1,19 +1,37 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { EditableTable } from "@/components/EditableTable";
 import { Expense } from "../types/expense";
-import { generateId } from "../utils/formula";
 import { validateExpenseAmount } from "../utils/validation";
 import { getToday } from "../utils/constants";
 import { useExpenseColumns } from "../hooks/useExpenseColumns";
+import { expenseAPI } from "../hooks/useExpenseAPI";
 
 export function ExcelTab() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const columns = useExpenseColumns();
 
-  const handleAdd = useCallback((data: Partial<Expense>) => {
+  // Load expenses on mount
+  useEffect(() => {
+    const loadExpenses = async () => {
+      try {
+        const data = await expenseAPI.getAll();
+        setExpenses(data);
+      } catch (error) {
+        toast.error("Failed to load expenses");
+        console.error("Error loading expenses:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadExpenses();
+  }, []);
+
+  const handleAdd = useCallback(async (data: Partial<Expense>) => {
     // Validate and parse amount (convert to string for validation)
     const amountString = String(data.amount ?? "");
     const validation = validateExpenseAmount(amountString);
@@ -22,8 +40,7 @@ export function ExcelTab() {
       return;
     }
 
-    const newExpense: Expense = {
-      id: generateId(),
+    const newExpenseData = {
       date: data.date || getToday(),
       amount: validation.value,
       amountFormula: validation.formula,
@@ -31,11 +48,17 @@ export function ExcelTab() {
       category: data.category || "Unknown",
     };
 
-    setExpenses((prev) => [newExpense, ...prev]);
-    toast.success("Expense added");
+    try {
+      const createdExpense = await expenseAPI.create(newExpenseData);
+      setExpenses((prev) => [createdExpense, ...prev]);
+      toast.success("Expense added");
+    } catch (error) {
+      toast.error("Failed to add expense");
+      console.error("Error adding expense:", error);
+    }
   }, []);
 
-  const handleEdit = useCallback((id: string, data: Partial<Expense>) => {
+  const handleEdit = useCallback(async (id: string, data: Partial<Expense>) => {
     // Validate and parse amount (convert to string for validation)
     const amountString = String(data.amount ?? "");
     const validation = validateExpenseAmount(amountString);
@@ -44,28 +67,46 @@ export function ExcelTab() {
       return;
     }
 
-    setExpenses((prev) =>
-      prev.map((expense) =>
-        expense.id === id
-          ? {
-              ...expense,
-              date: data.date || expense.date,
-              amount: validation.value!,
-              amountFormula: validation.formula,
-              note: (data.note || "").trim(),
-              category: data.category || expense.category,
-            }
-          : expense
-      )
+    const updateData = {
+      date: data.date,
+      amount: validation.value,
+      amountFormula: validation.formula,
+      note: data.note ? data.note.trim() : undefined,
+      category: data.category,
+    };
+
+    try {
+      const updatedExpense = await expenseAPI.update(id, updateData);
+      setExpenses((prev) =>
+        prev.map((expense) =>
+          expense.id === id ? updatedExpense : expense
+        )
+      );
+      toast.success("Expense updated");
+    } catch (error) {
+      toast.error("Failed to update expense");
+      console.error("Error updating expense:", error);
+    }
+  }, []);
+
+  const handleDelete = useCallback(async (id: string) => {
+    try {
+      await expenseAPI.delete(id);
+      setExpenses((prev) => prev.filter((expense) => expense.id !== id));
+      toast.success("Expense deleted");
+    } catch (error) {
+      toast.error("Failed to delete expense");
+      console.error("Error deleting expense:", error);
+    }
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <p className="text-muted-foreground">Loading expenses...</p>
+      </div>
     );
-
-    toast.success("Expense updated");
-  }, []);
-
-  const handleDelete = useCallback((id: string) => {
-    setExpenses((prev) => prev.filter((expense) => expense.id !== id));
-    toast.success("Expense deleted");
-  }, []);
+  }
 
   return (
     <EditableTable

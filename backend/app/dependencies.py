@@ -7,7 +7,7 @@ with their dependencies. Uses FastAPI's Depends() for injection.
 from functools import lru_cache
 from fastapi import Depends
 from pathlib import Path
-from app.config import UPLOADS_DIR, OUTPUTS_DIR, BASE_DIR, PAYSLIPS_DATA_FILE, FILE_ID_LENGTH
+from app.config import UPLOADS_DIR, OUTPUTS_DIR, BASE_DIR, PAYSLIPS_DATA_FILE, EXPENSES_DATA_FILE, FILE_ID_LENGTH
 
 
 # Investment Aggregator Dependencies
@@ -80,6 +80,22 @@ def get_cas_service(
     """Get CAS service instance."""
     from app.features.itr_prep.cas.service import CASService
     return CASService(repository=repo)
+
+
+# Expense Dependencies
+@lru_cache()
+def get_expense_repository():
+    """Get expense repository instance."""
+    from app.features.expenses.repository import FileExpenseRepository
+    return FileExpenseRepository(data_file=Path(EXPENSES_DATA_FILE))
+
+
+def get_expense_service(
+    repo=Depends(get_expense_repository)
+):
+    """Get expense service instance."""
+    from app.features.expenses.service import ExpenseService
+    return ExpenseService(repository=repo)
 
 
 # Placeholder for future dependencies:

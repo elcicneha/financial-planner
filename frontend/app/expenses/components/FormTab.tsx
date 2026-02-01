@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { expenseAPI } from "../hooks/useExpenseAPI";
+import { getToday } from "../utils/constants";
 
 const CATEGORIES = [
   "Unknown",
@@ -25,14 +27,15 @@ const CATEGORIES = [
 ];
 
 export function FormTab() {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getToday();
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(today);
   const [category, setCategory] = useState("Unknown");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validation
@@ -46,21 +49,29 @@ export function FormTab() {
       return;
     }
 
-    // For now, just log the expense (no backend yet)
-    console.log({
-      amount: parseFloat(amount),
-      note: note.trim() || undefined,
-      date,
-      category,
-    });
+    setIsSubmitting(true);
 
-    toast.success("Expense added successfully");
+    try {
+      await expenseAPI.create({
+        date,
+        amount: parseFloat(amount),
+        note: note.trim(),
+        category,
+      });
 
-    // Reset form
-    setAmount("");
-    setNote("");
-    setDate(today);
-    setCategory("Unknown");
+      toast.success("Expense added successfully");
+
+      // Reset form
+      setAmount("");
+      setNote("");
+      setDate(today);
+      setCategory("Unknown");
+    } catch (error) {
+      toast.error("Failed to add expense");
+      console.error("Error adding expense:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -140,8 +151,12 @@ export function FormTab() {
 
           {/* Submit Button */}
           <div className="pt-2">
-            <Button type="submit" className="w-full md:w-auto">
-              Add Expense
+            <Button
+              type="submit"
+              className="w-full md:w-auto"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Adding..." : "Add Expense"}
             </Button>
           </div>
         </form>
