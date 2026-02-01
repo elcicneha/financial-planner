@@ -48,34 +48,93 @@ const emptyRow: EditingRow = {
   category: "Unknown",
 };
 
+// Generate a unique ID
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+}
+
+// Clean and normalize a formula string
+function cleanFormula(input: string): string {
+  let trimmed = input.trim();
+
+  // Check if input contains operators (auto-detect formula)
+  const hasOperators = /[+\-*/()xX]/.test(trimmed.replace(/^-/, "")); // Ignore leading minus
+
+  // If no operators, extract first number
+  if (!hasOperators) {
+    const match = trimmed.match(/-?\d+\.?\d*/);
+    return match ? match[0] : "";
+  }
+
+  // Clean up the formula:
+  // 1. Replace X/x with * (multiplication)
+  trimmed = trimmed.replace(/[xX]/g, "*");
+
+  // 2. Remove non-mathematical characters (keep numbers, operators, parentheses, decimal, space)
+  trimmed = trimmed.replace(/[^0-9+\-*/().\s]/g, "");
+
+  // 3. Remove trailing operators
+  trimmed = trimmed.replace(/[+\-*/]+$/, "");
+
+  // 4. Replace multiple consecutive operators with the last one
+  trimmed = trimmed.replace(/([+\-*/])\1+/g, "$1");
+
+  // 5. Clean up operator combinations
+  trimmed = trimmed.replace(/[+*/](-)/g, "$1"); // Keep negative sign
+  trimmed = trimmed.replace(/([+\-*/])([+*/])/g, "$2"); // Keep last operator
+
+  // 6. Fix unmatched parentheses
+  const openCount = (trimmed.match(/\(/g) || []).length;
+  const closeCount = (trimmed.match(/\)/g) || []).length;
+
+  if (openCount > closeCount) {
+    trimmed += ")".repeat(openCount - closeCount);
+  } else if (closeCount > openCount) {
+    let extraClose = closeCount - openCount;
+    trimmed = trimmed.split("").reverse().filter(char => {
+      if (char === ")" && extraClose > 0) {
+        extraClose--;
+        return false;
+      }
+      return true;
+    }).reverse().join("");
+  }
+
+  // 7. Remove leading zeros from numbers
+  trimmed = trimmed.replace(/\b0+(\d+)/g, "$1");
+
+  return trimmed;
+}
+
 // Safely evaluate a mathematical formula
 function evaluateFormula(input: string): { value: number; error?: string } {
   const trimmed = input.trim();
 
-  // If it doesn't start with =, treat as regular number
-  if (!trimmed.startsWith("=")) {
-    const parsed = parseFloat(trimmed);
-    if (isNaN(parsed)) {
-      return { value: 0, error: "Invalid number" };
+  // Check if input contains operators (auto-detect formula)
+  const hasOperators = /[+\-*/()xX]/.test(trimmed.replace(/^-/, "")); // Ignore leading minus
+
+  // If no operators, extract and parse the first number (strip non-numeric text)
+  if (!hasOperators) {
+    const match = trimmed.match(/-?\d+\.?\d*/);
+    if (match) {
+      const parsed = parseFloat(match[0]);
+      if (!isNaN(parsed)) {
+        return { value: parsed };
+      }
     }
-    return { value: parsed };
+    return { value: 0, error: "Invalid number" };
   }
 
-  // Extract the formula (everything after =)
-  let formula = trimmed.slice(1).trim();
+  // Get cleaned formula
+  const formula = cleanFormula(input);
 
-  // Basic validation - only allow numbers, operators, parentheses, and decimal points
-  if (!/^[0-9+\-*/().\s]+$/.test(formula)) {
-    return { value: 0, error: "Formula contains invalid characters" };
+  // If after cleanup there's nothing left or just operators/parentheses, return error
+  if (!formula || /^[+\-*/().]+$/.test(formula)) {
+    return { value: 0, error: "Invalid formula" };
   }
-
-  // Remove leading zeros from numbers to avoid octal literal issues in strict mode
-  // Match numbers and replace those with leading zeros (but keep "0" and "0.x")
-  formula = formula.replace(/\b0+(\d+)/g, "$1");
 
   try {
     // Evaluate the formula safely
-    // Using Function constructor is safer than eval for simple math
     const result = new Function(`'use strict'; return (${formula})`)();
 
     if (typeof result !== "number" || isNaN(result) || !isFinite(result)) {
@@ -95,6 +154,7 @@ export function ExcelTab() {
   const [newRow, setNewRow] = useState<EditingRow>(emptyRow);
   const [editRow, setEditRow] = useState<EditingRow>(emptyRow);
   const [showFormulaBar, setShowFormulaBar] = useState(false);
+  const [amountError, setAmountError] = useState<string>("");
 
   const amountRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
@@ -152,7 +212,7 @@ export function ExcelTab() {
 
   const handleConfirmNew = () => {
     if (!newRow.amount || newRow.amount.trim() === "") {
-      toast.error("Please enter an amount");
+      setAmountError("Please enter an amount");
       amountRef.current?.focus();
       return;
     }
@@ -160,22 +220,22 @@ export function ExcelTab() {
     const evaluation = evaluateFormula(newRow.amount);
 
     if (evaluation.error) {
-      toast.error(evaluation.error);
+      setAmountError(evaluation.error);
       amountRef.current?.focus();
       return;
     }
 
-    if (evaluation.value <= 0) {
-      toast.error("Amount must be greater than 0");
+    if (evaluation.value === 0) {
+      setAmountError("Amount cannot be zero");
       amountRef.current?.focus();
       return;
     }
 
     const expense: Expense = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       date: newRow.date || today,
       amount: evaluation.value,
-      amountFormula: newRow.amount.trim().startsWith("=")
+      amountFormula: /[+\-*/()]/.test(newRow.amount.replace(/^-/, ""))
         ? newRow.amount.trim()
         : undefined,
       note: newRow.note.trim(),
@@ -184,6 +244,7 @@ export function ExcelTab() {
 
     setExpenses((prev) => [expense, ...prev]);
     setNewRow({ ...emptyRow, date: today });
+    setAmountError("");
     toast.success("Expense added");
 
     // Keep adding mode open, focus date for next entry
@@ -193,6 +254,7 @@ export function ExcelTab() {
   const handleCancelNew = () => {
     setIsAdding(false);
     setNewRow(emptyRow);
+    setAmountError("");
   };
 
   const handleEdit = (expense: Expense) => {
@@ -203,11 +265,12 @@ export function ExcelTab() {
       note: expense.note,
       category: expense.category,
     });
+    setAmountError("");
   };
 
   const handleConfirmEdit = () => {
     if (!editRow.amount || editRow.amount.trim() === "") {
-      toast.error("Please enter an amount");
+      setAmountError("Please enter an amount");
       editAmountRef.current?.focus();
       return;
     }
@@ -215,13 +278,13 @@ export function ExcelTab() {
     const evaluation = evaluateFormula(editRow.amount);
 
     if (evaluation.error) {
-      toast.error(evaluation.error);
+      setAmountError(evaluation.error);
       editAmountRef.current?.focus();
       return;
     }
 
-    if (evaluation.value <= 0) {
-      toast.error("Amount must be greater than 0");
+    if (evaluation.value === 0) {
+      setAmountError("Amount cannot be zero");
       editAmountRef.current?.focus();
       return;
     }
@@ -233,7 +296,7 @@ export function ExcelTab() {
               ...e,
               date: editRow.date || today,
               amount: evaluation.value,
-              amountFormula: editRow.amount.trim().startsWith("=")
+              amountFormula: /[+\-*/()]/.test(editRow.amount.replace(/^-/, ""))
                 ? editRow.amount.trim()
                 : undefined,
               note: editRow.note.trim(),
@@ -245,12 +308,14 @@ export function ExcelTab() {
 
     setEditingId(null);
     setEditRow(emptyRow);
+    setAmountError("");
     toast.success("Expense updated");
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditRow(emptyRow);
+    setAmountError("");
   };
 
   const handleDelete = (id: string) => {
@@ -361,20 +426,28 @@ export function ExcelTab() {
                   />
                 </td>
                 <td className="p-2">
-                  <Input
-                    ref={amountRef}
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0.00 or =100+50"
-                    value={newRow.amount}
-                    onChange={(e) =>
-                      setNewRow((r) => ({ ...r, amount: e.target.value }))
-                    }
-                    onFocus={() => setShowFormulaBar(true)}
-                    onBlur={() => setShowFormulaBar(false)}
-                    onKeyDown={(e) => handleKeyDown(e)}
-                    className="h-9 font-mono"
-                  />
+                  <div className="space-y-1">
+                    <Input
+                      ref={amountRef}
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0.00 or 100+50"
+                      value={newRow.amount}
+                      onChange={(e) => {
+                        setNewRow((r) => ({ ...r, amount: e.target.value }));
+                        setAmountError("");
+                      }}
+                      onFocus={() => setShowFormulaBar(true)}
+                      onBlur={() => setShowFormulaBar(false)}
+                      onKeyDown={(e) => handleKeyDown(e)}
+                      className={`h-9 font-mono ${
+                        amountError ? "border-destructive focus-visible:ring-destructive" : ""
+                      }`}
+                    />
+                    {amountError && (
+                      <p className="text-xs text-destructive">{amountError}</p>
+                    )}
+                  </div>
                 </td>
                 <td className="p-2">
                   <Select
@@ -442,20 +515,28 @@ export function ExcelTab() {
                       />
                     </td>
                     <td className="p-2">
-                      <Input
-                        ref={editAmountRef}
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0.00 or =100+50"
-                        value={editRow.amount}
-                        onChange={(e) =>
-                          setEditRow((r) => ({ ...r, amount: e.target.value }))
-                        }
-                        onFocus={() => setShowFormulaBar(true)}
-                        onBlur={() => setShowFormulaBar(false)}
-                        onKeyDown={(e) => handleKeyDown(e)}
-                        className="h-9 font-mono"
-                      />
+                      <div className="space-y-1">
+                        <Input
+                          ref={editAmountRef}
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.00 or 100+50"
+                          value={editRow.amount}
+                          onChange={(e) => {
+                            setEditRow((r) => ({ ...r, amount: e.target.value }));
+                            setAmountError("");
+                          }}
+                          onFocus={() => setShowFormulaBar(true)}
+                          onBlur={() => setShowFormulaBar(false)}
+                          onKeyDown={(e) => handleKeyDown(e)}
+                          className={`h-9 font-mono ${
+                            amountError ? "border-destructive focus-visible:ring-destructive" : ""
+                          }`}
+                        />
+                        {amountError && (
+                          <p className="text-xs text-destructive">{amountError}</p>
+                        )}
+                      </div>
                     </td>
                     <td className="p-2">
                       <Select
@@ -576,7 +657,7 @@ export function ExcelTab() {
               Current formula:
             </div>
             <div className="font-mono text-sm font-medium overflow-x-auto whitespace-nowrap scrollbar-thin">
-              {(isAdding ? newRow.amount : editRow.amount) || "(empty)"}
+              {cleanFormula(isAdding ? newRow.amount : editRow.amount) || "(empty)"}
             </div>
           </div>
 
@@ -585,7 +666,7 @@ export function ExcelTab() {
             <span className="text-xs text-muted-foreground self-center mr-2">
               Insert:
             </span>
-            {["=", "(", ")", "+", "-", "*", "/"].map((symbol) => (
+            {["(", ")", "+", "-", "*", "/"].map((symbol) => (
               <Button
                 key={symbol}
                 size="sm"
