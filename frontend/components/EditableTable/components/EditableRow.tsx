@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo, createRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, X } from "lucide-react";
 import { TableRow, TableCell } from "@/components/ui/table";
@@ -40,7 +40,7 @@ function EditableRowInner<T>({
     const refs: Record<string, React.RefObject<HTMLInputElement>> = {};
     columns.forEach((col) => {
       if (col.editable) {
-        refs[col.key] = { current: null };
+        refs[col.key] = createRef<HTMLInputElement>() as React.RefObject<HTMLInputElement>;
       }
     });
     return refs;
