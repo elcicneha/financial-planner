@@ -31,8 +31,8 @@ export interface ColumnConfig<T> {
   options?: string[];
   defaultValue?: any; // Default value for new rows
   validate?: (value: any) => ValidationResult;
-  format?: (value: any, row: T) => ReactNode;
-  cellRenderer?: (props: CellRendererProps<T>) => ReactNode;
+  format?: (value: any, row: T) => string | number; // Data transformation only (no JSX)
+  cellRenderer?: (props: CellRendererProps<T>) => ReactNode; // For custom UI rendering
   formulaBar?: boolean; // Enable formula bar for this column
   formulaBarRenderer?: (props: FormulaBarProps) => ReactNode; // Custom formula bar
 }

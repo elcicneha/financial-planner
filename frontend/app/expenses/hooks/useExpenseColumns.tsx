@@ -15,7 +15,6 @@ export function useExpenseColumns(): ColumnConfig<Expense>[] {
         type: "date",
         editable: true,
         defaultValue: getToday(),
-        format: (value) => value,
       },
       {
         key: "amount",
@@ -32,13 +31,10 @@ export function useExpenseColumns(): ColumnConfig<Expense>[] {
             error: result.error,
           };
         },
-        format: (value) => (
-          <div className="p-3 font-mono tabular-nums font-medium">
-            {typeof value === "number"
-              ? value.toLocaleString("en-IN", { minimumFractionDigits: 2 })
-              : value}
-          </div>
-        ),
+        format: (value) =>
+          typeof value === "number"
+            ? value.toLocaleString("en-IN", { minimumFractionDigits: 2 })
+            : value,
       },
       {
         key: "category",
@@ -47,18 +43,12 @@ export function useExpenseColumns(): ColumnConfig<Expense>[] {
         type: "select",
         editable: true,
         options: [...CATEGORIES],
-        format: (value) => (
-          <div className="p-3">
-            <span className="px-2 py-1 rounded-md bg-muted text-xs">{value}</span>
-          </div>
-        ),
       },
       {
         key: "note",
         header: "Note",
         type: "text",
         editable: true,
-        format: (value) => <div className="p-3">{value || "—"}</div>,
       },
     ],
     []

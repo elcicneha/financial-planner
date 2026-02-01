@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select";
 import { TableCell } from "@/components/ui/table";
 import { ColumnConfig, CellRendererProps } from "../types";
+import { Badge } from "@/components/ui/badge";
 
 interface TableCellProps<T> {
   column: ColumnConfig<T>;
@@ -42,10 +43,38 @@ function CellInner<T>({
 
   // View mode
   if (!isEditing) {
-    if (column.format) {
-      return <TableCell>{column.format(value, row)}</TableCell>;
+    // Format the value if formatter exists (data transformation only)
+    const displayValue = column.format ? column.format(value, row) : value;
+
+    // Apply type-specific styling
+    switch (column.type) {
+      case "number":
+        return (
+          <TableCell className="text-right">
+            <div className="number-format">
+              {displayValue || "—"}
+            </div>
+          </TableCell>
+        );
+
+      case "select":
+        return (
+          <TableCell>
+            <Badge>
+              {displayValue || "—"}
+            </Badge>
+          </TableCell>
+        );
+
+      case "date":
+      case "text":
+      default:
+        return (
+          <TableCell>
+            <div >{displayValue || "—"}</div>
+          </TableCell>
+        );
     }
-    return <TableCell className="p-3">{value || "—"}</TableCell>;
   }
 
   // Edit mode - render input based on type
@@ -71,7 +100,7 @@ function CellInner<T>({
 
     case "number":
       return (
-        <TableCell className="p-2 space-y-1">
+        <TableCell className="p-2 space-y-1 text-right">
           <Input
             ref={inputRef}
             type="text"
@@ -81,7 +110,7 @@ function CellInner<T>({
             onKeyDown={onKeyDown}
             onFocus={onFocus}
             onBlur={onBlur}
-            className={`${commonClasses} number-format`}
+            className={`${commonClasses} number-format text-right`}
           />
           {error && <p className="text-xs text-destructive">{error}</p>}
         </TableCell>

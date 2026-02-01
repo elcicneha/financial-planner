@@ -184,6 +184,7 @@ function EditableTableComponent<T>({
                   <TableHead
                     key={col.key}
                     style={{ width: col.width }}
+                    className={col.type === "number" ? "text-right" : ""}
                   >
                     {col.header}
                   </TableHead>
