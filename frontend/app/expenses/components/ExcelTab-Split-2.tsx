@@ -3,30 +3,13 @@
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { EditableTable } from "@/components/EditableTable";
-import { Expense, SplitType, SplitDetails } from "../types/expense";
+import { Expense } from "../types/expense";
+import { validateExpenseAmount } from "../utils/validation";
 import { getToday } from "../utils/constants";
 import { useExpenseColumns } from "../hooks/useExpenseColumns";
 import { expenseAPI } from "../hooks/useExpenseAPI";
 
-// Extended type for edit data that includes the formula input field
-interface ExpenseEditData extends Partial<Expense> {
-  _amountInput?: string;
-}
-
-// Compute actual split amounts from splitType and amount
-function computeSplits(splitType: SplitType, amount: number, existingSplits?: SplitDetails): SplitDetails {
-  switch (splitType) {
-    case "personal":
-      return { user: amount, flatmate: 0, shared: 0 };
-    case "shared":
-      return { user: 0, flatmate: 0, shared: amount };
-    case "mix":
-      // For mix, use the splits set by SplitEditor
-      return existingSplits || { user: 0, flatmate: 0, shared: 0 };
-  }
-}
-
-export function ExcelTab() {
+export function ExcelTabSplit2() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const columns = useExpenseColumns();
@@ -42,31 +25,27 @@ export function ExcelTab() {
     loadExpenses();
   }, []);
 
-  const handleAdd = useCallback(async (data: ExpenseEditData) => {
-    // Amount is already evaluated by the formula type cell
-    const amount = typeof data.amount === "number" ? data.amount : 0;
+  const handleAdd = useCallback(async (data: Partial<Expense>) => {
+    // Validate and parse amount (convert to string for validation)
+    const amountString = String(data.amount ?? "");
+    const validation = validateExpenseAmount(amountString);
 
-    if (amount === 0) {
+    if (!validation.isValid || !validation.value) {
       return;
     }
 
-    // Get the formula string if it exists (contains operators)
-    const formulaInput = data._amountInput || "";
-    const hasOperators = /[+\-*/()]/.test(formulaInput.replace(/^-/, ""));
-    const amountFormula = hasOperators ? formulaInput : undefined;
-
-    const splitType: SplitType = data.splitType || "personal";
-    const splits = computeSplits(splitType, amount, data.splits);
-
     const newExpenseData = {
       date: data.date || getToday(),
-      amount: amount,
-      amountFormula,
+      amount: validation.value,
+      amountFormula: validation.formula,
       note: (data.note || "").trim(),
       category: data.category || "Unknown",
       paidBy: data.paidBy || "user",
-      splitType,
-      splits,
+      splits: data.splits || {
+        user: validation.value,
+        flatmate: 0,
+        shared: 0,
+      },
     };
 
     try {
@@ -79,31 +58,21 @@ export function ExcelTab() {
     }
   }, []);
 
-  const handleEdit = useCallback(async (id: string, data: ExpenseEditData) => {
-    // Amount is already evaluated by the formula type cell
-    const amount = typeof data.amount === "number" ? data.amount : 0;
+  const handleEdit = useCallback(async (id: string, data: Partial<Expense>) => {
+    // Validate and parse amount (convert to string for validation)
+    const amountString = String(data.amount ?? "");
+    const validation = validateExpenseAmount(amountString);
 
-    if (amount === 0) {
+    if (!validation.isValid || !validation.value) {
       return;
     }
 
-    // Get the formula string if it exists (contains operators)
-    const formulaInput = data._amountInput || "";
-    const hasOperators = /[+\-*/()]/.test(formulaInput.replace(/^-/, ""));
-    const amountFormula = hasOperators ? formulaInput : undefined;
-
-    const splitType: SplitType = data.splitType || "personal";
-    const splits = computeSplits(splitType, amount, data.splits);
-
     const updateData = {
       date: data.date,
-      amount: amount,
-      amountFormula,
+      amount: validation.value,
+      amountFormula: validation.formula,
       note: data.note ? data.note.trim() : undefined,
       category: data.category,
-      paidBy: data.paidBy,
-      splitType,
-      splits,
     };
 
     try {

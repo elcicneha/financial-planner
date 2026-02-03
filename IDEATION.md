@@ -56,6 +56,8 @@ Separate in progress sections from ready ones, and work in a separate branch. Pu
 
 **Scope:** ~1-2 weeks. Straightforward CRUD.
 
+****** Upload bank statements and credit card statements from last 3 months and track everything, to get an estimate of my finances ******
+
 ---
 
 ## 👉 Phase 3: RUNWAY PLANNING (Refined)

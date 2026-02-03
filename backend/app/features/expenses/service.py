@@ -5,7 +5,7 @@ from typing import List
 import uuid
 
 from .repository import FileExpenseRepository
-from .schemas import Expense, ExpenseCreate, ExpenseUpdate
+from .schemas import Expense, ExpenseCreate, ExpenseUpdate, SplitDetails
 
 
 class ExpenseService:
@@ -28,7 +28,30 @@ class ExpenseService:
             List of Expense records sorted by date (newest first)
         """
         data = self.repo.get_all_expenses()
-        expenses = [Expense(**e) for e in data]
+
+        # Handle backward compatibility: add default values for old expenses
+        expenses = []
+        for e in data:
+            if "splits" not in e:
+                # Old expense: treat as personal expense
+                e["splits"] = {
+                    "user": e["amount"],
+                    "flatmate": 0,
+                    "shared": 0
+                }
+            if "paid_by" not in e:
+                e["paid_by"] = "user"
+            if "split_type" not in e:
+                # Infer split_type from splits
+                splits = e["splits"]
+                if splits.get("shared", 0) > 0 and (splits.get("user", 0) > 0 or splits.get("flatmate", 0) > 0):
+                    e["split_type"] = "mix"
+                elif splits.get("shared", 0) > 0:
+                    e["split_type"] = "shared"
+                else:
+                    e["split_type"] = "personal"
+
+            expenses.append(Expense(**e))
 
         # Sort by date (newest first)
         expenses.sort(key=lambda e: e.date, reverse=True)
@@ -44,7 +67,24 @@ class ExpenseService:
 
         Returns:
             Created Expense record
+
+        Raises:
+            HTTPException: If split validation fails
         """
+        # Validate splits sum to total amount
+        splits_total = (
+            expense_data.splits.user +
+            expense_data.splits.flatmate +
+            expense_data.splits.shared
+        )
+
+        # Allow small floating point tolerance
+        if abs(splits_total - expense_data.amount) > 0.01:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Split total ({splits_total}) must equal expense amount ({expense_data.amount})"
+            )
+
         expense_id = str(uuid.uuid4())
         expense = Expense(
             id=expense_id,
@@ -53,6 +93,9 @@ class ExpenseService:
             amount_formula=expense_data.amount_formula,
             note=expense_data.note,
             category=expense_data.category,
+            paid_by=expense_data.paid_by,
+            split_type=expense_data.split_type,
+            splits=expense_data.splits,
         )
 
         self.repo.add_expense(expense.model_dump())

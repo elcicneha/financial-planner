@@ -1,3 +1,11 @@
+export interface SplitDetails {
+  user: number;
+  flatmate: number;
+  shared: number;
+}
+
+export type SplitType = "personal" | "shared" | "mix";
+
 export interface Expense {
   id: string;
   date: string;
@@ -5,6 +13,9 @@ export interface Expense {
   amountFormula?: string;
   note: string;
   category: string;
+  paidBy: "user" | "flatmate";
+  splitType: SplitType;
+  splits: SplitDetails;
 }
 
 export interface EditingRow {

@@ -10,6 +10,7 @@ interface EditableRowProps<T> {
   data: Partial<T>;
   errors: Record<string, string>;
   onChange: (key: string, value: any) => void;
+  onRowChange: (data: Partial<T>) => void;
   onConfirm: () => void;
   onCancel: () => void;
   handleKeyDown?: (
@@ -27,6 +28,7 @@ function EditableRowInner<T>({
   data,
   errors,
   onChange,
+  onRowChange,
   onConfirm,
   onCancel,
   handleKeyDown,
@@ -67,9 +69,9 @@ function EditableRowInner<T>({
     return undefined;
   };
 
-  // Find column with formula bar that is currently focused
+  // Find formula column that is currently focused (type: "formula" implies formula bar)
   const formulaBarColumn = columns.find(
-    (col) => col.formulaBar && col.key === focusedColumn
+    (col) => (col.type === "formula" || col.formulaBar) && col.key === focusedColumn
   );
 
   return (
@@ -89,10 +91,11 @@ function EditableRowInner<T>({
               row={data as T}
               isEditing={true}
               onChange={(newValue) => onChange(column.key, newValue)}
+              onRowChange={onRowChange}
               error={error}
               inputRef={fieldRef}
               onKeyDown={
-                column.type === "date"
+                column.type === "date" || column.type === "formula"
                   ? handleDateKeyDown
                   : handleKeyDown
                     ? (e) => handleKeyDown(e, nextRef)
@@ -123,18 +126,53 @@ function EditableRowInner<T>({
         </TableCell>
       </TableRow>
 
-      {/* Formula bar row (if column has formulaBar enabled and is focused) */}
-      {formulaBarColumn && formulaBarColumn.formulaBarRenderer && (
-        <TableRow>
-          <TableCell colSpan={columns.length + 1}>
-            {formulaBarColumn.formulaBarRenderer({
-              value: (data as any)[formulaBarColumn.key] || "",
-              inputRef: fieldRefs[formulaBarColumn.key],
-              onChange: (newValue) => onChange(formulaBarColumn.key, newValue),
-            })}
-          </TableCell>
-        </TableRow>
-      )}
+      {/* Formula bar row (if column is formula type or has formulaBar enabled) */}
+      {formulaBarColumn && formulaBarColumn.formulaBarRenderer && (() => {
+        const isFormulaType = formulaBarColumn.type === "formula";
+        const displayInputKey = `_${formulaBarColumn.key}Input`;
+        const storedFormulaKey = `${formulaBarColumn.key}Formula`;
+
+        // For formula type: use display input > stored formula > numeric value
+        const displayValue = isFormulaType
+          ? String((data as any)[displayInputKey] ?? (data as any)[storedFormulaKey] ?? (data as any)[formulaBarColumn.key] ?? "")
+          : String((data as any)[formulaBarColumn.key] ?? "");
+
+        // Get evaluated value and error for formula type
+        let evaluatedValue: number | undefined;
+        let evaluationError: string | undefined;
+        if (isFormulaType && formulaBarColumn.type === "formula" && displayValue) {
+          const result = formulaBarColumn.evaluate(displayValue);
+          evaluatedValue = result.value;
+          evaluationError = result.error;
+        }
+
+        // Handle change: for formula type, evaluate and update both fields
+        const handleChange = (newValue: string) => {
+          if (isFormulaType && formulaBarColumn.type === "formula") {
+            const result = formulaBarColumn.evaluate(newValue);
+            onRowChange({
+              [formulaBarColumn.key]: result.value,
+              [displayInputKey]: newValue,
+            } as Partial<T>);
+          } else {
+            onChange(formulaBarColumn.key, newValue);
+          }
+        };
+
+        return (
+          <TableRow>
+            <TableCell colSpan={columns.length + 1}>
+              {formulaBarColumn.formulaBarRenderer({
+                value: displayValue,
+                evaluatedValue,
+                error: evaluationError,
+                inputRef: fieldRefs[formulaBarColumn.key],
+                onChange: handleChange,
+              })}
+            </TableCell>
+          </TableRow>
+        );
+      })()}
     </>
   );
 }

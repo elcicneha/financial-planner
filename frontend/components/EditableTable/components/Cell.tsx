@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableCell } from "@/components/ui/table";
 import { ColumnConfig, CellRendererProps } from "../types";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ interface TableCellProps<T> {
   row: T;
   isEditing: boolean;
   onChange: (value: any) => void;
+  onRowChange?: (data: Partial<T>) => void;
   error?: string;
   inputRef?: React.RefObject<HTMLInputElement>;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -30,6 +32,7 @@ function CellInner<T>({
   row,
   isEditing,
   onChange,
+  onRowChange,
   error,
   inputRef,
   onKeyDown,
@@ -38,17 +41,18 @@ function CellInner<T>({
 }: TableCellProps<T>) {
   // Use custom cell renderer if provided
   if (column.cellRenderer) {
-    return <TableCell>{column.cellRenderer({ value, row, column, isEditing, onChange, error })}</TableCell>;
+    return <TableCell>{column.cellRenderer({ value, row, column, isEditing, onChange, onRowChange, error, inputRef, onKeyDown, onFocus, onBlur })}</TableCell>;
   }
 
-  // View mode
-  if (!isEditing) {
+  // View mode (either row not in edit mode, or column is not editable)
+  if (!isEditing || column.editable === false) {
     // Format the value if formatter exists (data transformation only)
     const displayValue = column.format ? column.format(value, row) : value;
 
     // Apply type-specific styling
     switch (column.type) {
       case "number":
+      case "formula":
         return (
           <TableCell className="text-right">
             <div className="number-format">
@@ -63,6 +67,17 @@ function CellInner<T>({
             <Badge>
               {displayValue || "—"}
             </Badge>
+          </TableCell>
+        );
+
+      case "custom":
+        // Custom columns in view mode - right-align if displaying currency
+        const isCurrency = typeof displayValue === 'string' && displayValue.includes('₹');
+        return (
+          <TableCell className={isCurrency ? "text-right" : ""}>
+            <div className={isCurrency ? "number-format" : ""}>
+              {displayValue || "—"}
+            </div>
           </TableCell>
         );
 
@@ -116,7 +131,60 @@ function CellInner<T>({
         </TableCell>
       );
 
+    case "formula": {
+      // Formula type: display raw input, evaluate on change, update both fields
+      const displayInputKey = `_${column.key}Input` as keyof T;
+      const storedFormulaKey = `${column.key}Formula` as keyof T;
+      // Priority: edit session input > stored formula > numeric value
+      const displayValue = (row as any)[displayInputKey] ?? (row as any)[storedFormulaKey] ?? (value != null ? String(value) : "");
+
+      const handleFormulaChange = (newValue: string) => {
+        if (!onRowChange || column.type !== "formula") return;
+
+        const result = column.evaluate(newValue);
+        onRowChange({
+          [column.key]: result.value,
+          [displayInputKey]: newValue,
+        } as Partial<T>);
+      };
+
+      return (
+        <TableCell className="p-2 space-y-1 text-right">
+          <Input
+            ref={inputRef}
+            type="text"
+            inputMode="decimal"
+            value={displayValue}
+            onChange={(e) => handleFormulaChange(e.target.value)}
+            onKeyDown={onKeyDown}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            className={`${commonClasses} number-format text-right`}
+          />
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </TableCell>
+      );
+    }
+
     case "select":
+      // Tabs variant for select type
+      if (column.variant === "tabs") {
+        return (
+          <TableCell className="p-2">
+            <Tabs value={value || ""} onValueChange={onChange}>
+              <TabsList className="h-9">
+                {column.options?.map((option) => (
+                  <TabsTrigger key={option} value={option} className="px-3 text-xs">
+                    {option}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </TableCell>
+        );
+      }
+
+      // Default dropdown variant for select type
       return (
         <TableCell className="p-2">
           <Select value={value || ""} onValueChange={onChange}>

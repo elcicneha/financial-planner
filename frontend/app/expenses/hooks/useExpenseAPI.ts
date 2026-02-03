@@ -12,7 +12,20 @@ export const expenseAPI = {
         return [];
       }
       const data = await response.json();
-      return data.expenses || [];
+      const expenses = data.expenses || [];
+
+      // Convert snake_case to camelCase
+      return expenses.map((e: any) => ({
+        id: e.id,
+        date: e.date,
+        amount: e.amount,
+        amountFormula: e.amount_formula,
+        note: e.note,
+        category: e.category,
+        paidBy: e.paid_by || "user",
+        splitType: e.split_type || "personal",
+        splits: e.splits || { user: e.amount, flatmate: 0, shared: 0 },
+      }));
     } catch (error) {
       // Network error or JSON parse error - return empty array for initial state
       console.warn("Could not load expenses:", error);
@@ -33,6 +46,9 @@ export const expenseAPI = {
           amount_formula: expense.amountFormula,
           note: expense.note,
           category: expense.category,
+          paid_by: expense.paidBy,
+          split_type: expense.splitType,
+          splits: expense.splits,
         }),
       });
 
@@ -51,6 +67,9 @@ export const expenseAPI = {
         amountFormula: data.amount_formula,
         note: data.note,
         category: data.category,
+        paidBy: data.paid_by,
+        splitType: data.split_type || "personal",
+        splits: data.splits,
       };
     } catch (error) {
       console.error("Error creating expense:", error);
@@ -70,6 +89,9 @@ export const expenseAPI = {
         amount_formula: expense.amountFormula,
         note: expense.note,
         category: expense.category,
+        paid_by: expense.paidBy,
+        split_type: expense.splitType,
+        splits: expense.splits,
       }),
     });
 
@@ -86,6 +108,9 @@ export const expenseAPI = {
       amountFormula: data.amount_formula,
       note: data.note,
       category: data.category,
+      paidBy: data.paid_by,
+      splitType: data.split_type || "personal",
+      splits: data.splits,
     };
   },
 

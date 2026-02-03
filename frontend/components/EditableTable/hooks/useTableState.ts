@@ -99,6 +99,22 @@ export function useTableState<T>({
     setFieldErrors((prev) => ({ ...prev, [key]: "" }));
   }, []);
 
+  // Update multiple fields at once (for formula type columns)
+  const updateMultipleFields = useCallback((data: Partial<T>) => {
+    setEditData((prev) => ({ ...prev, ...data }));
+    // Clear errors for all updated fields
+    const keys = Object.keys(data);
+    if (keys.length > 0) {
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        keys.forEach((key) => {
+          newErrors[key] = "";
+        });
+        return newErrors;
+      });
+    }
+  }, []);
+
   const setError = useCallback((key: string, error: string) => {
     setFieldErrors((prev) => ({ ...prev, [key]: error }));
   }, []);
@@ -121,6 +137,7 @@ export function useTableState<T>({
     handleStartEditing,
     handleCancelEditing,
     updateEditData,
+    updateMultipleFields,
     setError,
     setEditData,
   };

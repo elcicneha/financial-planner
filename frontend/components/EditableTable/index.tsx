@@ -52,6 +52,7 @@ function EditableTableComponent<T>({
     handleStartEditing,
     handleCancelEditing,
     updateEditData,
+    updateMultipleFields,
     setError,
     setEditData,
   } = useTableState({
@@ -184,7 +185,7 @@ function EditableTableComponent<T>({
                   <TableHead
                     key={col.key}
                     style={{ width: col.width }}
-                    className={col.type === "number" ? "text-right" : ""}
+                    className={col.type === "number" || col.type === "formula" ? "text-right" : ""}
                   >
                     {col.header}
                   </TableHead>
@@ -200,6 +201,7 @@ function EditableTableComponent<T>({
                   data={editData}
                   errors={fieldErrors}
                   onChange={updateEditData}
+                  onRowChange={updateMultipleFields}
                   onConfirm={handleConfirmAdd}
                   onCancel={() => {
                     handleCancelAdding();
@@ -226,6 +228,7 @@ function EditableTableComponent<T>({
                       data={editData}
                       errors={fieldErrors}
                       onChange={updateEditData}
+                      onRowChange={updateMultipleFields}
                       onConfirm={handleConfirmEdit}
                       onCancel={() => {
                         handleCancelEditing();

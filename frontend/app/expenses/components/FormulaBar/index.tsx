@@ -5,11 +5,13 @@ import { cleanFormula } from "../../utils/formula";
 
 interface FormulaBarProps {
   value: string;
+  evaluatedValue?: number;
+  error?: string;
   inputRef: React.RefObject<HTMLInputElement>;
   onChange: (value: string) => void;
 }
 
-function FormulaBarInner({ value, inputRef, onChange }: FormulaBarProps) {
+function FormulaBarInner({ value, evaluatedValue, error, inputRef, onChange }: FormulaBarProps) {
   const insertSymbol = (symbol: string) => {
     const input = inputRef.current;
     if (!input) return;
@@ -31,13 +33,29 @@ function FormulaBarInner({ value, inputRef, onChange }: FormulaBarProps) {
     }, 0);
   };
 
+  const cleaned = cleanFormula(value);
+  const hasResult = evaluatedValue !== undefined && !error && cleaned;
+
   return (
     <div className="sticky left-0 max-w-[calc(100cqw)] bg-background">
-      {/* Formula preview */}
+      {/* Formula preview with result */}
       <div className="px-3 py-2 bg-muted/30 border-b">
-        <div className="text-xs text-muted-foreground mb-1">Current formula:</div>
-        <div className="font-mono text-sm font-medium overflow-x-auto whitespace-nowrap scrollbar-thin">
-          {cleanFormula(value) || "(empty)"}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Formula:</span>
+          <span className="font-mono text-sm font-medium">
+            {cleaned || "(empty)"}
+          </span>
+          {hasResult && (
+            <>
+              <span className="text-muted-foreground">=</span>
+              <span className="font-mono text-sm font-semibold text-primary">
+                ₹{evaluatedValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </span>
+            </>
+          )}
+          {error && (
+            <span className="text-xs text-destructive">{error}</span>
+          )}
         </div>
       </div>
 
