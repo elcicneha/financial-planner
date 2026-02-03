@@ -9,6 +9,11 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableCell } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ColumnConfig, CellRendererProps } from "../types";
 import { Badge } from "@/components/ui/badge";
 
@@ -52,7 +57,6 @@ function CellInner<T>({
     // Apply type-specific styling
     switch (column.type) {
       case "number":
-      case "formula":
         return (
           <TableCell className="text-right">
             <div className="number-format">
@@ -60,6 +64,35 @@ function CellInner<T>({
             </div>
           </TableCell>
         );
+
+      case "formula": {
+        const formulaKey = `${column.key}Formula` as keyof T;
+        const formulaString = (row as any)[formulaKey];
+
+        return (
+          <TableCell className="text-right">
+            {formulaString ? (
+              <Tooltip delayDuration={300}>
+                <TooltipTrigger asChild>
+                  <div className="number-format relative inline-block">
+                    {displayValue || "—"}
+                    <span className="text-muted-foreground cursor-help absolute -right-4 top-1/2 -translate-y-1/2 text-xs">
+                      𝒇
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={5}>
+                  <span className="number-format text-xs">{formulaString}</span>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <div className="number-format">
+                {displayValue || "—"}
+              </div>
+            )}
+          </TableCell>
+        );
+      }
 
       case "select":
         return (
