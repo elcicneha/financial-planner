@@ -119,9 +119,9 @@ export function SplitEditor({
   );
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg">
+    <div className="space-y-4 p-4 min-w-[320px]">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Split ₹{totalAmount}</h3>
+        <h3 className="text-sm font-semibold">Split ₹{totalAmount.toFixed(2)}</h3>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Total:</span>
           <span
@@ -147,7 +147,7 @@ export function SplitEditor({
 
       {!isValid && (
         <p className="text-xs text-red-600">
-          Total must equal ₹{totalAmount}. Difference: ₹
+          Total must equal ₹{totalAmount.toFixed(2)}. Difference: ₹
           {Math.abs(currentTotal - totalAmount).toFixed(2)}
         </p>
       )}

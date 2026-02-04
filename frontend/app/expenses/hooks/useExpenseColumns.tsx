@@ -6,6 +6,7 @@ import { evaluateFormula } from "../utils/formula";
 import { FormulaBar } from "../components/FormulaBar";
 import { SplitEditor } from "../components/SplitEditor";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { User, Handshake, Scissors } from "lucide-react";
 
 // Constant for default splits (avoids creating new object on every render)
@@ -13,7 +14,7 @@ const DEFAULT_SPLITS: SplitDetails = { user: 0, flatmate: 0, shared: 0 };
 
 // Split Type Cell Renderer Component
 function SplitTypeCell({ value, row, onChange, onRowChange, isEditing }: any) {
-  const [showSplitEditor, setShowSplitEditor] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   // value is editData.splitType (or row.splitType in view mode)
   const currentSplitType: SplitType = value || row?.splitType || "personal";
@@ -36,11 +37,25 @@ function SplitTypeCell({ value, row, onChange, onRowChange, isEditing }: any) {
   }
 
   const handleSplitTypeClick = (type: SplitType) => {
-    if (type === "mix") {
-      setShowSplitEditor(true);
+    // Always update the splitType for any tab
+    onChange(type);
+
+    if (type !== "mix") {
+      // For personal/shared, close the popover
+      setPopoverOpen(false);
+    }
+    // For mix, let PopoverTrigger handle opening
+  };
+
+  const handlePopoverChange = (newOpen: boolean) => {
+    if (newOpen) {
+      // Only allow opening if mix is currently selected
+      if (currentSplitType === "mix") {
+        setPopoverOpen(true);
+      }
     } else {
-      // For personal/shared, just update the splitType
-      onChange(type);
+      // Always allow closing
+      setPopoverOpen(false);
     }
   };
 
@@ -48,37 +63,41 @@ function SplitTypeCell({ value, row, onChange, onRowChange, isEditing }: any) {
     if (!onRowChange) return;
     // For mix, update both splitType and splits
     onRowChange({ splitType: "mix", splits });
-    setShowSplitEditor(false);
+    setPopoverOpen(false);
   };
 
-  if (showSplitEditor && row) {
-    return (
-      <div className="py-2">
-        <SplitEditor
-          totalAmount={row.amount || 0}
-          initialSplits={row.splits || DEFAULT_SPLITS}
-          onSave={handleSplitSave}
-          onCancel={() => setShowSplitEditor(false)}
-        />
-      </div>
-    );
-  }
+  const handleCancel = () => {
+    setPopoverOpen(false);
+  };
 
-  // Edit mode - show full tabs
+  // Edit mode - show tabs with Popover for mix
   return (
-    <Tabs value={currentSplitType} onValueChange={(value) => handleSplitTypeClick(value as SplitType)}>
-      <TabsList className="h-9">
-        <TabsTrigger value="personal" className="px-2">
-          <User className="h-4 w-4" />
-        </TabsTrigger>
-        <TabsTrigger value="shared" className="px-2">
-          <Handshake className="h-4 w-4" />
-        </TabsTrigger>
-        <TabsTrigger value="mix" className="px-2">
-          <Scissors className="h-4 w-4" />
-        </TabsTrigger>
-      </TabsList>
-    </Tabs>
+    <Popover open={popoverOpen} onOpenChange={handlePopoverChange}>
+      <Tabs value={currentSplitType} onValueChange={(value) => handleSplitTypeClick(value as SplitType)}>
+        <PopoverTrigger asChild>
+          <TabsList className="h-9">
+            <TabsTrigger value="personal" className="px-2">
+              <User className="h-4 w-4" />
+            </TabsTrigger>
+            <TabsTrigger value="shared" className="px-2">
+              <Handshake className="h-4 w-4" />
+            </TabsTrigger>
+            <TabsTrigger value="mix" className="px-2">
+              <Scissors className="h-4 w-4" />
+            </TabsTrigger>
+          </TabsList>
+        </PopoverTrigger>
+      </Tabs>
+
+      <PopoverContent className="w-auto p-0" align="start">
+        <SplitEditor
+          totalAmount={row?.amount || 0}
+          initialSplits={row?.splits || DEFAULT_SPLITS}
+          onSave={handleSplitSave}
+          onCancel={handleCancel}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
